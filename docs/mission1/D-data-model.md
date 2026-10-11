@@ -1,6 +1,6 @@
 # D. Data Model Specification — Affiliate Content Engine (Slice 1)
 
-Status: DRAFT FOR OWNER APPROVAL · Version 1.0 · 2026-10-11
+Status: DRAFT FOR OWNER APPROVAL · Version 1.1 (reconciled) · 2026-10-11
 
 ## 1. Design principle
 
@@ -116,11 +116,12 @@ Rules: Facts require a URL or file reference. Anything used in a decision must b
 | day_offset | enum D0 / D+3 / D+7 / END / ADHOC |
 | source | string (which dashboard/report) |
 | method | enum SCREENSHOT / EXPORT_CSV / MANUAL_COPY |
-| values | {views_or_reach, clicks, orders, pending_commission_thb, confirmed_commission_thb, refunds_or_rejections_thb, notes} | numeric fields; Unknown allowed |
+| values | raw dashboard fields verbatim: {views_or_reach, clicks, orders, commission_amounts_by_status [status_label, amount, currency, field_name], paid_out_thb, cost_thb, notes} | capture exactly as the dashboard shows; Unknown allowed; see §6 |
+| mapped | {M1_confirmed_net_commission_thb, M2_cash_received_thb, cancellation_rate, refund_thb_deducted, mapping_notes} | normalized per §6; Unknown allowed |
 | evidence_file | path |
 | open_questions | text |
 
-Rules: values must be traced to a file; no synthesizing. Missing values = explicit Unknown, not 0.
+Rules: values must be traced to a file; no synthesizing. Missing values = explicit Unknown, not 0. Refunds/reversals are deducted at most once per transaction/observation across M1 (§6 R4).
 
 ### 3.8 Decision record (append-only)
 | Field | Type |
@@ -137,7 +138,7 @@ Rules: values must be traced to a file; no synthesizing. Missing values = explic
 | Field | Type |
 |---|---|
 | id | `RPT-<cycle>` |
-| pipeline_totals | {reach, clicks, orders, pending_thb, confirmed_thb, refunds_thb, costs_thb, net_thb} |
+| pipeline_totals | {reach, clicks, orders, pending_thb, M1_confirmed_net_thb, M2_cash_received_thb, refunds_deduction_thb, costs_thb, net_thb = M1 − costs} |
 | criteria_outcomes | list[{criterion, actual, verdict confirm/reject/inconclusive}] |
 | unknowns | list |
 | learnings | list[{text, class, evidence_refs}] |
@@ -196,7 +197,30 @@ Forbidden edges: skipping OBSERVING to REPORTING (no evidence-free reporting), P
 - **Versioning:** scripts/assets revisions via new IDs + `version_of`; the repo's git history (owner commits) is the outer layer.
 - **Integrity rules:** every numeric value in a CycleReport must trace to ≥1 ResultObservation; every Experiment state transition must have its Decision record; every Fact must have a URL or file reference. The AI may flag violations but only the owner/operator may correct records.
 
-## 6. Minimum viable vs future
+## 6. Normalized income metrics (M1 / M2) and dashboard-field mapping
+
+Programs label commission stages differently (Doc H EV-27..EV-31; Doc C §3a). A raw subtraction like "confirmed − refunds − costs" can double-count reversals when a dashboard already nets them out. The CycleReport therefore uses two normalized metrics, not a single unverified formula.
+
+**M1 — normalized confirmed net commission** (per experiment / cycle):
+- Count only commissions whose conversion status is **beyond validation** per that program's verified field semantics (e.g., ACCESSTRADE conversion status Approved; TikTok TH Settled-commission). Never count Pending, Rejected, or status-Unknown amounts.
+- Subtract reversals (cancellations / refunds / rejections) **at most once** per transaction, **only if** the counted commission figure is demonstrably still gross of that reversal (mapping rule R4). If the reversal is already reflected in the counted figure, apply no further deduction and record `refund_thb_deducted = 0` with `mapping_notes` explaining why.
+- Objective net income over a window = M1 − direct costs (default THB 0). M1 is an accepted-earnings metric, not cash.
+
+**M2 — cash received** (per payout / bank statement):
+- M2 counts only amounts actually paid out and received (program payout record or bank credit), minus applicable costs (e.g., transfer fees), as verified per-account.
+- M2 ≤ M1 typically, because of payout thresholds, settlement lags, and post-validation reversals. Discrepancies larger than explained lags must be flagged as open questions.
+
+**Mapping rules (R1–R6):**
+- R1: record the source field's exact label, report name, and retrieval date with every amount.
+- R2: convert validation status ≠ payment status; never infer one from the other.
+- R3: amounts whose program-specific semantics are Unknown are recorded raw only; they may not enter M1 until verified from the dashboard/program terms.
+- R4: deduct a refund/reversal only once per transaction, and only when the counted figure is demonstrably still pre-reversal (e.g., TikTok TH settled commission already applies (revenue − refunds) × rate → no further deduction).
+- R5: pending or rejected commissions never count as earned net income in any metric.
+- R6: M2 is updated only on actual receipt with its own evidence file; sightings of "commission confirmed" in-dashboard never update M2.
+
+Until each program's field semantics are verified in-dashboard (Doc G OQ-8), the objective verdict is "not yet measurable" — this is an Unknown, not a zero.
+
+## 7. Minimum viable vs future
 
 **Minimum (Slice 1):** all of §3 above, in text files, one cycle.
 **Future extensions (not built now):** multi-cycle rollups/metrics across experiments; payout-lag modeling once confirmed data exists; channel/task automation; any API-driven capture (behind per-account feature verification); encryption/at-rest per repository policy.

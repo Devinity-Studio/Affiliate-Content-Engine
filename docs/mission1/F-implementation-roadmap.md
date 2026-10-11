@@ -1,6 +1,6 @@
 # F. Implementation Roadmap — Affiliate Content Engine
 
-Status: DRAFT FOR OWNER APPROVAL · Version 1.0 · 2026-10-11
+Status: DRAFT FOR OWNER APPROVAL · Version 1.1 (reconciled) · 2026-10-11
 
 **CRITICAL:** Phases beyond Phase 0 describe work the owner has **not yet authorized**. Only Phase 0 (this planning deliverable, for review) is "done" when the owner approves this document set. Every subsequent phase requires its own approval decision at its exit gate. Do not treat this roadmap as permission.
 
@@ -23,7 +23,9 @@ flowchart LR
 - **Risks/exit:** plan rejected → revise deliverables; plan approved → Phase 1 authorized for its own scope only.
 - **Duration:** owner-dependent (0.5–2 hours of reading).
 
-## Phase 1 — Foundation & Access (THB 0)
+## Phase 1 — Foundation & Access (THB 0; requires G1 first)
+
+**Gate-policy note (Doc A §7):** everything up to and including this phase's scouting prep is pre-G1 non-binding research. The phase's own **program applications and channel changes are operational execution** — they require a recorded G1 APPROVED decision before they are performed. This is the reconciliation of Doc B's pre-G1 Stage 1 research with Doc A's G1 gate.
 
 - **Objective:** set up the minimum foundations and confirm program/channel access reality.
 - **Scope:**
@@ -92,4 +94,5 @@ After plan approval, **the literal first implementation step is**: create `data/
 - Operator's actual acceptance by ACCESSTRADE/program dashboards; per-campaign commission rates visible only in-dashboard.
 - In-app eligibility rules for TikTok profile links, Meta native affiliate, and any specific channel's AI-label flows.
 - Actual click-tracking visibility per program (some show clicks, some only orders).
-- Payout-lag reality for the chosen program (needed for cash-flow math and the "confirmed commission" concept).
+- Payout-lag reality for the chosen program (needed for cash-flow math and the normalized-income concepts in Doc D §6).
+- Field-level commission semantics per program (whether a "confirmed/approved/settled" dashboard figure already nets refunds) — required before computing M1 per Doc D §6 R3.

@@ -42,7 +42,7 @@ Primary and only user: **the owner/operator** — one person in Thailand, runnin
 3. AI drafts a **script/storyboard** for one short-form content asset → operator edits/approves (Gate G3).
 4. Operator produces the asset (screen-recording/order-friendly cuts are acceptable; production quality is not the first-slice bottleneck), disclose requirements applied per channel policy.
 5. Operator **publishes** through an authorized channel (Gate G4) using an affiliate link from a verified program.
-6. Operator captures **result evidence** on a fixed schedule: platform analytics (reach/clicks as available) and affiliate-dashboard data (clicks, orders, pending vs confirmed commissions, refunds).
+6. Operator captures **result evidence** on a fixed schedule: platform analytics (reach/clicks as available) and affiliate-dashboard data (clicks, orders, commission status fields as displayed, reversals/refunds).
 7. At experiment end, AI drafts the **comparison report** (hypothesis vs actuals, net income, learnings) → owner decides **Repeat / Revise / Stop** (Gate G5).
 8. Verified outcomes and decision rationale are archived; the next scout cycle uses them as inputs.
 
@@ -63,7 +63,7 @@ IDs are referenceable in acceptance criteria (Doc E) and the workflow spec (Doc 
 
 ### FR-3 Experiment Planning
 - FR-3.1 One **Experiment record** per cycle defining: hypothesis, one audience, one offer, one channel, success criteria (pre-registered, numeric, measurable), experiment duration, and cost budget.
-- FR-3.2 Cost budget defaults to **THB 0**. Any budget > 0 requires owner approval (Gate G2) before the experiment starts.
+- FR-3.2 Cost budget defaults to **THB 0**. Any budget > 0 requires owner approval (Gates G2 and G-pay) before the experiment starts.
 - FR-3.3 Success criteria must be achievable-and-discernible from real dashboard data, e.g. "≥ 1 confirmed commission within 14 days", not "go viral".
 
 ### FR-4 Script & Storyboard
@@ -86,13 +86,13 @@ IDs are referenceable in acceptance criteria (Doc E) and the workflow spec (Doc 
 - FR-7.3 Only link forms that the channel policy has been verified to allow may be used. If a channel restricts a link form, alternative (e.g., profile link) is used, or the channel is skipped and that fact recorded.
 
 ### FR-8 Results Tracking & Measurement
-- FR-8.1 Scheduled observation: at minimum D+3, D+7, and experiment end, capture (a) post-level reach/engagement from the platform's own analytics where available and (b) affiliate-dashboard rows: clicks, orders, **pending vs confirmed** commissions, refunds/rejections.
+- FR-8.1 Scheduled observation: at minimum D+3, D+7, and experiment end, capture (a) post-level reach/engagement from the platform's own analytics where available and (b) affiliate-dashboard rows: clicks, orders, commission status fields **as displayed**, reversals/refunds, and paid-out amounts — raw values captured verbatim, then mapped to normalized metrics per Doc D §6.
 - FR-8.2 Each observation is a **Result observation record** with: date/time captured, source (which dashboard/report), method (screenshot/export/manual copy), values, and open questions.
-- FR-8.3 Financial classification is mandatory: revenue, pending commission, confirmed commission, refunds, direct costs, **net income = confirmed commission − confirmed refunds − direct costs** (TBD precision on pending conversion lag; see Doc G OQ-6).
+- FR-8.3 Financial classification is mandatory. Raw dashboard values are recorded verbatim (field name, report, status label, amount, currency — Obs record §Doc D 3.7) and mapped into the normalized metrics of Doc D §6: **M1 normalized confirmed net commission** and **M2 cash received**; objective net income = M1 − direct costs. Refunds/reversals are subtracted **at most once** per transaction; pending or declined commissions never count as earned income; dashboard-attributed amounts never count as cash until actually paid out. Where a program's field semantics are Unknown, the net-income verdict is 'not yet measurable' until verified from the dashboard itself (Doc G OQ-8).
 
 ### FR-9 Analysis, Learning & Reporting
 - FR-9.1 At experiment end, produce a **Cycle report** comparing: hypothesis vs actuals, with each line tagged Fact/Inference/Hypothesis/Unknown; unknowns and data gaps listed; recommendation (Repeat/Revise/Stop) with rationale — drafted by AI, decided by owner.
-- FR-9.2 The THB 1,000/day target is assessed **only** over a defined measurement window (Doc G OQ-1) using the net-income formula above, and reported as "achieved / not achieved / not yet measurable" — never inferred.
+- FR-9.2 The THB 1,000/day target is assessed **only** over a defined measurement window (Doc G OQ-1) using the normalized net-income metrics (Doc D §6), and reported as "achieved / not achieved / not yet measurable" — never inferred.
 - FR-9.3 Learnings feed the next cycle only as tagged records; raw speculation without evidence is not carried forward.
 
 ### FR-10 Foundation (shared system)
@@ -135,12 +135,20 @@ Approval is a human action by the Owner, recorded as a **Decision record** in th
 
 | Gate | Blocks | Owner must confirm |
 |---|---|---|
-| **G1 — Plan approval** | Everything | Approve this spec (incl. budget=THB 0 default) before any stage executes. |
+| **G1 — Plan approval** | Operational execution (definition below) | Approve this spec (incl. budget = THB 0 default) before operational execution begins. |
 | **G2 — Experiment approval** | Going from analysis to experiment execution | Niche, offer, program, channel, success criteria, duration, cost budget (THB 0 unless explicitly changed). |
 | **G3 — Content approval** | Production → publication | Claim-evidence mapping, disclosure, authorized link form, quality bar, no invented results. |
 | **G4 — Publication approval** | Actual publishing action | Platform, URL, timestamp, link to be published. (Owner may also *perform* the publish as part of this gate; the engine records the evidence.) |
 | **G5 — Report acceptance & next-step decision** | Loop closure; unlock the next cycle | Accept the cycle report; choose Repeat / Revise / Stop, recorded with rationale. |
 | **G-pay — Spend approval** | Any action that creates a cost | Required for any planned payment; default state is deny. Approval record must state amount, purpose, and expected evidence to measure return. |
+
+### Definition — pre-G1 work vs. operational execution
+
+To reconcile Gate G1 with Doc B Stages 1–2 (research-only, pre-G1):
+- **Pre-G1 work is limited to non-binding planning and public-source research** performed manually with existing/free tools. It may prepare draft evidence, analyses, and candidate opportunities.
+- It **cannot** authorize or perform: program enrollment/joining, platform account creation or changes, final content production, publication, paid activity, or any irreversible/account-affecting action.
+- **G1 approves the plan before operational execution proceeds.** G2 separately approves a specific experiment. G-pay is mandatory for any spending.
+- This policy is a proposal made for consistency across Docs A/B/E; it is itself subject to confirmation at G1.
 
 ### Permission boundaries for the AI/engine
 - The engine **may**: draft research, analyses, scripts, reports, bookkeeping; run free/local tools; record proposed (not final) states.

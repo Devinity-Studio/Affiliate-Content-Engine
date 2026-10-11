@@ -1,6 +1,6 @@
 # C. System Architecture — Affiliate Content Engine (Slice 1)
 
-Status: DRAFT FOR OWNER APPROVAL · Version 1.0 · 2026-10-11
+Status: DRAFT FOR OWNER APPROVAL · Version 1.1 (reconciled) · 2026-10-11
 
 ## 1. Design principle
 
@@ -45,6 +45,15 @@ Operator (one computer)
 | Run history / error log | Actions, results, errors, resumable state | yaml append-only | Proposal |
 | Publish kit generator | Assemble caption/hashtags/link/steps per channel | AI drafts markdown checklist per platform | Proposal |
 | Observation capture sheets | Scheduled screenshot/export buckets | folder per cycle with date-stamped files | Proposal |
+
+## 3a. Reading affiliate-dashboard data: field-semantics caveat
+
+Dashboards from different programs report different things under similar labels. From source research (Doc H EV-27..EV-31):
+- **ACCESSTRADE:** 'Approved/Confirmed' are distinct stages — conversion-validation (Pending/Approved/Rejected) vs payment-record status (UNPAID/…/CONFIRMED/PAID). Neither label alone guarantees post-refund net.
+- **TikTok Shop TH:** official formula is (revenue − refunds) × rate; 'Settled' = withdrawable, 'Ineligible' = cancelled/refunded. An additional manual refund subtraction from a settled-commission figure would double-count.
+- **Shopee TH:** terms exclude cancelled/returned/refunded transactions from eligible commission, but the dashboard's field-to-term mapping is undocumented.
+
+Rule: capture raw dashboard values verbatim; do not infer 'net of refunds' from a label; verify each program's field mapping in-dashboard before computing normalized metrics (Doc D §6).
 
 ## 4. External dependencies & integration feasibility
 

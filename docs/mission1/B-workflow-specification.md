@@ -1,6 +1,6 @@
 # B. End-to-End Workflow Specification — Affiliate Content Engine
 
-Status: DRAFT FOR OWNER APPROVAL · Version 1.0 · 2026-10-11
+Status: DRAFT FOR OWNER APPROVAL · Version 1.1 (reconciled) · 2026-10-11
 
 This document defines the 10-stage workflow, per-stage states/transitions, decision rules, failure handling, and required evidence. It is written so that the first vertical slice (Doc E) is a strict subset of it.
 
@@ -10,8 +10,12 @@ This document defines the 10-stage workflow, per-stage states/transitions, decis
 
 ```mermaid
 flowchart TD
-    S1[Stage 1 · Market Scout] -->|evidence log + shortlist| S2[Stage 2 · Analysis & Forecast]
-    S2 -->|opportunity brief| G1{G1 Plan approved?}
+    S0a[Pre-G1 · non-binding prep:
+draft research via S1–S2,
+no accounts/no publication/no spend] --> S1[Stage 1 · Market Scout]
+    S1 -->|evidence log + shortlist| S2[Stage 2 · Analysis & Forecast]
+    S2 --> G1{G1 Plan approved?
+operational execution}
     G1 -- no --> S0[Stop · revise plan]
     G1 -- yes --> S3[Stage 3 · Offer Selection & Experiment Plan]
     S3 --> G2{G2 Experiment approved?}
@@ -51,7 +55,7 @@ Each stage lists: Purpose, Inputs, Actor, Actions, Outputs, Evidence, Cost/permi
   3. Operator selects ONE niche for slice 1 selection among the candidates. Third-party market observations never count as proof of our own sales potential — only as signals warrant an experiment.
 - **Outputs:** Evidence records (≥1 per key claim), `opportunity brief` (draft).
 - **Evidence required:** For each key claim: source name, URL, retrieval date, exact finding, note on methodology (if the source gives one) and limitations.
-- **Cost/permission:** THB 0. Free tools only. G1 not yet required (this stage is research only).
+- **Cost/permission:** THB 0. Free tools only. This is **pre-G1 work**: non-binding manual research with existing/free tools (Doc A §7). It cannot begin any account-creating or irreversible step; those require G1 first.
 - **Failure/recovery:** AI hallucinates a program/offer → operator verification fails → claim is marked Unknown and excluded. Too few candidates → widen search (still zero-cost), or pause and report if key free-tool quotas are exhausted (PAUSED_QUOTA). No recovery path silently changes niche mid-stage without owner note.
 - **State transitions:** `NOT_STARTED → IN_PROGRESS → DRAFT_DONE (submitted for owner review)`; failure → `HALTED_FAILURE` or `PAUSED_QUOTA`.
 - **Failure conditions:** (a) insufficient verifiable evidence for any candidate, (b) quota exhaustion, (c) contradiction between sources without resolution.
@@ -70,7 +74,7 @@ Each stage lists: Purpose, Inputs, Actor, Actions, Outputs, Evidence, Cost/permi
   3. Confidence level (L/M/H) with reasons.
 - **Outputs:** `analysis brief` with hypothesis + arithmetic + confidence + risks.
 - **Evidence required:** program facts from program's own source; every assumption labeled.
-- **Cost/permission:** THB 0. No gate yet (G1 gates the plan as a whole).
+- **Cost/permission:** THB 0. Pre-G1 analysis only: no external accounts are created or joined and no irreversible action is taken (Doc A §7). G1 gates the plan as a whole; G2 then gates the specific experiment.
 - **Failure/recovery:** if arithmetic requires data we do not have (e.g., our channel's CTR), record as Unknown and set an estimate range with a note that the first experiment exists precisely to replace this Unknown with a Fact.
 - **State transitions:** `NOT_STARTED → IN_PROGRESS → DRAFT_DONE → (implicit) ready for G2`.
 - **Failure conditions:** hypothesis depends on Unavailable data (e.g., an API not verified to exist) → mark Unknown, and either choose a different offer or design the experiment to tolerate the unknown.
@@ -166,13 +170,13 @@ Each stage lists: Purpose, Inputs, Actor, Actions, Outputs, Evidence, Cost/permi
 
 ### Stage 8 — Results Tracking & Measurement
 
-- **Purpose:** Collect real outcome evidence on a fixed schedule, without automation assumptions.
+- **Purpose:** Collect real outcome evidence on a fixed schedule, without automation assumptions or second-guessing field meanings.
 - **Inputs:** Publication record; program dashboard (affiliate stats); platform analytics (post-level reach/clicks where available).
 - **Actor:** Operator captures; AI can help format/total the captured data but never supplies values.
 - **Actions / decision rules:**
   1. Scheduled captures at D+3, D+7, experiment end: anatomy of each capture = (a) platform analytics screenshot/export, (b) affiliate-dashboard screenshot/export of clicks, orders, commission status, refunds — for the relevant date range only.
   2. Each capture becomes a Result observation record with source + method + capture timestamp.
-  3. Distinguish: reach/engagement ≠ clicks ≠ orders ≠ confirmed commissions ≠ paid-out commissions. Never conflate stages in reporting.
+  3. Distinguish: reach/engagement ≠ clicks ≠ orders ≠ commission-status values ≠ paid-out cash. Never conflate stages in reporting; capture raw dashboard values verbatim and map to normalized metrics separately (Doc D §6).
   4. If a dashboard changes its reporting (fields move/renamed) → record that in the run log; re-derive meaning before comparing.
 - **Outputs:** 3 (or more) Result observation records, evidence files.
 - **Evidence required:** per capture: source, method, timestamp, values, open questions.
@@ -189,9 +193,9 @@ Each stage lists: Purpose, Inputs, Actor, Actions, Outputs, Evidence, Cost/permi
 - **Inputs:** All Result observations; experiment record (pre-registered success criteria); evidence log.
 - **Actor:** AI drafts the report; Owner accepts/decides (G5).
 - **Actions / decision rules:**
-  1. Compute pipeline: reach → clicks → orders → confirmed commission → net income (using the formula in Doc A FR-8.3).
+  1. Compute pipeline: reach → clicks → orders → pending commission → normalized net commission → cash received → net income, using the normalized metrics and mapping rules in Doc D §6 (net income = M1 − direct costs, not a raw dashboard subtraction).
   2. Compare against pre-registered criteria; report "confirm / reject / inconclusive" against each.
-  3. Tag every claim Fact/Inference/Hypothesis/Unknown. List all data gaps (e.g., cannot yet confirm pending commission; payout lag unknown).
+  3. Tag every claim Fact/Inference/Hypothesis/Unknown. List all data gaps (e.g., cannot yet confirm pending commission; payout lag unknown; program field semantics unverified per Doc G OQ-8).
   4. Assess the THB 1,000/day objective only via the stated net-income definition, and state whether it is achieved/not achieved/not yet measurable in the observation window.
   5. Recommend action (Repeat / Revise / Stop) with rationale; Owner decides.
 - **Outputs:** Cycle report; G5 decision record; updated learnings archive.

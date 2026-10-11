@@ -1,4 +1,4 @@
-# H. Evidence Register — Mission 1 (sources for Doc A/C claims)
+# H. Evidence Register — Mission 1 (sources for Doc A/C/E accounting & platform claims)
 
 Compiled 2026-10-11 via web research (researcher-web agent). Every claim in the deliverable documents that depends on external program/platform facts traces here. **Retrieval method:web search + page fetch by AI; operator should re-verify load-bearing facts at their source before Phase 1 decisions.** Nothing below is operator-account-specific.
 
@@ -42,3 +42,13 @@ Compiled 2026-10-11 via web research (researcher-web agent). Every claim in the 
 | EV-24 | Consumer Protection Act §22 prohibits false/misleading advertising claims | FACT | https://www.samuiforsale.com/law-texts/consumer-protection-act.html | 2026-10-11 · secondary-hosted translation; not official database |
 | EV-25 | OCPB warning: direct-marketing license at ~THB 1.8M/yr online promotion income (per Oct 2025 report) | INFERENCE (reported warning, not primary notice) | https://aseanconsumer.org/read-news-ocpb-warns-influencers-and-online-sellers-against-misleading-advertising | 2026-10-11 |
 | EV-26 | PDPA in effect since 2022; relevant when personal data is collected (not the case in Slice 1) | FACT | https://www.dlapiperdataprotection.com/index.html?t=law&c=TH | 2026-10-11 · secondary analysis |
+
+## Commission lifecycle / dashboard field semantics (added 2026-10-11, reconciliation pass)
+
+| # | Claim used in plan | Class | Source | Retrieved · Limitations |
+|---|---|---|---|---|
+| EV-27 | ACCESSTRADE conversion statuses are Pending / Approved / Rejected (validation axis); payment-record statuses are UNPAID / PAID / UNDER_PROCESS / CONFIRMED / PROBLEM_REPORTED (payment axis, separate from conversion status) | FACT | https://support.accesstrade.global/report/what-s-the-difference-between-pending-approved-and-rejected-conversions.html ; https://support.accesstrade.global/api/payment-apis.html | 2026-10-11 · GLOBAL support docs, not TH-specific policy; neither label alone proves post-refund net |
+| EV-28 | TikTok Shop TH: actual commission = (Revenue − Refunds) × rate; full refund/cancel → 0 commission; order statuses include Settled (withdrawable) and Ineligible (cancelled/refunded) | FACT | https://seller-th.tiktok.com/university/essay?knowledge_id=3562900820461313&lang=en ; https://seller-th.tiktok.com/university/essay?knowledge_id=6837910133393153&lang=en | 2026-10-11 · official creator help; deduction from a settled figure must NOT be repeated |
+| EV-29 | TikTok Shop TH seller-side "Est. Commission" includes paid, unpaid, and refunded orders — an estimate, not actual settled commission | FACT | https://seller-th.tiktok.com/university/essay?knowledge_id=6837801752971010&lang=en | 2026-10-11 · seller analytics field; don't conflate with creator actual commission |
+| EV-30 | Shopee TH affiliate terms exclude cancelled/incomplete/returned/refunded transactions from eligible commission, base = net completed purchase value after discounts/vouchers/rebates | FACT (terms text) | Shopee TH help-center article 200784, "Shopee Affiliate Program" (Thai, dated 20 Jan 2026); URL stored in the researcher's source log because the raw Thai URL contains characters that break markdown tables — search help.shopee.co.th for article 200784 to reach it | 2026-10-11 · mapping of terms to dashboard fields UNKNOWN |
+| EV-31 | No universal commission-status vocabulary; Awin separates Pending/Approved/Declined transaction statuses from Uncleared/Cleared/Paid payment states; CJ uses New/Extended/Locked/Closed cycle stages ("Locked" is payment-eligible but not necessarily irrevocable) | FACT | https://www.awin.com/us/news-and-events/publisher-training/getting-started-on-awin-payment-reporting ; https://junction.cj.com/article/cookie-dough-understanding-publisher-payment-cycle | 2026-10-11 · non-Thai programs; cited as normalization model only (Doc D §6) |

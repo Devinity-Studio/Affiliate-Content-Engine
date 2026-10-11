@@ -1,13 +1,16 @@
 # G. Open Questions & Decision Log — Affiliate Content Engine
 
-Status: DRAFT FOR OWNER APPROVAL · Version 1.0 · 2026-10-11
+Status: DRAFT FOR OWNER APPROVAL · Version 1.1 (reconciled) · 2026-10-11
+
+**Consistency note:** Doc F Phase 1 is research-first (non-binding public research may run pre-G1) BUT program enrollments/build/preparation are operational execution requiring G1 approval; Doc F cross-references Doc A §7 for this boundary.
 
 ## 1. Open questions that materially affect feasibility
 
 | # | Question | Why it matters | Evidence needed to resolve | Cheapest safe resolution | Owner input needed? |
 |---|---|---|---|---|---|
-| OQ-1 | **Objective-measurement window.** What window defines "repeatable THB 1,000/day"? (e.g., trailing 14 days confirmed net income? 30? 90?) | Determines when the objective can honestly be judged; too short rewards luck, too long delays learning. | Owner's risk tolerance + commission-lag reality of chosen program. | Propose: judge via trailing 14-day **confirmed** net income after 60 days of operation. | **Yes** |
-| OQ-2 | **Commission-lag reality.** How long from order → confirmed (non-refunded) commission in the chosen program? | Net income and "confirmed" concepts depend on it; also cash-flow reality. | Screenshots of a real order's status timeline in-dashboard. | Run a live experiment and actually watch one order reach 'confirmed'. | No |
+| OQ-1 | **Objective-measurement window.** What window defines "repeatable THB 1,000/day"? (e.g., trailing 14 days of M1-based net income? 30? 90?) | Determines when the objective can honestly be judged; too short rewards luck, too long delays learning. | Owner's risk tolerance + commission-lag reality of chosen program + OQ-8 field verification. | Propose: judge via trailing 14-day **M1-based** net income (Doc D §6) after 60 days of operation. | **Yes** |
+| OQ-2 | **Commission-lag reality.** How long from order → validation-completed commission in the chosen program? | Normalized metrics and "repeatable" concept depend on it; also cash-flow reality. | Screenshots of a real order's status timeline in-dashboard. | Run a live experiment and actually watch one order reach status-beyond-validation. | No |
+| OQ-8 | **Field semantics per program.** Does each program's "confirmed/approved/settled" figure already net refunds/cancellations? (Doc C §3a / H EV-27..31: ACCESSTRADE Approved/Confirmed are distinct validation-vs-payment stages; TikTok TH settled commissions already apply (revenue − refunds) × rate; Shopee TH dashboard-to-terms mapping undocumented) | Net-income math would double-count reversals without this. Prevents subtracting the same refund twice (Doc D §6 R4). | Per program: dashboard screenshots of a refunded order's status/timeline, or program-terms text mapping fields. | Operator captures in Phase 1/2 before any M1 computation. | Operator action |
 | OQ-3 | **Per-campaign commission terms.** Actual commission rates/cookies for the chosen offer, visible only in-dashboard. | Core arithmetic of the hypothesis. | Logged-in dashboard screenshot. | Apply/join programs in Phase 1 then read the dashboard. | Operator action |
 | OQ-4 | **Channel eligibility reality.** Operator's actual follower counts / account states per platform; TikTok profile-link gate; Meta native affiliate availability for this account. | Determines publishable link forms; changes script's CTA design. | In-app eligibility screens (screenshots). | Check each platform's account status in Phase 1. | Operator action |
 | OQ-5 | **Thailand direct-marketing license trigger.** OCPB's THB 1.8M/yr warning applies at what size for a Thai-resident affiliate creator? | Compliance risk if objective is met and business grows. | Written OCPB guidance or Thai counsel. | Defer (Slice-1 income is far below threshold); revisit at Phase 4 if income grows. | Yes, at scale |
@@ -22,7 +25,7 @@ Status: DRAFT FOR OWNER APPROVAL · Version 1.0 · 2026-10-11
 | D-2 | Gate model G1–G5 + G-pay, default THB 0 budget | Matches "consequential decisions + no silent spend" constraint. | Proposal |
 | D-3 | Manual publishing; no auto-publish in Slice 1 | No verified publishing API; manual evidence is stronger. | Proposal |
 | D-4 | Word-of-record discipline: every claim tagged F/I/H/U | Mission requirement; non-negotiable. | Proposal — adopt on plan approval |
-| D-5 | Net-income formula = confirmed commission − confirmed refunds − direct costs | Conservative; avoids inflating via pending/unconfirmed commission. | Proposal — pending OQ-1 window |
+| D-5 (revised) | Net income = **M1 normalized confirmed net commission − direct costs** (Doc D §6), not a raw "confirmed − refunds" subtraction; reversals are deducted once per transaction (R4), pending/rejected never counted (R5), cash tracked separately as M2 (R6) | Conservative; avoids double-counting reversals and treating settled commission as cash. | Proposal — pending OQ-1 window and OQ-8 field verification |
 | D-6 | Preferred program order: ACCESSTRADE TH → TikTok Shop (if eligible) → Shopee direct (terms known only in-dashboard) → deprioritized: ClickBank, Amazon | Research: local payout/regulatory fit + evidence availability. | Proposal; Phase 1 verifies |
 | D-7 | Observations at D+3/D+7/end (min) | Sufficient for a first slice; cheap; consistent with pending→confirmed lag investigation. | Proposal — adopt on plan approval |
 

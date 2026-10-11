@@ -1,6 +1,6 @@
 # E. Vertical Slice Acceptance Criteria — Affiliate Content Engine
 
-Status: DRAFT FOR OWNER APPROVAL · Version 1.0 · 2026-10-11
+Status: DRAFT FOR OWNER APPROVAL · Version 1.1 (reconciled) · 2026-10-11
 
 **Slice definition:** 1 Opportunity → 1 Offer → 1 Script → 1 Content Asset → 1 Human-Approved Publication → Measured Results → 1 Evidence-Based Report → 1 recorded decision.
 
@@ -16,6 +16,14 @@ Status: DRAFT FOR OWNER APPROVAL · Version 1.0 · 2026-10-11
 - **Then** `data/mission1/` contains ≥3 Opportunity briefs, each citing ≥2 Evidence records, and exactly 1 is marked *selected* with rationale.
 - **Evidence:** evidence log entries + brief files.
 - **Pass condition:** every load-bearing claim in the selected brief is tagged Fact or Inference (with source); no Unknown is load-bearing.
+
+### SCOPE-1 · Pre-G1 work boundary (checklist-based test)
+
+- **Given** Phase 0 has not yet ended (no G1 decision exists)
+- **When** any workflow step is proposed or executed
+- **Then** the permitted set is exactly: non-binding planning and public-source research performed manually with existing/free tools (draft evidence, analyses, candidate opportunities). Forbidden without a recorded G1 APPROVED decision: program enrollment/joining, platform account creation or changes, final content production, publication, paid activity, and any irreversible/account-affecting action (Doc A §7).
+- **Verification:** run-history and decision-log inspection — no ENROLL/PRODUCE/PUBLISH/spend-style action entries dated before the G1 decision; content-program enrollments, if any, appear only after G1.
+- **Pass condition:** the checklist verdict maps 1:1 to the boundary described above with zero irreversible/account-affecting actions pre-G1.
 
 ### AC-02 · Experiment plan is pre-registered and gated
 - **Given** the selected opportunity brief
@@ -62,7 +70,7 @@ Status: DRAFT FOR OWNER APPROVAL · Version 1.0 · 2026-10-11
 ### AC-08 · Cycle report is evidence-traceable and drives a decision
 - **Given** observations complete (or ended early by owner)
 - **When** the AI drafts the CycleReport and the owner reviews
-- **Then** the report contains: pipeline totals (reach→clicks→orders→pending→confirmed→refunds→costs→net income, THB), per-criterion verdicts (confirm/reject/inconclusive), each load-bearing line tagged Fact/Inference/Hypothesis/Unknown with references, an explicit list of unknowns/data gaps, the THB 1,000/day assessment via the agreed net-income definition and window (verdict achieved / not achieved / not yet measurable), a REPEAT/REVISE/STOP recommendation — and a G5 Decision record with rationale.
+- **Then** the report contains: pipeline totals (reach → clicks → orders → pending → M1 normalized confirmed net commission → M2 cash received → costs → net income = M1 − costs, THB, per Doc D §6), per-criterion verdicts (confirm/reject/inconclusive), each load-bearing line tagged Fact/Inference/Hypothesis/Unknown with references, an explicit list of unknowns/data gaps, the THB 1,000/day assessment via the normalized metrics and owner-agreed window (verdict achieved / not achieved / not yet measurable per Doc D §6/Doc G OQ-1), a REPEAT/REVISE/STOP recommendation — and a G5 Decision record with rationale.
 - **Evidence:** RPT file + DEC record + learnings archive entry.
 - **Pass condition:** every number in the report appears in ≥1 referenced ResultObservation; the objective assessment verdict does not contradict the numbers.
 
@@ -117,4 +125,4 @@ Slice 1 is Done when:
 1. AC-01..AC-08 all pass on cycle 1 for the same experiment.
 2. At minimum one failure-path behavior (AC-09..AC-13, whichever occurred) has been exercised or verified through inspection if the condition did not arise naturally.
 3. `data/mission1/` contains: evidence log, opportunity briefs, EXP record, SCR (final version), asset, PUB record, ≥3 OBS records, RPT, DEC records for G2/G3(/G4)/G5, run history with no unexplained gaps, cost record showing actual spend consistent with gates.
-4. The owner's G5 decision explicitly records: confirmed net income for the window (if any), verdict on each success criterion, and the chosen next action (REPEAT/REVISE/STOP) with rationale.
+4. The owner's G5 decision explicitly records: normalized net income for the window (if any, per Doc D §6 M1 − costs; verdict "not yet measurable" is valid where field semantics remain unverified per Doc G OQ-8), verdict on each success criterion, and the chosen next action (REPEAT/REVISE/STOP) with rationale.
