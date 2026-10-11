@@ -78,17 +78,37 @@ Status: Owner G1 direction approved (Record G1-A/B, 2026-10-11); full-plan adopt
   - Corrective action in fixed order: Source/Data → Product/Offer → Content → Distribution → Conversion/Revenue → Costs → Next Action (Improving → document what worked, expand carefully; Stable → sustain, never change merely to change; Declining → evidence-based corrective experiment; Inconclusive → record and specify next evidence needs). Every adjustment records hypothesis, measurable indicators, evidence, and post-adjustment outcome.
   - Sustainable income = reach ≥ THB 1,000/day average **and** sustain it, with repeatability evidence and continuous cost/risk/capacity monitoring; reaching the target starts the hold-and-improve cycle, not the end of work.
   - Achievement never certified in advance; before the aggregation formula is Owner-approved (§2b), objective verdicts remain "not yet measurable" per Doc D §6.
-- **Formula status unchanged:** §2b stays a PROPOSAL awaiting Owner review; recognition basis, final window length (7 vs 14 days), and divisor decisions remain with the Owner.
+- **Formula status unchanged:** §2b records the measurement formula as a **Driver recommendation awaiting Owner approval** (not Owner-approved); recognition basis, window length, and divisor decisions remain with the Owner until explicitly approved.
 
-## 2b. Formula ambiguity — PROPOSAL AWAITING OWNER REVIEW (not Owner-approved)
+## 2b. Measurement formula recommendation — Driver recommendation — awaiting Owner approval
 
-The prior record (G1-B) flagged that Doc D §6 does not define the exact daily-to-window aggregation. The following is a **proposal by the analyst team, explicitly NOT Owner-approved**; it is recorded so the Owner can approve, amend, or replace it at G2 or before the first CycleReport:
+The prior record (G1-B) flagged that Doc D §6 does not define the exact daily-to-window aggregation; §2b initially recorded an analyst proposal with three open decisions. The Driver has now consolidated those decisions into the specific recommendation below.
 
-- **Window net income** = (Σ over all transactions whose recognition date falls in the window of: M1-eligible per-transaction net commission, computed per R4/R5) − (Σ over the same window of evidenced direct costs). **No per-day normalization inside the sum.**
-- **Elapsed-day divisor choice** (for expressing the result as THB/day): divide by window **elapsed days**, i.e., (end date − start date) using the same recognition-date basis — not by the count of days on which transactions occurred. This avoids rewarding gaps in observation and avoids double-counting elapsed days across differing window lengths.
-- **Recognition-date definition (proposed):** each commission's recognition date = the date its status first reached the program's verified beyond-validation state (per OQ-8 verification). Costs are recognized on the date evidenced. This prevents shifting revenue or costs between windows and keeps every number auditable against OBS/evidence files.
-- **Pending/rejected/unverified amounts:** excluded from all sums (consistent with R5/R6); they may be reported as context, always labeled, never inside the net.
-- **Explicit decision still needed from Owner:** (1) confirm/prefer this recognition-date basis vs. an alternative (e.g., order-date basis); (2) choose the final verdict window length: **7 or 14 days** (G1-D sets the range; the exact value decides the Week-4 verdict); (3) confirm the elapsed-day divisor. Until then, every objective verdict remains "not yet measurable" per Doc D §6 — the ambiguity is documented, not silently resolved.
+**Status: Driver recommendation — awaiting Owner approval.** This is a proposal only. It is NOT Owner-approved, NOT an authorization to begin Experiment 1, and it does not change any Gate, Doc D definition, or R1–R6 rule. The Owner may approve, amend, or replace it at G2 or before the first CycleReport.
+
+**Proposed measurement formula (for Owner review):**
+
+1. **Recognition basis:** recognize commission revenue on the date it qualifies for M1 under the **verified, program-specific measurement semantics** (per OQ-8 verification — no invented program rules; unverified sources are never implied as checked).
+2. **Primary rolling window:** a rolling window of **14 calendar days**.
+3. **Daily divisor:** divide the 14-day net result by the actual number of calendar days in the window: **14**.
+4. **Formulas:**
+
+   `Net Income_14d = Σ Eligible M1 − Σ Direct Costs`
+
+   `Daily Average_14d = Net Income_14d / 14`
+
+5. **Measurability condition:** report these figures as *measurable* only when the full window is covered by sufficiently complete, reliable evidence. Otherwise report **`not yet measurable`** and state the missing evidence or unresolved semantics (e.g., an OQ-8 field-mapping verification still pending).
+
+**Measurement integrity rules (unchanged safeguards, restated for this proposal — no new definitions):**
+- **M1:** include only commissions that qualify under verified program-specific semantics; **M2:** cash actually received, verified by a program payout record or bank credit, less applicable transfer costs; never infer M2 from M1 (Doc D §6 R6).
+- **Pending, rejected, or semantically unknown commissions:** do not count as eligible M1 (R5).
+- **Refunds and reversals:** subtract no more than once per transaction; where the eligible M1 figure is already net of the relevant reversal, do not subtract it again (R4).
+- **Direct costs:** include evidenced, relevant costs attributable to the same measurement window, counted once.
+- **Missing or incomplete evidence:** never silently treated as zero; use `not yet measurable` when completeness cannot be established.
+- **Timing:** M1 recognition and M2 cash receipt may fall in different periods; that distinction is preserved (R2/R6).
+- **Comparisons:** apply consistent rolling-window definitions across periods and disclose material uncertainty; never claim a trend from one day's fluctuation alone (consistent with Doc F §0b / Record G1-E trend-status rules).
+
+**Effect if approved:** (1) recognition-date basis confirmed as above; (2) final verdict window length fixed at **14 days** (resolves the 7-vs-14 sub-question of G1-D; Doc F/E references to a "7–14-day window" become "14-day"); (3) divisor confirmed. Approval decision itself remains with the Owner — this document records only that the decision is ready for review.
 - **OQ-5:** legal/tax advice trigger remains deferred as written.
 - **OQ-6:** THB 0 default budget and explicit G-pay approval remain in force; future thresholds unresolved.
 - **OQ-7:** niche selection remains a later evidence-backed decision for G2.
