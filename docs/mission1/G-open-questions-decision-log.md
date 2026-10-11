@@ -78,15 +78,20 @@ Status: Owner G1 direction approved (Record G1-A/B, 2026-10-11); full-plan adopt
   - Corrective action in fixed order: Source/Data → Product/Offer → Content → Distribution → Conversion/Revenue → Costs → Next Action (Improving → document what worked, expand carefully; Stable → sustain, never change merely to change; Declining → evidence-based corrective experiment; Inconclusive → record and specify next evidence needs). Every adjustment records hypothesis, measurable indicators, evidence, and post-adjustment outcome.
   - Sustainable income = reach ≥ THB 1,000/day average **and** sustain it, with repeatability evidence and continuous cost/risk/capacity monitoring; reaching the target starts the hold-and-improve cycle, not the end of work.
   - Achievement never certified in advance; before the aggregation formula is Owner-approved (§2b), objective verdicts remain "not yet measurable" per Doc D §6.
-- **Formula status unchanged:** §2b records the measurement formula as a **Driver recommendation awaiting Owner approval** (not Owner-approved); recognition basis, window length, and divisor decisions remain with the Owner until explicitly approved.
+- **Formula status (superseded by approval):** §2b is now **Owner-approved — Measurement Formula** (recorded 2026-10-11, Owner conversation); the formula must be established before Experiment 1 begins and not changed retrospectively without an explicit, documented Owner decision. Experiment 1 remains separately gated at G2.
 
-## 2b. Measurement formula recommendation — Driver recommendation — awaiting Owner approval
+## 2b. Measurement formula — Owner-approved — Measurement Formula
 
-The prior record (G1-B) flagged that Doc D §6 does not define the exact daily-to-window aggregation; §2b initially recorded an analyst proposal with three open decisions. The Driver has now consolidated those decisions into the specific recommendation below.
+The prior record (G1-B) flagged that Doc D §6 does not define the exact daily-to-window aggregation; §2b initially recorded an analyst proposal with three open decisions. The Driver then consolidated those decisions into a concrete recommendation, and **the Owner has explicitly approved that recommendation in conversation**. This section records the approved decision and terms.
 
-**Status: Driver recommendation — awaiting Owner approval.** This is a proposal only. It is NOT Owner-approved, NOT an authorization to begin Experiment 1, and it does not change any Gate, Doc D definition, or R1–R6 rule. The Owner may approve, amend, or replace it at G2 or before the first CycleReport.
+**Status: Owner-approved — Measurement Formula.** The formula below is the approved measurement policy for the Mission's net-income assessment.
 
-**Proposed measurement formula (for Owner review):**
+**Approval conditions and limits (as authorized):**
+- The approved formula must be **established before Experiment 1 begins** (Experiment 1 itself remains separately gated at G2 — this approval does not start it).
+- The formula **must not be changed retrospectively** without an explicit, documented Owner decision. Comparisons made under one formula definition are only comparable within that same definition.
+- This approval does not change any Gate, Doc D definition, or R1–R6 rule, and does not mark G1 or G2 approved.
+
+**Approved measurement formula terms:**
 
 1. **Recognition basis:** recognize commission revenue on the date it qualifies for M1 under the **verified, program-specific measurement semantics** (per OQ-8 verification — no invented program rules; unverified sources are never implied as checked).
 2. **Primary rolling window:** a rolling window of **14 calendar days**.
@@ -108,7 +113,7 @@ The prior record (G1-B) flagged that Doc D §6 does not define the exact daily-t
 - **Timing:** M1 recognition and M2 cash receipt may fall in different periods; that distinction is preserved (R2/R6).
 - **Comparisons:** apply consistent rolling-window definitions across periods and disclose material uncertainty; never claim a trend from one day's fluctuation alone (consistent with Doc F §0b / Record G1-E trend-status rules).
 
-**Effect if approved:** (1) recognition-date basis confirmed as above; (2) final verdict window length fixed at **14 days** (resolves the 7-vs-14 sub-question of G1-D; Doc F/E references to a "7–14-day window" become "14-day"); (3) divisor confirmed. Approval decision itself remains with the Owner — this document records only that the decision is ready for review.
+**Approval effect:** (1) recognition-date basis confirmed as above; (2) final verdict window length fixed at **14 calendar days** (resolves the 7-vs-14 sub-question of G1-D); (3) daily divisor fixed at 14. OQ-8 field-semantics verification remains a prerequisite before any program-specific M1 figure is counted; until a window's evidence is complete and reliable, verdicts remain `not yet measurable`.
 - **OQ-5:** legal/tax advice trigger remains deferred as written.
 - **OQ-6:** THB 0 default budget and explicit G-pay approval remain in force; future thresholds unresolved.
 - **OQ-7:** niche selection remains a later evidence-backed decision for G2.
