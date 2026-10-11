@@ -12,7 +12,7 @@ Every claim below is tagged: **[Fact]** (directly supported by reliable evidence
 Build an **AI-assisted Affiliate Content Engine** that helps a single operator in Thailand discover market opportunities, create useful affiliate content, publish it with human approval, measure *real* commercial outcomes, and feed verified evidence back into the next decision cycle.
 
 **Business objective (the objective the system serves, not the system itself):**
-Achieve **repeatable net income ≥ THB 1,000 per day**, with a clearly defined net-income calculation and a realistic measurement period.
+Achieve **repeatable net income ≥ THB 1,000 per day**, with a clearly defined net-income calculation and a realistic measurement period — achieved **sustainably**: the system learns from evidence, analyzes trends, adjusts its route, holds what works, and keeps improving net income over time rather than reaching the target once (operating principle: Doc F §0b, Record G1-E).
 
 **Hard constraints (binding):**
 

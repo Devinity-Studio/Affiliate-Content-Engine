@@ -29,7 +29,7 @@ Status: Owner G1 direction approved (Record G1-A/B, 2026-10-11); full-plan adopt
 | D-6 | Preferred program order: ACCESSTRADE TH → TikTok Shop (if eligible) → Shopee direct (terms known only in-dashboard) → deprioritized: ClickBank, Amazon | Research: local payout/regulatory fit + evidence availability. | Proposal; Phase 1 verifies |
 | D-7 | Observations at D+3/D+7/end (min) | Sufficient for a first slice; cheap; consistent with pending→confirmed lag investigation. | Proposal — adopt on plan approval |
 
-## 2a. Owner-Approved Decision Records (2026-10-11)
+## 2a. Owner-Approved Decision Records (2026-10-11; G1-A/B/C, G1-D timeline, G1-E continuous optimization)
 
 > Recorded verbatim per Owner authorization in conversation; no fabrication of ID/date/evidence beyond what was authorized. These records change the approval status only of the items below; they do **not** alter any other document's rule set, nor G2/G3/G4/G5/G-pay, THB 0 defaults, or Doc D §6 accounting rules.
 
@@ -61,8 +61,24 @@ Status: Owner G1 direction approved (Record G1-A/B, 2026-10-11); full-plan adopt
   - **Weeks 1–2 — Evidence-driven experimentation and optimization:** run controlled experiments; state hypothesis + success indicators before execution; collect evidence from actual observations and trustworthy sources; evaluate source/data quality, product/offer suitability, content performance, distribution, conversion, commission status, and relevant costs; diagnose the likely bottleneck **without claiming causation when evidence is insufficient**; customize and improve the next experiment; record what to repeat/revise/stop/investigate. **The first videos/experiments are NOT required to achieve THB 1,000/day.** Expected outcome: progressively better evidence-backed understanding of what works, what does not, and what to test next.
   - **Weeks 3–4 — Target achievement:** use the strongest evidence-backed approach from initial experiments to pursue ≥ THB 1,000/day **average net income over a trailing 7–14-day window by end of Week 4**, with evidence of repeatability rather than one isolated successful video. This is a **target, not a guaranteed result**; honest gap reporting and corrective-experiment recommendations are required if evidence does not support the trajectory; no fabricated performance and no scaling merely to preserve the timeline.
   - Measurement definitions preserved unchanged: M1 normalized confirmed net commission under verified program-specific rules; M2 actual cash received (payout evidence or bank credit, less applicable transfer costs); direct costs and evidence tracked from the start; pending/rejected/semantically-unverified commissions never counted as confirmed net commission; refunds/reversals never double-subtracted; OQ-8 verification required before M1 counts any program-specific figure.
-  - The documents must keep distinct: (1) early learning/experiment progress, (2) the Week 3–4 income target, (3) recorded commission vs actual cash received, (4) target achievement vs evidence of sustainable repeatability.
+  - The documents must keep distinct: (1) early learning/experiment progress, (2) the Week 3–4 income target, (3) recorded commission vs actual cash received, (4) target achievement vs evidence of sustainable repeatability. (Timeline weeks are planning horizons, not hard deadlines — see Record G1-E and Doc F §0b.)
   - **No requirement to wait 60 days** before assessing progress in either phase.
+
+**Record G1-C — OQ-5 / OQ-6 / OQ-7 remain UNRESOLVED.**
+- **OQ-5:** legal/tax advice trigger remains deferred as written.
+- **OQ-6:** THB 0 default budget and explicit G-pay approval remain in force; future thresholds unresolved.
+- **OQ-7:** niche selection remains a later evidence-backed decision for G2.
+
+**Record G1-E — Continuous optimization & sustainable-income principle (2026-10-11, Owner-agreed operating principle).**
+- **Status:** APPROVED as operating principle (documentation alignment authorized; no change to gates, budget, or accounting rules).
+- **Content:** We are not building a one-time GPS to the target but a system that learns from evidence, analyzes trends, adjusts its route, holds what works, and grows net income sustainably. Full detail in Doc F §0b:
+  - Timeline flexibility: Weeks 1–4 are planning horizons, not hard deadlines; evidence decides when to experiment, refine, hold, or change strategy; the income target never changes merely to fit the schedule.
+  - Continuous loop: Observe → Analyze → Diagnose → Adapt → Measure → Reconcile → Repeat; rolling windows; per-day analysis when evidence is sufficient.
+  - Status values every assessment must report: Improving / Stable / Declining / Inconclusive. No causal claim from correlation alone; a single day's fluctuation is not automatically a long-term trend.
+  - Corrective action in fixed order: Source/Data → Product/Offer → Content → Distribution → Conversion/Revenue → Costs → Next Action (Improving → document what worked, expand carefully; Stable → sustain, never change merely to change; Declining → evidence-based corrective experiment; Inconclusive → record and specify next evidence needs). Every adjustment records hypothesis, measurable indicators, evidence, and post-adjustment outcome.
+  - Sustainable income = reach ≥ THB 1,000/day average **and** sustain it, with repeatability evidence and continuous cost/risk/capacity monitoring; reaching the target starts the hold-and-improve cycle, not the end of work.
+  - Achievement never certified in advance; before the aggregation formula is Owner-approved (§2b), objective verdicts remain "not yet measurable" per Doc D §6.
+- **Formula status unchanged:** §2b stays a PROPOSAL awaiting Owner review; recognition basis, final window length (7 vs 14 days), and divisor decisions remain with the Owner.
 
 ## 2b. Formula ambiguity — PROPOSAL AWAITING OWNER REVIEW (not Owner-approved)
 

@@ -2,9 +2,9 @@
 
 Status: Owner G1 direction approved (Record G1-A/B, Doc G §2a) · Timeline added per Owner strategy (2026-10-11) · Version 1.2
 
-## 0a. Owner-approved operating timeline (Weeks 1–4)
+## 0a. Owner-approved operating timeline (Weeks 1–4 — planning horizons, not hard deadlines)
 
-The first four weeks have distinct objectives. Neither phase claims guaranteed results; both are evidence-gated.
+The first four weeks have distinct objectives. Neither phase claims guaranteed results; both are evidence-gated. **These are planning horizons, not hard deadlines:** the system does not have to be ready or to hit the target within a specific week when evidence does not yet support it. Evidence decides when to experiment, refine, hold at a level, or change strategy (see §0b). The income target itself does not change merely to fit the schedule; and no week's achievement is certified in advance (Doc G Record G1-E).
 
 **Weeks 1–2 — Evidence-driven experimentation and optimization.**
 Run controlled experiments, learn from actual results, improve the approach. The objective is NOT for the first videos or first experiments to achieve THB 1,000/day. Per experiment:
@@ -21,6 +21,30 @@ Expected outcome: progressively better evidence-backed understanding of what wor
 Use the strongest evidence-backed approach from the initial experiments to pursue the income target. Target: reach **≥ THB 1,000/day average net income over a trailing 7–14-day window by the end of Week 4**, with evidence of repeatability (consistent across the window) rather than one isolated successful video. This is a **target, not a guaranteed result**. If the evidence does not support the trajectory, report the gap honestly and recommend a corrective experiment or strategic revision at Gate G5 — do not fabricate performance or scale an approach merely to preserve the timeline.
 
 Relationship to measurement policy (Doc D §6 / Doc G OQ-1): M1/M2/direct costs are captured daily from each experiment's start (Record G1-B); Weeks 1–2 verdicts use the same captured data for learning assessments; the Week 4 target verdict uses the trailing 7–14-day M1-based window once sufficient data exists, with M2/cash-flow reported separately. Early progress is always distinguishable from the income target, and recorded commission is always distinguishable from actual cash received (Doc D §6 M1 vs M2).
+
+## 0b. Continuous optimization & sustainable income (Owner-agreed principle)
+
+**We are not building a GPS that reaches the income target once; we are building a system that learns from evidence, analyzes trends, adjusts its route, holds what works, and grows net income sustainably.** The fixed destination remains **repeatable net income ≥ THB 1,000/day at low operating cost**; the method adapts to evidence.
+
+**A. Timeline is flexible.** Weeks 1–2, Week 3, and Week 4+ are planning horizons, not hard deadlines (see §0a). No schedule-driven change to the income target; no premature certification of achievement.
+
+**B. Continuous GPS feedback loop.** Work runs as: `Observe → Analyze → Diagnose → Adapt → Measure → Reconcile → Repeat`. Assessments use a **rolling window**, comparing results between time periods, with per-day analysis when evidence is sufficient. Each assessment assigns one of four status values:
+- **Improving** — results are getting better.
+- **Stable** — good results are being sustained.
+- **Declining** — results are getting worse.
+- **Inconclusive** — evidence is insufficient for a conclusion.
+
+Rules: no causal conclusion from data correlation alone; a single day's fluctuation is not automatically a long-term trend; trend status is a hypothesis to be tested with the diagnostic sequence below (Doc B Stage 9 step 5), not a verdict by itself.
+
+**C. Diagnostic and corrective action.** Inspect in the fixed order: `Source/Data → Product/Offer → Content → Distribution → Conversion/Revenue → Costs → Next Action`.
+- **Improving:** identify which changes have supporting evidence; consider careful, evidence-gated expansion (never blind scaling).
+- **Stable at a good level:** hold what works; do not change merely to be changing.
+- **Declining:** investigate causes; run an evidence-based corrective experiment (via G2 if a new experiment is required).
+- **Inconclusive:** record it as such and specify the data or experiment needed next.
+
+Every adjustment must be recorded as a testable change: hypothesis, measurable indicators, evidence, and post-adjustment outcome — so the system learns what actually worked.
+
+**D. Sustainable income objective.** The target consists of: (1) reaching ≥ THB 1,000/day **average** net income; (2) evidence of repeatability (not dependence on one successful video or transaction); (3) **sustaining** results at target level over time; (4) improving results and efficiency on evidence-supported opportunities; (5) continuous monitoring of costs, risks, and operational capacity. Reaching the target does not end the work — the system then enters the hold-and-improve cycle of operation. Achievement is never certified in advance of evidence; sustained performance is verified through the M1-based rolling window once the aggregation formula is Owner-approved (Doc G §2b), until then verdicts remain "not yet measurable."
 
 **CRITICAL:** Phases beyond Phase 0 describe work the owner has **not yet authorized**. Only Phase 0 (this planning deliverable, for review) is "done" when the owner approves this document set. Every subsequent phase requires its own approval decision at its exit gate. Do not treat this roadmap as permission.
 
