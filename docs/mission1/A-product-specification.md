@@ -73,7 +73,7 @@ IDs are referenceable in acceptance criteria (Doc E) and the workflow spec (Doc 
 
 ### FR-5 Content Production
 - FR-5.1 Asset produced on the operator's computer using existing/free tools (AI-assisted is acceptable).
-- FR-5.2 AI-use disclosure must be applied where the channel requires it (e.g., YouTube 'altered content' disclosure; TikTok AI-generated-content label) — based on the certified per-channel policy checklist, not on memory.
+- FR-5.2 AI-use disclosure must be applied where the channel requires it (e.g., YouTube 'altered content' disclosure; TikTok AI-generated-content label) — based on the per-channel policy checklist (`docs/mission1/C-system-architecture.md` §6), not on memory.
 - FR-5.3 Asset file and final edit metadata (what tools were used, what disclosures were applied) are recorded.
 
 ### FR-6 QA & Approval
@@ -109,7 +109,7 @@ IDs are referenceable in acceptance criteria (Doc E) and the workflow spec (Doc 
 | NFR-5 | **Operator maintainability:** the full loop must be executable by one person with ≤ 2–3 hours of work/day on a bad day; automation must reduce work, never create a dependency that silently stalls the loop. |
 | NFR-6 | **Privacy/security:** no personal data collected from third parties; no platform passwords stored in project files; evidence files must not include account credentials. PDPA-relevant only if/when we collect personal data (we do not plan to in Slice 1). |
 | NFR-7 | **Evidence integrity:** captured screenshots/exports stored read-only; never edited to alter values. |
-| NFR-8 | **Compliance:** content must satisfy: affiliate disclosure per channel policy, AI-use disclosure per channel policy, Thai Consumer Protection Act constraint on misleading claims (no false/exaggerated statements), and any campaign-level promotion restrictions found in the program terms. Reviewed per channel via the certified policy checklist; unknowns carried to Doc G. |
+| NFR-8 | **Compliance:** content must satisfy: affiliate disclosure per channel policy, AI-use disclosure per channel policy, Thai Consumer Protection Act constraint on misleading claims (no false/exaggerated statements), and any campaign-level promotion restrictions found in the program terms. Reviewed per channel via the per-channel policy checklist (`docs/mission1/C-system-architecture.md` §6); unknowns carried to Doc G. |
 
 ## 6. In scope / out of scope
 
