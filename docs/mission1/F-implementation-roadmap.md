@@ -1,0 +1,142 @@
+# F. Implementation Roadmap — Affiliate Content Engine
+
+Status: Owner G1 direction approved (Record G1-A/B, Doc G §2a) · Timeline added per Owner strategy (2026-10-11) · Version 1.2
+
+## 0a. Owner-approved operating timeline (Weeks 1–4 — planning horizons, not hard deadlines)
+
+The first four weeks have distinct objectives. Neither phase claims guaranteed results; both are evidence-gated. **These are planning horizons, not hard deadlines:** the system does not have to be ready or to hit the target within a specific week when evidence does not yet support it. Evidence decides when to experiment, refine, hold at a level, or change strategy (see §0b). The income target itself does not change merely to fit the schedule; and no week's achievement is certified in advance (Doc G Record G1-E).
+
+**Weeks 1–2 — Evidence-driven experimentation and optimization.**
+Run controlled experiments, learn from actual results, improve the approach. The objective is NOT for the first videos or first experiments to achieve THB 1,000/day. Per experiment:
+1. State hypothesis and success indicators before execution (pre-registered, Doc B Stage 3).
+2. Collect evidence from actual observations and trustworthy sources (Doc B Stage 8).
+3. Evaluate source/data quality, product/offer suitability, content performance, distribution, conversion, commission status, and relevant costs.
+4. Diagnose the likely bottleneck **without claiming causation when evidence is insufficient** (diagnostic sequence in Doc B Stage 9; verdicts may be "inconclusive").
+5. Customize and improve the next experiment based on findings.
+6. Record what to repeat, revise, stop, or investigate further.
+
+Expected outcome: progressively better evidence-backed understanding of what works, what does not, and what should be tested next.
+
+**Weeks 3–4 — Target achievement.**
+Use the strongest evidence-backed approach from the initial experiments to pursue the income target. Target: reach **≥ THB 1,000/day average net income over a trailing 7–14-day window by the end of Week 4**, with evidence of repeatability (consistent across the window) rather than one isolated successful video. This is a **target, not a guaranteed result**. If the evidence does not support the trajectory, report the gap honestly and recommend a corrective experiment or strategic revision at Gate G5 — do not fabricate performance or scale an approach merely to preserve the timeline.
+
+Relationship to measurement policy (Doc D §6 / Doc G OQ-1): M1/M2/direct costs are captured daily from each experiment's start (Record G1-B); Weeks 1–2 verdicts use the same captured data for learning assessments; the Week 4 target verdict uses the trailing 7–14-day M1-based window once sufficient data exists, with M2/cash-flow reported separately. Early progress is always distinguishable from the income target, and recorded commission is always distinguishable from actual cash received (Doc D §6 M1 vs M2).
+
+## 0b. Continuous optimization & sustainable income (Owner-agreed principle)
+
+**We are not building a GPS that reaches the income target once; we are building a system that learns from evidence, analyzes trends, adjusts its route, holds what works, and grows net income sustainably.** The fixed destination remains **repeatable net income ≥ THB 1,000/day at low operating cost**; the method adapts to evidence.
+
+**A. Timeline is flexible.** Weeks 1–2, Week 3, and Week 4+ are planning horizons, not hard deadlines (see §0a). No schedule-driven change to the income target; no premature certification of achievement.
+
+**B. Continuous GPS feedback loop.** Work runs as: `Observe → Analyze → Diagnose → Adapt → Measure → Reconcile → Repeat`. Assessments use a **rolling window**, comparing results between time periods, with per-day analysis when evidence is sufficient. Each assessment assigns one of four status values:
+- **Improving** — results are getting better.
+- **Stable** — good results are being sustained.
+- **Declining** — results are getting worse.
+- **Inconclusive** — evidence is insufficient for a conclusion.
+
+Rules: no causal conclusion from data correlation alone; a single day's fluctuation is not automatically a long-term trend; trend status is a hypothesis to be tested with the diagnostic sequence below (Doc B Stage 9 step 5), not a verdict by itself.
+
+**C. Diagnostic and corrective action.** Inspect in the fixed order: `Source/Data → Product/Offer → Content → Distribution → Conversion/Revenue → Costs → Next Action`.
+- **Improving:** identify which changes have supporting evidence; consider careful, evidence-gated expansion (never blind scaling).
+- **Stable at a good level:** hold what works; do not change merely to be changing.
+- **Declining:** investigate causes; run an evidence-based corrective experiment (via G2 if a new experiment is required).
+- **Inconclusive:** record it as such and specify the data or experiment needed next.
+
+Every adjustment must be recorded as a testable change: hypothesis, measurable indicators, evidence, and post-adjustment outcome — so the system learns what actually worked.
+
+**D. Sustainable income objective.** The target consists of: (1) reaching ≥ THB 1,000/day **average** net income; (2) evidence of repeatability (not dependence on one successful video or transaction); (3) **sustaining** results at target level over time; (4) improving results and efficiency on evidence-supported opportunities; (5) continuous monitoring of costs, risks, and operational capacity. Reaching the target does not end the work — the system then enters the hold-and-improve cycle of operation. Achievement is never certified in advance of evidence; sustained performance is verified through the M1-based rolling window once the aggregation formula is Owner-approved (Doc G §2b), until then verdicts remain "not yet measurable."
+
+**CRITICAL:** Phases beyond Phase 0 describe work the owner has **not yet authorized**. Only Phase 0 (this planning deliverable, for review) is "done" when the owner approves this document set. Every subsequent phase requires its own approval decision at its exit gate. Do not treat this roadmap as permission.
+
+## Dependency sketch
+
+```mermaid
+flowchart LR
+    P0[Phase 0 · Plan review & owner approval] --> P1[Phase 1 · Foundation files + program access]
+    P1 --> P2[Phase 2 · Vertical slice execution]
+    P2 --> P3[Phase 3 · Slice evaluation & decision]
+    P3 --> P4[Phase 4 · Loop iteration or scale-up: REQUIRES NEW APPROVAL]
+```
+
+## Phase 0 — Plan Review & Approval (done when this doc set is approved)
+
+- **Objective:** owner approves the plan (all Deliverables A–H).
+- **Scope:** read + comment; no implementation.
+- **Deliverables:** approval decision (via a G1-style Decision record in the repo, if the owner wants that on record).
+- **Verification:** owner's explicit decision recorded.
+- **Risks/exit:** plan rejected → revise deliverables; plan approved → Phase 1 authorized for its own scope only.
+- **Duration:** owner-dependent (0.5–2 hours of reading).
+
+## Phase 1 — Foundation & Access (THB 0; requires G1 first)
+
+**Gate-policy note (Doc A §7):** everything up to and including this phase's scouting prep is pre-G1 non-binding research. The phase's own **program applications and channel changes are operational execution** — they require a recorded G1 APPROVED decision before they are performed. This is the reconciliation of Doc B's pre-G1 Stage 1 research with Doc A's G1 gate.
+
+- **Objective:** set up the minimum foundations and confirm program/channel access reality.
+- **Scope:**
+ 1. Create `data/mission1/` structure + workflow-state/run-history/cost-budget files (file creation only, per Doc D; no automation logic needed).
+ 2. **Program applications (operator):** apply to ACCESSTRADE TH (primary) and direct Shopee TH + TikTok Shop affiliate if operator's TikTok meets the ≥1,000-follower gate; record application dates & statuses as Evidence.
+ 3. **Channel readiness:** check eligibility of planned channel accounts in-app (TikTok profile-link gate, Meta native affiliate availability) and record findings as Evidence.
+ 4. **Policy checklist file:** one-page per-channel publish checklist built from Doc C §6 sources (to be re-verified at publish time).
+ 5. **Niche scouting kickoff (Stage 1):** first evidence log entries, 3+ candidate briefs.
+- **Deliverables:** data folder populated; program/channel status evidence recorded; Stage-1 candidate briefs.
+- **Verification method:** files exist; evidence log has ≥5 sources with retrieval dates; program application status visible/recorded for ≥1 program; AC-01 partially exercised.
+- **Risks:** program rejects operator → revisit offer/channel selection (shade the experiment); TikTok follower gate not met → choose a non-follower-gated channel for slice 1 (e.g., FB page with bio link).
+- **Exit criteria:** ≥1 program confirmed joined/joinable + 1 channel confirmed publishable + Stage-1 shortlist selected → unlock G2 for Phase 2.
+- **Estimated effort:** 2–4 operator evenings.
+- **Costs:** THB 0.
+
+## Phase 2 — Vertical Slice Execution (THB 0)
+
+- **Objective:** execute Stages 2–8 once, end to end.
+- **Scope:** experiment planning + G2 → script/claim map → produce 1 asset → G3 → publish with disclosures → observation schedule (D+3, D+7, end over default 14d window).
+- **Deliverables:** EXP/SCR/asset/PUB/OBS records per Doc D; asset published live.
+- **Verification method:** walkthrough against Doc E scenarios AC-02..AC-07 as they occur; run history kept current.
+- **Risks:** production tooling friction (fallback: simpler asset form); platform moderation hold (retry ≤2 then halt); dashboard fields unclear (record Unknown, keep going).
+- **Exit criteria:** experiment window elapsed with ≥3 observations captured.
+- **Estimated effort:** ~5–8 hours spread over the window (production heaviest).
+- **Costs:** THB 0 (default budget).
+
+## Phase 3 — Evaluation & Learning (THB 0)
+
+- **Objective:** complete Stage 9/10: analysis, cycle report, G5 decision; test evidence-backed go/no-go.
+- **Scope:** pipeline analysis, criteria verdicts, learnings archive, objective assessment window; G5 decision; archive cycle.
+- **Deliverables:** Cycle Report (RPT), G5 decision, learnings carried into next cycle's Stage 1.
+- **Verification method:** Doc E AC-08 walkthrough (traceability) + owner's satisfaction that every number traces to evidence.
+- **Risks:** inconclusive data (normal for first slice) — decision may be REVISE with changed success criteria; that's a valid exit, not a failure.
+- **Exit criteria:** G5 recorded; slice formally closed.
+- **Estimated effort:** 2–3 hours.
+- **Costs:** THB 0.
+
+## Phase 4 — Iteration / Scale-up (requires explicit new approval)
+
+- **Objective:** based on the G5 decision, either (a) run cycle 2 with revised parameters, or (b) evaluate whether any recurring paid tool is justified by actual confirmed income (constructing that case would be a new proposal, not an automatic next step).
+- **Scope:** TBD by G5 decision + owner input. Contingent items (e.g., paid ads profitability, second simultaneous offer, publish automation) remain excluded until this phase is separately approved.
+- **Exit criteria:** new cycle in flight or deliberate stop; owner's decision logged.
+- **Costs:** unknown; requires G-pay per proposal.
+
+## 7. Future Considerations — Not Approved for Implementation
+
+Nothing here may be built, purchased, or attempted without a new recorded owner decision (G1-class approval). Registry only.
+
+- Paid-ad profitability analysis or any autonomous paid-ad management.
+- Spending money to validate demand before a justified experiment with explicit G-pay approval.
+- Large-scale or scheduled automatic publishing (including platform API posting).
+- Multi-agent orchestration or complex automation frameworks.
+- Advanced forecasting models before enough own-data exists (several completed cycles).
+- Separate dashboards/analytics infrastructure beyond the markdown cycle report.
+- Multiple simultaneous offers or experiments before cycle 1 is evaluated.
+- Any paid subscription/tool (including link-in-bio paid tiers, editing suites, AI tools beyond free quotas).
+- Cross-channel orchestration, affiliate-API integrations (ACCESSTRADE/ClickBank APIs), payout-lag automation.
+- Rationale: none of these materially helps validate the FIRST revenue hypothesis; each adds cost or risk before evidence justifies it.
+
+## Smallest first implementation step
+
+After plan approval, **the literal first implementation step is**: create `data/mission1/workflow-state.yaml` + `run-history.yaml` + `cost-budget.yaml` (empty templates) and write the first `evidence-log.md` entry for the first researched source. Nothing else. This can be done in one operator-assisted session of < 1 hour and immediately exercises the workflow state discipline.
+
+## What needs external verification (not assumed)
+
+- Operator's actual acceptance by ACCESSTRADE/program dashboards; per-campaign commission rates visible only in-dashboard.
+- In-app eligibility rules for TikTok profile links, Meta native affiliate, and any specific channel's AI-label flows.
+- Actual click-tracking visibility per program (some show clicks, some only orders).
+- Payout-lag reality for the chosen program (needed for cash-flow math and the normalized-income concepts in Doc D §6).
+- Field-level commission semantics per program (whether a "confirmed/approved/settled" dashboard figure already nets refunds) — required before computing M1 per Doc D §6 R3.
