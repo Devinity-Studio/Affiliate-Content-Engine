@@ -148,7 +148,7 @@ To reconcile Gate G1 with Doc B Stages 1–2 (research-only, pre-G1):
 - **Pre-G1 work is limited to non-binding planning and public-source research** performed manually with existing/free tools. It may prepare draft evidence, analyses, and candidate opportunities.
 - It **cannot** authorize or perform: program enrollment/joining, platform account creation or changes, final content production, publication, paid activity, or any irreversible/account-affecting action.
 - **G1 approves the plan before operational execution proceeds.** G2 separately approves a specific experiment. G-pay is mandatory for any spending.
-- This policy is a proposal made for consistency across Docs A/B/E; it is itself subject to confirmation at G1.
+- This policy was proposed for consistency across Docs A/B/E and **confirmed by the Owner (Record G1-A, Doc G §2a) on 2026-10-11**.
 
 ### Permission boundaries for the AI/engine
 - The engine **may**: draft research, analyses, scripts, reports, bookkeeping; run free/local tools; record proposed (not final) states.
