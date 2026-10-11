@@ -92,7 +92,7 @@ IDs are referenceable in acceptance criteria (Doc E) and the workflow spec (Doc 
 
 ### FR-9 Analysis, Learning & Reporting
 - FR-9.1 At experiment end, produce a **Cycle report** comparing: hypothesis vs actuals, with each line tagged Fact/Inference/Hypothesis/Unknown; unknowns and data gaps listed; recommendation (Repeat/Revise/Stop) with rationale — drafted by AI, decided by owner.
-- FR-9.2 The THB 1,000/day target is assessed **only** over a defined measurement window (Doc G OQ-1) using the normalized net-income metrics (Doc D §6), and reported as "achieved / not achieved / not yet measurable" — never inferred.
+- FR-9.2 The THB 1,000/day target is assessed **only** over a defined measurement window (Doc G OQ-1, Doc D §6) using the normalized net-income metrics, and reported as "achieved / not achieved / not yet measurable" — never inferred. Per the Owner-approved operating timeline (Doc F §0a / Doc G Record G1-D): Weeks 1–2 are for evidence-driven learning and do **not** require THB 1,000/day from first experiments; the Weeks 3–4 target is ≥ THB 1,000/day average net income over a trailing 7–14-day window by end of Week 4, with repeatability evidence. Early learning, the income target, recorded commission (M1), and actual cash (M2) are always reported as distinct assessments.
 - FR-9.3 Learnings feed the next cycle only as tagged records; raw speculation without evidence is not carried forward.
 
 ### FR-10 Foundation (shared system)

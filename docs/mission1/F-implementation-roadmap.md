@@ -1,6 +1,26 @@
 # F. Implementation Roadmap — Affiliate Content Engine
 
-Status: DRAFT FOR OWNER APPROVAL · Version 1.1 (reconciled) · 2026-10-11
+Status: Owner G1 direction approved (Record G1-A/B, Doc G §2a) · Timeline added per Owner strategy (2026-10-11) · Version 1.2
+
+## 0a. Owner-approved operating timeline (Weeks 1–4)
+
+The first four weeks have distinct objectives. Neither phase claims guaranteed results; both are evidence-gated.
+
+**Weeks 1–2 — Evidence-driven experimentation and optimization.**
+Run controlled experiments, learn from actual results, improve the approach. The objective is NOT for the first videos or first experiments to achieve THB 1,000/day. Per experiment:
+1. State hypothesis and success indicators before execution (pre-registered, Doc B Stage 3).
+2. Collect evidence from actual observations and trustworthy sources (Doc B Stage 8).
+3. Evaluate source/data quality, product/offer suitability, content performance, distribution, conversion, commission status, and relevant costs.
+4. Diagnose the likely bottleneck **without claiming causation when evidence is insufficient** (diagnostic sequence in Doc B Stage 9; verdicts may be "inconclusive").
+5. Customize and improve the next experiment based on findings.
+6. Record what to repeat, revise, stop, or investigate further.
+
+Expected outcome: progressively better evidence-backed understanding of what works, what does not, and what should be tested next.
+
+**Weeks 3–4 — Target achievement.**
+Use the strongest evidence-backed approach from the initial experiments to pursue the income target. Target: reach **≥ THB 1,000/day average net income over a trailing 7–14-day window by the end of Week 4**, with evidence of repeatability (consistent across the window) rather than one isolated successful video. This is a **target, not a guaranteed result**. If the evidence does not support the trajectory, report the gap honestly and recommend a corrective experiment or strategic revision at Gate G5 — do not fabricate performance or scale an approach merely to preserve the timeline.
+
+Relationship to measurement policy (Doc D §6 / Doc G OQ-1): M1/M2/direct costs are captured daily from each experiment's start (Record G1-B); Weeks 1–2 verdicts use the same captured data for learning assessments; the Week 4 target verdict uses the trailing 7–14-day M1-based window once sufficient data exists, with M2/cash-flow reported separately. Early progress is always distinguishable from the income target, and recorded commission is always distinguishable from actual cash received (Doc D §6 M1 vs M2).
 
 **CRITICAL:** Phases beyond Phase 0 describe work the owner has **not yet authorized**. Only Phase 0 (this planning deliverable, for review) is "done" when the owner approves this document set. Every subsequent phase requires its own approval decision at its exit gate. Do not treat this roadmap as permission.
 
