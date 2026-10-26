@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="light" />
+    <title>ACE · MVP affiliate slice (export staging)</title>
+    <link rel="stylesheet" href="/styles.css" />
+    <link rel="stylesheet" href="/mvp.css" />
+  </head>
+  <body>
+    <a class="skip-link" href="#mvp-app">Skip to the MVP workspace</a>
+
+    <div class="mvp-shell">
+      <aside class="mvp-side" aria-label="MVP slice">
+        <div class="brand">
+          <span class="brand-mark" aria-hidden="true">ACE</span>
+          <div>
+            <p class="brand-name">Affiliate Content Engine</p>
+            <p class="brand-sub">MVP affiliate slice · fixture state</p>
+          </div>
+        </div>
+
+        <p id="mvp-data-chip" class="fixture-chip">
+          <span aria-hidden="true">●</span>
+          SYNTHETIC FIXTURE — not Shopee data
+        </p>
+
+        <div class="step-heading">
+          <p>Slice pipeline</p>
+          <span id="mvp-progress" class="step-count">0 / 5</span>
+        </div>
+        <nav aria-label="MVP pipeline">
+          <ol id="mvp-nav" class="pipeline"></ol>
+        </nav>
+
+        <div class="sidebar-foot">
+          <p class="foot-label">Boundary</p>        <p>Import → Research → Candidates → Plan → Content (storyboard, script, CTA, Thai QA, export, publish prep).
+            No publish action, no Shopee Seller, no external account, no gate decision, THB 0.</p>
+          <p class="foot-link"><a href="/">Classic opportunity view →</a></p>
+        </div>
+      </aside>
+
+      <main id="mvp-app" class="mvp-main" tabindex="-1">
+        <header class="mvp-head">
+          <div>
+            <p id="mvp-eyebrow" class="eyebrow">MVP slice · fixture state</p>
+            <h1 id="mvp-title">Affiliate workflow workspace</h1>
+          </div>
+          <div class="mvp-head-status">
+            <span class="badge badge-mock">Synthetic fixture</span>
+            <span id="mvp-save" class="save-state" role="status">Loading…</span>
+          </div>
+        </header>
+        <div id="mvp-body" class="mvp-body"></div>
+      </main>
+    </div>
+
+    <div id="mvp-toast" class="toast" role="status" aria-live="polite"></div>
+
+    <script src="/mvp.js" defer></script>
+  </body>
+</html>

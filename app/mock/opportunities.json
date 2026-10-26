@@ -1,0 +1,284 @@
+{
+  "meta": {
+    "mock": true,
+    "label": "MOCK DATA — NOT VERIFIED",
+    "disclaimer": "Every record on this screen is synthetic demonstration data created for the vertical slice. It is not Shopee, TikTok, Facebook or market evidence, and no commission, conversion, order or net-income figure is real.",
+    "cycle": 1,
+    "generatedAt": "2026-10-19",
+    "measurementPolicy": "OQ-8 is unresolved: per-program commission field semantics are not verified against an authorised dashboard. Net income is therefore reported as NOT_YET_MEASURABLE, never as zero and never as a forecast."
+  },
+  "opportunities": [
+    {
+      "id": "OPP-MOCK-1",
+      "mock": true,
+      "title": "Compact desk cable organiser",
+      "niche": "Small-desk productivity accessories",
+      "audience": "Office workers and students in Thailand with limited desk space",
+      "problem": "Charging cables fall behind the desk and are hard to reach during the workday",
+      "whyNow": "Desk-setup content is cheap to produce and the product is easy to demonstrate in a short video",
+      "confidence": {
+        "level": "LOW",
+        "reason": "Demand is inferred from synthetic search notes only; no first-party traffic or conversion data exists yet"
+      },
+      "measurement": {
+        "status": "NOT_YET_MEASURABLE",
+        "reason": "No dashboard access, and OQ-8 field semantics are unverified"
+      },
+      "evidence": [
+        {
+          "id": "EV-MOCK-1-1",
+          "mock": true,
+          "source": "MOCK listing page (synthetic)",
+          "urlOrReference": "mock://listing/cable-organiser",
+          "retrievedAt": "2026-10-19",
+          "finding": "Listing states a price of THB 590 and a seller commission rate of 5%.",
+          "claimClass": "FACT",
+          "relevance": "Sets the two numbers used in the illustrative arithmetic",
+          "limitations": "Synthetic listing; a real rate is visible only in the affiliate dashboard"
+        },
+        {
+          "id": "EV-MOCK-1-2",
+          "mock": true,
+          "source": "MOCK category note (synthetic)",
+          "urlOrReference": "mock://notes/category-electronics-accessories",
+          "retrievedAt": "2026-10-19",
+          "finding": "The category is not on the synthetic excluded-category list used by this demo.",
+          "claimClass": "INFERENCE",
+          "relevance": "Suggests the offer is commissionable, subject to the real program terms",
+          "limitations": "Derived from a mock list; the official Shopee terms must be checked before G2"
+        },
+        {
+          "id": "EV-MOCK-1-3",
+          "mock": true,
+          "source": "MOCK channel note (synthetic)",
+          "urlOrReference": "mock://notes/facebook-page-bio-link",
+          "retrievedAt": "2026-10-19",
+          "finding": "A Facebook Page with a profile link is treated as available for this demo.",
+          "claimClass": "UNKNOWN",
+          "relevance": "Determines whether the planned link form can actually be used",
+          "limitations": "Account eligibility was not checked; this is an assumption, not a finding"
+        }
+      ],
+      "analysis": {
+        "hypothesis": "A 30-second desk-reset video on a Facebook Page can produce at least one affiliate order within 14 days.",
+        "terms": [
+          { "label": "Illustrative clicks", "value": "100", "basis": "ASSUMPTION", "ref": null },
+          { "label": "Illustrative conversion rate", "value": "2%", "basis": "ASSUMPTION", "ref": null },
+          { "label": "Product price", "value": "THB 590", "basis": "MOCK_EVIDENCE", "ref": "EV-MOCK-1-1" },
+          { "label": "Seller commission rate", "value": "5%", "basis": "MOCK_EVIDENCE", "ref": "EV-MOCK-1-1" }
+        ],
+        "expression": "100 × 2% × THB 590 × 5%",
+        "illustrativeResultThb": 59,
+        "resultNote": "Illustrative arithmetic only. It is not a forecast, not expected income, and not a measured commission.",
+        "risks": [
+          "Traffic and conversion assumptions are unverified",
+          "Per-post clicks may be unavailable, leaving attribution UNKNOWN",
+          "Facebook link affordances depend on the account, which was not checked"
+        ],
+        "confidence": {
+          "level": "LOW",
+          "reason": "Two of the four terms are pure assumptions and the channel claim is UNKNOWN"
+        }
+      },
+      "brief": {
+        "rationale": "The product is visually demonstrable, cheap to film, and has no evident category exclusion in the mock data.",
+        "uncertainties": [
+          "Whether the Facebook Page can carry a clickable bio link",
+          "Whether the seller rate shown is the rate paid to an affiliate",
+          "Whether clicks can be attributed to this post at all"
+        ],
+        "proposedExperiment": {
+          "offer": "Cable organiser, one seller, one listing",
+          "channel": "Facebook Page",
+          "linkForm": "PROFILE_BIO",
+          "successCriteria": "At least one order recorded against the affiliate link within 14 days (commission status remains unverified)",
+          "durationDays": 14,
+          "budgetThb": 0,
+          "observationSchedule": ["D+3", "D+7", "END"]
+        },
+        "suggestedAction": "SELECT_FOR_G2_DRAFT"
+      }
+    },
+    {
+      "id": "OPP-MOCK-2",
+      "mock": true,
+      "title": "Thai herbal balm gift set",
+      "niche": "Local wellness gifts",
+      "audience": "Office workers buying small gifts for colleagues",
+      "problem": "Useful, locally made gifts are hard to choose quickly at a low price point",
+      "whyNow": "Gift content performs around paydays and local holidays; the product is inexpensive to ship",
+      "confidence": {
+        "level": "MEDIUM",
+        "reason": "Seasonality and price fit are plausible from synthetic notes, but no demand data was measured"
+      },
+      "measurement": {
+        "status": "NOT_YET_MEASURABLE",
+        "reason": "No dashboard access; commission semantics remain unverified"
+      },
+      "evidence": [
+        {
+          "id": "EV-MOCK-2-1",
+          "mock": true,
+          "source": "MOCK listing page (synthetic)",
+          "urlOrReference": "mock://listing/herbal-balm-set",
+          "retrievedAt": "2026-10-19",
+          "finding": "Listing states a price of THB 320 and a seller commission rate of 8%.",
+          "claimClass": "FACT",
+          "relevance": "Supplies the price and rate used in the illustrative arithmetic",
+          "limitations": "Synthetic listing; real rates are campaign-specific"
+        },
+        {
+          "id": "EV-MOCK-2-2",
+          "mock": true,
+          "source": "MOCK seasonal note (synthetic)",
+          "urlOrReference": "mock://notes/payday-gifting",
+          "retrievedAt": "2026-10-19",
+          "finding": "Synthetic note suggests gift searches rise near month-end paydays.",
+          "claimClass": "INFERENCE",
+          "relevance": "Timing signal for when to publish",
+          "limitations": "Pattern is asserted, not measured; it is a hypothesis to test"
+        },
+        {
+          "id": "EV-MOCK-2-3",
+          "mock": true,
+          "source": "MOCK content note (synthetic)",
+          "urlOrReference": "mock://notes/disclosure-required",
+          "retrievedAt": "2026-10-19",
+          "finding": "Synthetic policy note says commercial content should carry a disclosure label.",
+          "claimClass": "UNKNOWN",
+          "relevance": "Affects what G3 can approve",
+          "limitations": "The real channel policy has not been verified; treat as unconfirmed"
+        }
+      ],
+      "analysis": {
+        "hypothesis": "A gift-guide post can produce at least two orders in the 14-day window.",
+        "terms": [
+          { "label": "Illustrative clicks", "value": "150", "basis": "ASSUMPTION", "ref": null },
+          { "label": "Illustrative conversion rate", "value": "2.5%", "basis": "ASSUMPTION", "ref": null },
+          { "label": "Product price", "value": "THB 320", "basis": "MOCK_EVIDENCE", "ref": "EV-MOCK-2-1" },
+          { "label": "Seller commission rate", "value": "8%", "basis": "MOCK_EVIDENCE", "ref": "EV-MOCK-2-1" }
+        ],
+        "expression": "150 × 2.5% × THB 320 × 8%",
+        "illustrativeResultThb": 96,
+        "resultNote": "Illustrative arithmetic only, not a forecast or a record of earnings.",
+        "risks": [
+          "Seasonality may vanish after the payday window",
+          "Gift content may attract clicks without purchases",
+          "Disclosure requirement is unverified"
+        ],
+        "confidence": {
+          "level": "MEDIUM",
+          "reason": "Plausible price and timing, but demand and disclosure are unverified"
+        }
+      },
+      "brief": {
+        "rationale": "Low price point and a clear gifting use case make this easier to explain than a technical product.",
+        "uncertainties": [
+          "Whether the payday pattern is real",
+          "Which disclosure the channel requires",
+          "Whether the seller rate applies to affiliates"
+        ],
+        "proposedExperiment": {
+          "offer": "Herbal balm gift set, one seller, one listing",
+          "channel": "Facebook Page",
+          "linkForm": "PROFILE_BIO",
+          "successCriteria": "At least two orders recorded against the affiliate link within 14 days",
+          "durationDays": 14,
+          "budgetThb": 0,
+          "observationSchedule": ["D+3", "D+7", "END"]
+        },
+        "suggestedAction": "SELECT_FOR_G2_DRAFT"
+      }
+    },
+    {
+      "id": "OPP-MOCK-3",
+      "mock": true,
+      "title": "Minimal silver pendant",
+      "niche": "Everyday jewellery",
+      "audience": "Young professionals buying simple accessories",
+      "problem": "Everyday jewellery is hard to compare online without clear sizing",
+      "whyNow": "Accessory content is visual and short to produce",
+      "confidence": {
+        "level": "LOW",
+        "reason": "Category appears excluded from commission in the mock policy note, which undermines the business case"
+      },
+      "measurement": {
+        "status": "NOT_YET_MEASURABLE",
+        "reason": "No dashboard access; and the offer may be ineligible for commission"
+      },
+      "evidence": [
+        {
+          "id": "EV-MOCK-3-1",
+          "mock": true,
+          "source": "MOCK listing page (synthetic)",
+          "urlOrReference": "mock://listing/silver-pendant",
+          "retrievedAt": "2026-10-19",
+          "finding": "Listing states a price of THB 890 and a seller commission rate of 10%.",
+          "claimClass": "FACT",
+          "relevance": "Shows an attractive rate that must be checked against eligibility",
+          "limitations": "Synthetic listing"
+        },
+        {
+          "id": "EV-MOCK-3-2",
+          "mock": true,
+          "source": "MOCK excluded-category note (synthetic)",
+          "urlOrReference": "mock://notes/excluded-categories",
+          "retrievedAt": "2026-10-19",
+          "finding": "Jewellery is listed as an excluded category that earns no commission.",
+          "claimClass": "FACT",
+          "relevance": "Directly contradicts the commercial case for this offer",
+          "limitations": "Synthetic note modelled on the official Shopee excluded-category FAQ; re-verify before acting"
+        },
+        {
+          "id": "EV-MOCK-3-3",
+          "mock": true,
+          "source": "MOCK size-guide note (synthetic)",
+          "urlOrReference": "mock://notes/returns-jewellery",
+          "retrievedAt": "2026-10-19",
+          "finding": "Synthetic note suggests accessory return rates are higher than average.",
+          "claimClass": "UNKNOWN",
+          "relevance": "Return risk would affect any commission that did accrue",
+          "limitations": "No measured return data"
+        }
+      ],
+      "analysis": {
+        "hypothesis": "Jewellery content can earn commission within 14 days.",
+        "terms": [
+          { "label": "Illustrative clicks", "value": "120", "basis": "ASSUMPTION", "ref": null },
+          { "label": "Illustrative conversion rate", "value": "1.5%", "basis": "ASSUMPTION", "ref": null },
+          { "label": "Product price", "value": "THB 890", "basis": "MOCK_EVIDENCE", "ref": "EV-MOCK-3-1" },
+          { "label": "Eligible commission", "value": "THB 0 (category excluded)", "basis": "MOCK_EVIDENCE", "ref": "EV-MOCK-3-2" }
+        ],
+        "expression": "120 × 1.5% × THB 890 × 0% (excluded category)",
+        "illustrativeResultThb": 0,
+        "resultNote": "The arithmetic is shown only to demonstrate that an attractive headline rate is irrelevant when the category is ineligible. It is not a forecast.",
+        "risks": [
+          "Category exclusion makes the offer non-commissionable",
+          "Sizing uncertainty may increase returns",
+          "No evidence that the audience buys jewellery from short video"
+        ],
+        "confidence": {
+          "level": "LOW",
+          "reason": "A verified exclusion outweighs the attractive headline rate"
+        }
+      },
+      "brief": {
+        "rationale": "The headline rate is attractive, but the mock category rule appears to exclude jewellery from commission entirely.",
+        "uncertainties": [
+          "Whether the exclusion applies to this specific sub-category",
+          "Whether returns would erase any commission that did accrue"
+        ],
+        "proposedExperiment": {
+          "offer": "Silver pendant, one seller, one listing",
+          "channel": "Facebook Page",
+          "linkForm": "PROFILE_BIO",
+          "successCriteria": "Not proposed while the category exclusion is unresolved",
+          "durationDays": 0,
+          "budgetThb": 0,
+          "observationSchedule": []
+        },
+        "suggestedAction": "DO_NOT_PROCEED"
+      }
+    }
+  ]
+}
