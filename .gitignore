@@ -1,0 +1,21 @@
+# Local runtime state for the Mission 1 vertical slice
+data/app/state.json
+
+# Local runtime state for the MVP affiliate fixture slice
+data/mvp/
+.tmp/mvp-preview/
+
+# Real Shopee Affiliate exports are user data (account ids, links, sales).
+# They are evidence inputs, never repository content.
+data/imports/
+
+# Local server log, PID and scratch output
+.tmp/
+
+# Optional PostHog AI observability dependencies (npm install)
+node_modules/
+
+# Local API credentials and environment overrides
+.env
+.env.*
+!.env.example
