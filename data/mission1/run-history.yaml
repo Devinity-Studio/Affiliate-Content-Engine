@@ -1,0 +1,29 @@
+# Mission 1 — run history (append-only; never edit or delete an entry)
+# Schema: docs/mission1/D-data-model.md §3.11
+# actor: AI | OWNER_OPERATOR
+# result: OK | ERROR | BLOCKED_BY_GATE | BLOCKED_BY_QUOTA
+entries:
+  - ts: 2026-10-19T06:38:56Z
+    actor: OWNER_OPERATOR
+    action: "Owner approved G1 as APPROVED_WITH_NOTES with a THB 0 budget, Phase 1 only; formal DEC-1-G1 record location pending owner confirmation"
+    result: OK
+  - ts: 2026-10-19T06:38:56Z
+    actor: AI
+    action: "Created data/mission1 foundation files (workflow-state, run-history, cost-budget, evidence-log) per Doc F Phase 1; no existing file overwritten; no external access performed"
+    result: OK
+  - ts: 2026-10-19T06:46:31Z
+    actor: AI
+    action: "Recorded DEC-1-G1 in data/mission1/decision-log.md (APPROVED_WITH_NOTES, THB 0, Foundation Slice only); resolves the pending record-location caveat noted in the first entry"
+    result: OK
+  - ts: 2026-10-19T07:00:39Z
+    actor: AI
+    action: "Appended EV-1-2..EV-1-10 to evidence-log.md from official Shopee TH terms and help pages; no account access, application, publication, or spend performed"
+    result: OK
+  - ts: 2026-10-29T14:05:54Z
+    actor: AI
+    action: "Recording resumed in data/mission1/run-history.yaml and data/mission1/workflow-state.yaml under DEC-1-4, ending the owner-confirmed pause. The unrecorded interval (after 2026-10-19T07:00:39Z, ending at this entry) is an evidence gap: this entry records the resumption event only, does not reconstruct that interval, and does not assert that no publication, enrolment, spend, or Stage-3/Stage-4 activity occurred during it. No gate is approved by this entry."
+    result: OK
+  - ts: 2026-11-03T22:47:00Z
+    actor: AI
+    action: "Closed the real Shopee export checker round: committed verification/real-shopee-export-check.js only (005bbd1, 1781 insertions, blob 6768e5c) after re-verifying 20/20 harness passes and the pending/partial/verified/guard CLI paths (exit 2/3/0/1/1); recorded evidence locations, technical-debt items TD-CK-01..07 and unpushed status in verification/ace-mission1-checkpoint-2026-11-03-checker-closure.md. No app/server.js change, no real export, no new governance authorization, no push (branch ahead 5 of origin)."
+    result: OK
