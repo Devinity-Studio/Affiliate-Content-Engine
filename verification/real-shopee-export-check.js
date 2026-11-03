@@ -295,21 +295,38 @@ function readPortOverride() {
 /* ------------------------------------------------------------------ */
 
 function resolveEvidenceDir() {
+  // Evidence is a record of a user's export; it must never be written inside the
+  // repository, where a later `git add` could carry it away. A misconfigured
+  // ACE_IMPORT_ROOT is refused here and the run falls back to the OS temp directory.
+  let rejected = null;
   if (ACE_IMPORT_ROOT) {
     const candidate = path.join(ACE_IMPORT_ROOT, 'evidence');
-    try {
-      if (!fs.existsSync(candidate)) fs.mkdirSync(candidate, { recursive: true });
-      return { dir: candidate, source: 'ACE_IMPORT_ROOT/evidence' };
-    } catch {
-      /* fall through to temp */
+    if (isInside(REPO, candidate)) {
+      rejected = {
+        requested: displayPath(candidate),
+        requested_abs: path.resolve(candidate),
+        reason: 'EVIDENCE_DIR_INSIDE_REPOSITORY',
+        detail: 'evidence is never written inside the repository; the OS temp directory is used instead',
+      };
+      console.error('');
+      console.error(`WARN  ACE_IMPORT_ROOT resolves inside the repository (${rejected.requested}).`);
+      console.error('      Refusing to write evidence there; nothing is created in the repository.');
+      console.error('      Evidence goes to the OS temp directory instead.');
+    } else {
+      try {
+        if (!fs.existsSync(candidate)) fs.mkdirSync(candidate, { recursive: true });
+        return { dir: candidate, source: 'ACE_IMPORT_ROOT/evidence', rejected: null };
+      } catch {
+        /* fall through to temp */
+      }
     }
   }
   const tmpEvidence = path.join(os.tmpdir(), 'ace-real-export-evidence');
   try {
     if (!fs.existsSync(tmpEvidence)) fs.mkdirSync(tmpEvidence, { recursive: true });
-    return { dir: tmpEvidence, source: 'os.tmpdir()/ace-real-export-evidence' };
+    return { dir: tmpEvidence, source: 'os.tmpdir()/ace-real-export-evidence', rejected };
   } catch (err) {
-    return { dir: os.tmpdir(), source: 'os.tmpdir() (fallback)', error: err && err.message ? err.message : String(err) };
+    return { dir: os.tmpdir(), source: 'os.tmpdir() (fallback)', rejected, error: err && err.message ? err.message : String(err) };
   }
 }
 
@@ -325,6 +342,7 @@ class RunRecorder {
     this.events = [];
     this.dir = null;
     this.dirSource = null;
+    this.dirRejection = null;
     this.paths = {};
     this.appendFailures = 0;
     this.appendError = null;
@@ -337,6 +355,7 @@ class RunRecorder {
     const resolved = resolveEvidenceDir();
     this.dir = resolved.dir;
     this.dirSource = resolved.source;
+    this.dirRejection = resolved.rejected || null;
     if (resolved.error) this.appendError = resolved.error;
     return this.dir;
   }
@@ -401,7 +420,7 @@ class RunRecorder {
     }
     const base = path.join(dir, `real-shopee-export-check-${this.runId}`);
     const finalPayload = { ...payload, run_id: this.runId, checker_version: CHECKER_VERSION, events: this.events,
-      evidence_write: { append_failures: this.appendFailures, append_error: this.appendError, dir_source: this.dirSource } };
+      evidence_write: { append_failures: this.appendFailures, append_error: this.appendError, dir_source: this.dirSource, dir_rejected: this.dirRejection } };
     try {
       const target = `${base}.final.json`;
       const tmp = `${target}.${process.pid}.tmp`;
@@ -425,6 +444,7 @@ class RunRecorder {
     return {
       planned_dir: dir,
       dir_source: this.dirSource,
+      dir_rejected: this.dirRejection,
       paths: { ...this.paths },
       evidence_result: this.evidenceResult,
       append_failures: this.appendFailures,
