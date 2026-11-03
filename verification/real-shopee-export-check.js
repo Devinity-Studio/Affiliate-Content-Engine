@@ -592,17 +592,76 @@ function isSafeWorkspacePath(dir) {
   return target.startsWith(base) && path.basename(path.resolve(dir)).startsWith('ace-real-export-');
 }
 
+/*
+ * Files that are never copied into the throwaway workspace. The server only
+ * needs source that it can require and static assets it can serve, so backup
+ * copies, agent scratch copies and locally rendered media are left behind: they
+ * are stale, they are large, and no route reads them.
+ */
+const COPY_EXCLUDE = Object.freeze([
+  { reason: 'source backup copy', match: (name) => /\.(bak\d*|backup\d*|orig|rej)$/i.test(name) },
+  { reason: 'agent scratch copy of a source file', match: (name) => /\.js\.(ace-mission-|phase|pre-fix-|repair-|stage-)[^/]*$/i.test(name) },
+  { reason: 'locally rendered media', match: (name, rel) => rel.split('/')[0] === 'exports' },
+]);
+
+function copySkipReason(src, copyRoot) {
+  let stat;
+  try { stat = fs.statSync(src); } catch { return null; }
+  if (!stat.isFile()) return null; // directories are always traversed; every file is classified
+  const rel = path.relative(copyRoot, src).split(path.sep).join('/');
+  const name = path.basename(src);
+  const hit = COPY_EXCLUDE.find((rule) => rule.match(name, rel));
+  return hit ? { reason: hit.reason, bytes: stat.size } : null;
+}
+
 function createWorkspace(inputFile, evidenceDir) {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'ace-real-export-'));
-  WORKSPACE = { dir, copied: [], input_inside: false, invariants: [] };
-  const copy = (from, to) => {
-    fs.cpSync(from, to, { recursive: true });
+  WORKSPACE = { dir, copied: [], skipped: [], inventory: null, accounting: null, input_inside: false, invariants: [] };
+  const copy = (from, to, { exclude = false } = {}) => {
+    const before = directoryBytes(from);
+    fs.cpSync(from, to, {
+      recursive: true,
+      filter: (src) => {
+        if (!exclude) return true;
+        const skip = copySkipReason(src, from);
+        if (!skip) return true;
+        WORKSPACE.skipped.push({
+          path: displayPath(src),
+          relative: path.relative(REPO, src).split(path.sep).join('/'),
+          reason: skip.reason,
+          bytes: skip.bytes,
+        });
+        return false;
+      },
+    });
     const size = directoryBytes(to);
-    WORKSPACE.copied.push({ from: displayPath(from), to: path.relative(dir, to).split(path.sep).join('/'), bytes: size.bytes, files: size.files });
+    WORKSPACE.copied.push({ from: displayPath(from), to: path.relative(dir, to).split(path.sep).join('/'), bytes: size.bytes, files: size.files, source_bytes: before.bytes, source_files: before.files });
+    return { before, after: size };
   };
-  copy(path.join(REPO, 'app'), path.join(dir, 'app'));
+  const appSource = path.join(REPO, 'app');
+  const appInventory = directoryBytes(appSource);
+  const appCopy = copy(appSource, path.join(dir, 'app'), { exclude: true });
   const schemas = path.join(REPO, 'docs', 'mission1', 'schemas');
   if (fs.existsSync(schemas)) copy(schemas, path.join(dir, 'docs', 'mission1', 'schemas'));
+
+  // Accounting is measured in this run from the source it just copied: the same
+  // walk that records the inventory is what the reconciliation is checked against,
+  // so nothing here can drift into a hardcoded expectation.
+  const excludedBytes = WORKSPACE.skipped.reduce((total, entry) => total + entry.bytes, 0);
+  const accounting = {
+    root: displayPath(appSource),
+    source_files: appInventory.files,
+    source_bytes: appInventory.bytes,
+    copied_files: appCopy.after.files,
+    copied_bytes: appCopy.after.bytes,
+    excluded_files: WORKSPACE.skipped.length,
+    excluded_bytes: excludedBytes,
+  };
+  accounting.files_reconcile = accounting.copied_files + accounting.excluded_files === accounting.source_files;
+  accounting.bytes_reconcile = accounting.copied_bytes + accounting.excluded_bytes === accounting.source_bytes;
+  accounting.ok = accounting.files_reconcile && accounting.bytes_reconcile;
+  WORKSPACE.inventory = { root: accounting.root, files: accounting.source_files, bytes: accounting.source_bytes };
+  WORKSPACE.accounting = accounting;
 
   const runtimeDir = path.join(dir, 'mvp-runtime');
   fs.mkdirSync(runtimeDir, { recursive: true });
@@ -621,6 +680,9 @@ function createWorkspace(inputFile, evidenceDir) {
     stateFile: path.join(runtimeDir, 'fixture-state.json'),
     stagingFile: path.join(runtimeDir, 'staging-state.json'),
     copied: WORKSPACE.copied,
+    skipped: WORKSPACE.skipped,
+    inventory: WORKSPACE.inventory,
+    accounting: WORKSPACE.accounting,
     invariants,
   };
 }
@@ -1258,10 +1320,26 @@ async function execute(recorder, parentEnv) {
       return fail('WORKSPACE_INVARIANT_VIOLATED', invariant.rule, summary);
     }
   }
-  recorder.step('workspace', { path: workspace.dir, copied: workspace.copied, state_file: displayPath(workspace.stateFile), staging_file: displayPath(workspace.stagingFile) });
+  recorder.step('workspace', {
+    path: workspace.dir,
+    copied: workspace.copied,
+    skipped: workspace.skipped,
+    inventory: workspace.inventory,
+    accounting: workspace.accounting,
+    state_file: displayPath(workspace.stateFile),
+    staging_file: displayPath(workspace.stagingFile),
+  });
   line('1b. Temporary workspace');
   console.log(`  workspace: ${workspace.dir}`);
   for (const entry of workspace.copied) console.log(`  copied:    ${entry.from} -> ${entry.to} (${entry.files} files, ${entry.bytes} bytes)`);
+  if (workspace.skipped.length) {
+    console.log(`  excluded:  ${workspace.skipped.length} file(s), ${workspace.accounting.excluded_bytes} bytes`);
+    for (const entry of workspace.skipped) console.log(`             ${entry.relative}  (${entry.reason}, ${entry.bytes} bytes)`);
+  }
+  console.log(`  accounting: ${workspace.accounting.copied_files} copied + ${workspace.accounting.excluded_files} excluded = ${workspace.accounting.source_files} source files; ${workspace.accounting.copied_bytes} + ${workspace.accounting.excluded_bytes} = ${workspace.accounting.source_bytes} bytes (${workspace.accounting.ok ? 'reconciled' : 'MISMATCH'})`);
+  if (!workspace.accounting.ok) {
+    console.error('WARN  the workspace copy does not reconcile with the source inventory; the evidence records both sides.');
+  }
   console.log('  data/ is not copied; the server creates data/app/ inside the workspace.');
 
   /* ---------------- spawn + readiness (with port retries) ---------------- */
@@ -1565,6 +1643,10 @@ async function finalize(recorder, outcome) {
   const liveDiagnostics = ACTIVE_CHILD ? ACTIVE_CHILD.diagnostics() : (outcome.diagnostics || null);
   const liveEnvironment = ACTIVE_CHILD ? ACTIVE_CHILD.env : null;
   const livePid = ACTIVE_CHILD ? ACTIVE_CHILD.lifecycle.pid : null;
+  // The workspace record is captured before it is disposed, for the same reason.
+  const liveWorkspace = WORKSPACE
+    ? { copied: WORKSPACE.copied, skipped: WORKSPACE.skipped, inventory: WORKSPACE.inventory, accounting: WORKSPACE.accounting }
+    : null;
 
   const shutdown = ACTIVE_CHILD
     ? await ACTIVE_CHILD.terminate()
@@ -1625,7 +1707,15 @@ async function finalize(recorder, outcome) {
         ? { injected: liveEnvironment.injected, excluded: liveEnvironment.excluded }
         : null,
     },
-    workspace: { path: cleanup.path, kept: cleanup.kept, removed: cleanup.removed },
+    workspace: {
+      path: cleanup.path,
+      kept: cleanup.kept,
+      removed: cleanup.removed,
+      copied: liveWorkspace ? liveWorkspace.copied : null,
+      excluded_from_copy: liveWorkspace ? liveWorkspace.skipped : null,
+      inventory: liveWorkspace ? liveWorkspace.inventory : null,
+      accounting: liveWorkspace ? liveWorkspace.accounting : null,
+    },
     cleanup,
     degraded,
     interrupted: CANCEL.interrupted ? { signal: CANCEL.signal, at: CANCEL.at } : null,
