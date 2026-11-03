@@ -170,6 +170,10 @@ const LIMITS = Object.freeze({
   maxAttemptsRecorded: 40,
 });
 
+/** Characters of stdout retained in diagnostics.stdout_tail. Named so the cap and
+ *  the evidence that records it cannot drift apart. */
+const STDOUT_TAIL_LIMIT_CHARS = 2500;
+
 const STARTUP_LINE_RE = /\[ace\] Mission 1 slice running at https?:\/\/[^\s/]+:(\d+)/;
 
 /* ------------------------------------------------------------------ */
@@ -763,7 +767,7 @@ function startChildServer({ workspace, port, parentEnv }) {
   const startup = makeDeferred();
   const exited = makeDeferred();
   const closed = makeDeferred();
-  const startupRecord = { seen: false, line: null, port: null, at: null, latency_ms: null, port_mismatch: [] };
+  const startupRecord = { seen: false, line: null, port: null, at: null, latency_ms: null, bytes_at_match: null, port_mismatch: [] };
 
   child.on('spawn', () => {
     lifecycle.spawned = true;
@@ -813,6 +817,9 @@ function startChildServer({ workspace, port, parentEnv }) {
     startupRecord.port = observedPort;
     startupRecord.at = nowIso();
     startupRecord.latency_ms = Date.now() - startedAt;
+    // Cumulative bytes received on this child's stdout at the instant the line
+    // was matched - not the ring-buffer capacity and not the run's total output.
+    startupRecord.bytes_at_match = stdoutTail.bytes();
     startup.resolve({ ok: true, ...startupRecord });
   });
 
@@ -830,10 +837,32 @@ function startChildServer({ workspace, port, parentEnv }) {
     isDead() { return lifecycle.exit.seen === true; },
     diagnostics() {
       return {
-        stdout_tail: redactText(stdoutTail.get(), 2500),
-        stderr_tail: redactText(stderrTail.get(), 2500),
+        stdout_tail: redactText(stdoutTail.get(), STDOUT_TAIL_LIMIT_CHARS),
+        stderr_tail: redactText(stderrTail.get(), STDOUT_TAIL_LIMIT_CHARS),
         stdout_bytes: stdoutTail.bytes(),
         stderr_bytes: stderrTail.bytes(),
+        // The tail above is capped for readability, so the recorded ownership
+        // proof does not depend on the line surviving that cap.
+        stdout_tail_limit_chars: STDOUT_TAIL_LIMIT_CHARS,
+        stdio_buffer_limit_bytes: LIMITS.stdioTailBytes,
+      };
+    },
+    /*
+     * The startup line is the only proof that this child, on this port, is the
+     * server that answered. It is captured while the child is alive and carried
+     * into the final payload on its own, instead of living only inside a capped
+     * tail of stdout.
+     */
+    startupEvidence() {
+      return {
+        seen: startupRecord.seen === true,
+        line: startupRecord.seen ? redactText(startupRecord.line, 400) : null,
+        port: startupRecord.port || null,
+        observed_at: startupRecord.at || null,
+        latency_ms: startupRecord.latency_ms || null,
+        bytes_at_match: startupRecord.bytes_at_match,
+        port_mismatch: startupRecord.port_mismatch || [],
+        ownership: 'port freshly allocated for this run + startup line observed on this child\'s stdout + child alive',
       };
     },
     assertUsable(context) {
@@ -1401,6 +1430,13 @@ async function execute(recorder, parentEnv) {
         latency_ms: readiness.latency_ms,
         ownership: 'port freshly allocated for this run + startup line observed on this child\'s stdout + child alive',
       });
+      summary.startup_line = redactText(readiness.line, 400);
+      summary.readiness = {
+        latency_ms: readiness.latency_ms,
+        port: readiness.port,
+        bytes_at_match: readiness.bytes_at_match,
+        ownership: 'port freshly allocated for this run + startup line observed on this child\'s stdout + child alive',
+      };
       console.log(`  readiness: "${readiness.line}" after ${readiness.latency_ms} ms`);
       break;
     }
@@ -1644,6 +1680,7 @@ async function finalize(recorder, outcome) {
   const liveEnvironment = ACTIVE_CHILD ? ACTIVE_CHILD.env : null;
   const livePid = ACTIVE_CHILD ? ACTIVE_CHILD.lifecycle.pid : null;
   // The workspace record is captured before it is disposed, for the same reason.
+  const liveStartup = ACTIVE_CHILD ? ACTIVE_CHILD.startupEvidence() : null;
   const liveWorkspace = WORKSPACE
     ? { copied: WORKSPACE.copied, skipped: WORKSPACE.skipped, inventory: WORKSPACE.inventory, accounting: WORKSPACE.accounting }
     : null;
@@ -1741,6 +1778,7 @@ async function finalize(recorder, outcome) {
       'force-termination of this process runs no cleanup; a leftover workspace and a local server are possible',
       'HTTP 200 alone was never accepted as proof of ownership; the startup line gated every API call',
     ],
+    startup: liveStartup,
     diagnostics: liveDiagnostics,
     overall_result: null,
     evidence_result: null,
