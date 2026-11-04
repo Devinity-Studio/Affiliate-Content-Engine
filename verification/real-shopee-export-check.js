@@ -1367,6 +1367,7 @@ async function execute(recorder, parentEnv) {
   }
   console.log(`  accounting: ${workspace.accounting.copied_files} copied + ${workspace.accounting.excluded_files} excluded = ${workspace.accounting.source_files} source files; ${workspace.accounting.copied_bytes} + ${workspace.accounting.excluded_bytes} = ${workspace.accounting.source_bytes} bytes (${workspace.accounting.ok ? 'reconciled' : 'MISMATCH'})`);
   if (!workspace.accounting.ok) {
+    summary.workspace_accounting_ok = false;
     console.error('WARN  the workspace copy does not reconcile with the source inventory; the evidence records both sides.');
   }
   console.log('  data/ is not copied; the server creates data/app/ inside the workspace.');
@@ -1694,6 +1695,11 @@ async function finalize(recorder, outcome) {
   WORKSPACE = null;
 
   const degraded = [];
+  // Recorded for every operation, so a mismatch is visible in PARTIAL/PENDING/
+  // FAILED runs too; overallResult() only consults `degraded` for VERIFIED.
+  if (outcome.summary && outcome.summary.workspace_accounting_ok === false) {
+    degraded.push('WORKSPACE_ACCOUNTING_MISMATCH');
+  }
   let code = outcome.code;
   let verdict = outcome.verdict;
   let operation = outcome.operation;
