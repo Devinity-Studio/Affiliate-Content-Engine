@@ -1,0 +1,60 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ace.local/schemas/content-work-item.schema.json",
+  "title": "ACE Content Work Item (CWI)",
+  "description": "Canonical contract for the CWI record created by POST /api/content-work-item. product_id is nullable in the base schema; the if/then branch narrows it to a non-null, non-empty string for PRODUCT and REVIEW work items. Canonical source of truth for this contract; HANDOFF.md section 4 quotes the decisive fragments only.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["id", "type", "plan_id", "plan_version"],
+  "properties": {
+    "id": {
+      "type": "string",
+      "pattern": "^CWI-[0-9]+$"
+    },
+    "type": {
+      "type": "string",
+      "enum": ["PRODUCT", "REVIEW", "METHOD", "WORKFLOW"],
+      "description": "Work-item kind. PRODUCT and REVIEW are product-bound: the if/then branch requires a non-null product_id for them. METHOD and WORKFLOW are not product-bound: they inherit the nullable product_id base, so product_id may be absent or null. Further non-product kinds may be added to this enum later; they inherit the same nullable base and are not constrained by the if/then branch."
+    },
+    "plan_id": {
+      "type": "string",
+      "pattern": "^PLAN-[0-9]+-[0-9]+$"
+    },
+    "plan_version": {
+      "type": "string",
+      "pattern": "^v[0-9]+$"
+    },
+    "product_id": {
+      "type": ["string", "null"],
+      "minLength": 1,
+      "description": "Identifier of the product this work item is about. Base schema: a string or null. For type PRODUCT or REVIEW the if/then branch narrows this to a non-null string with minLength 1."
+    },
+    "decision": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Current lifecycle value. The server defaults to PENDING. The decision vocabulary is not yet fixed by the spec, so it is deliberately unconstrained here; narrow it only once the team agrees the closed set (open question in HANDOFF.md section 7)."
+    },
+    "createdAt": {
+      "type": "string",
+      "format": "date-time"
+    }
+  },
+  "if": {
+    "properties": {
+      "type": {
+        "enum": ["PRODUCT", "REVIEW"]
+      }
+    },
+    "required": ["type"]
+  },
+
+  "then": {
+    "required": ["product_id"],
+    "properties": {
+      "product_id": {
+        "type": "string",
+        "minLength": 1
+      }
+    }
+  }
+}

@@ -1,0 +1,7 @@
+# Mission 1 — cost budget (per cycle)
+# Schema: docs/mission1/D-data-model.md §3.12
+# The owner approved a THB 0 plan budget at G1. No G-pay record exists and no spend is authorized.
+# Any planned or actual amount > 0 requires a separate G-pay DEC record BEFORE the action.
+planned_thb: 0
+spent_thb_actual: 0
+approvals: []

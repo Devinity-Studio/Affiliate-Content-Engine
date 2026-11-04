@@ -1,0 +1,42 @@
+/*
+ * ACE Thai typography baseline.
+ * The font files are intentionally not bundled until a licensed Thai font pack
+ * is selected. This keeps local Preview usable while making Render deterministic
+ * once files are placed in public/fonts/.
+ */
+
+@font-face {
+  font-family: "ACE Thai";
+  src: url("../public/fonts/NotoSansThai-Regular.woff2") format("woff2");
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "ACE Thai";
+  src: url("../public/fonts/NotoSansThai-Medium.woff2") format("woff2");
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "ACE Thai";
+  src: url("../public/fonts/NotoSansThai-Bold.woff2") format("woff2");
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+}
+
+:root {
+  --ace-thai-font: "ACE Thai", "Noto Sans Thai", Tahoma, sans-serif;
+}
+
+.ace-thai-text {
+  font-family: var(--ace-thai-font);
+  font-kerning: normal;
+  text-rendering: optimizeLegibility;
+  word-break: normal;
+  overflow-wrap: anywhere;
+}
