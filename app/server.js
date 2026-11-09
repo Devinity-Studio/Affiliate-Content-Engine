@@ -18,6 +18,12 @@ const path = require('node:path');
 // MVP affiliate workflow slice. It owns its own fixture state and never touches
 // data/app/state.json or the Plan Version / CWI contracts.
 const mvp = require('./mvp/service');
+// A1 synthetic article prototype. Read-only over the MVP slice: it never
+// writes the MVP state, and it owns a separate publications store.
+const sitePublication = require('./site/publication');
+const siteArticle = require('./site/article');
+const siteRender = require('./site/render');
+const siteMedia = require('./site/media');
 
 const HOST = process.env.HOST || '127.0.0.1';
 const requestedPort = Number(process.env.PORT);
@@ -337,6 +343,175 @@ async function serveStatic(req, res, pathname, headOnly = false) {
   }
 }
 
+function sendSiteNotFound(res, status, headOnly) {
+  const html = siteRender.renderUnavailable();
+  res.writeHead(status, {
+    ...SECURITY_HEADERS,
+    'Content-Type': 'text/html; charset=utf-8',
+    'Content-Length': Buffer.byteLength(html),
+    'X-Robots-Tag': 'noindex, nofollow',
+  });
+  res.end(headOnly ? undefined : html);
+}
+
+function siteAccessRefusal(req, res, headOnly) {
+  const access = sitePublication.checkPreviewAccess(req);
+  if (access.ok) return false;
+  if (access.status === 403) {
+    sendText(res, 403, 'Forbidden');
+    return true;
+  }
+  // Any token problem is indistinguishable from "no such article".
+  sendSiteNotFound(res, 404, headOnly);
+  return true;
+}
+
+async function loadSitePublication(storePromise, matcher) {
+  const store = await storePromise;
+  const record = matcher(store);
+  return record && sitePublication.isViewable(record) ? record : null;
+}
+
+async function serveArticle(req, res, slug, headOnly) {
+  if (siteAccessRefusal(req, res, headOnly)) return;
+
+  let record = null;
+  try {
+    record = await loadSitePublication(sitePublication.loadStore(), (store) => sitePublication.findBySlug(store, slug));
+  } catch (err) {
+    console.error('[ace] publications store refused:', err.message);
+    sendSiteNotFound(res, 404, headOnly);
+    return;
+  }
+  if (!record) {
+    sendSiteNotFound(res, 404, headOnly);
+    return;
+  }
+
+  let built;
+  try {
+    built = await siteArticle.buildForContentId(record.content_id, record);
+  } catch (err) {
+    console.error('[ace] article build failed:', err.message);
+    sendSiteNotFound(res, 404, headOnly);
+    return;
+  }
+  if (!built.ok) {
+    // QA-blocked, unresolved evidence, or missing content: withheld, no page.
+    console.warn(`[ace] article withheld for ${record.content_id}: ${built.reason}`);
+    sendSiteNotFound(res, 404, headOnly);
+    return;
+  }
+
+  // A browser cannot attach the bearer header to an <img> request, so the
+  // hero image is inlined. The /media route stays available for authenticated
+  // fetches; this keeps the page viewable, and the CSP already allows data:.
+  if (built.doc.hero && built.content) {
+    try {
+      const inlined = await siteMedia.inlineHeroImage({ contentId: record.content_id, content: built.content });
+      if (inlined) built.doc.hero = { ...built.doc.hero, src: inlined };
+    } catch (err) {
+      console.error('[ace] hero inlining failed:', err.message);
+    }
+  }
+  const html = siteRender.renderArticle(built.doc);
+  res.writeHead(200, {
+    ...SECURITY_HEADERS,
+    'Content-Type': 'text/html; charset=utf-8',
+    'Content-Length': Buffer.byteLength(html),
+    'X-Robots-Tag': 'noindex, nofollow',
+  });
+  res.end(headOnly ? undefined : html);
+}
+
+async function serveMedia(req, res, contentId, file, headOnly) {
+  if (siteAccessRefusal(req, res, headOnly)) return;
+
+  let record = null;
+  try {
+    record = await loadSitePublication(sitePublication.loadStore(), (store) => sitePublication.findByContentId(store, contentId));
+  } catch (err) {
+    console.error('[ace] publications store refused:', err.message);
+    sendText(res, 404, 'Not found');
+    return;
+  }
+  if (!record) {
+    sendText(res, 404, 'Not found');
+    return;
+  }
+
+  let source;
+  try {
+    source = await sitePublication.loadArticleSource(record.content_id);
+  } catch (err) {
+    console.error('[ace] media source load failed:', err.message);
+    sendText(res, 404, 'Not found');
+    return;
+  }
+  if (!source.ok) {
+    sendText(res, 404, 'Not found');
+    return;
+  }
+
+  let media;
+  try {
+    media = await siteMedia.readMedia({ contentId, file, content: source.content });
+  } catch (err) {
+    console.error('[ace] media read failed:', err.message);
+    sendText(res, 404, 'Not found');
+    return;
+  }
+  if (!media.ok) {
+    sendText(res, media.status === 400 ? 400 : 404, media.status === 400 ? 'Bad request' : 'Not found');
+    return;
+  }
+
+  res.writeHead(200, {
+    ...SECURITY_HEADERS,
+    'Content-Type': media.mime,
+    'Content-Length': media.buffer.length,
+  });
+  res.end(headOnly ? undefined : media.buffer);
+}
+
+async function handleSiteRoutes(req, res, pathname, headOnly) {
+  if (pathname === '/review' || pathname.startsWith('/review/')) {
+    const raw = pathname.slice('/review/'.length);
+    if (!raw) {
+      sendSiteNotFound(res, 404, headOnly);
+      return;
+    }
+    let slug;
+    try {
+      slug = decodeURIComponent(raw);
+    } catch {
+      sendSiteNotFound(res, 404, headOnly);
+      return;
+    }
+    if (!sitePublication.SLUG_RE.test(slug)) {
+      sendSiteNotFound(res, 404, headOnly);
+      return;
+    }
+    await serveArticle(req, res, slug, headOnly);
+    return;
+  }
+
+  const parts = pathname.split('/').filter(Boolean);
+  if (parts.length !== 3 || parts[0] !== 'media') {
+    sendText(res, 404, 'Not found');
+    return;
+  }
+  let contentId;
+  let file;
+  try {
+    contentId = decodeURIComponent(parts[1]);
+    file = decodeURIComponent(parts[2]);
+  } catch {
+    sendText(res, 400, 'Bad request');
+    return;
+  }
+  await serveMedia(req, res, contentId, file, headOnly);
+}
 const server = http.createServer(async (req, res) => {
   try {
     const url = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
@@ -755,6 +930,14 @@ const server = http.createServer(async (req, res) => {
       return;
     }
 
+    if (pathname === '/review' || pathname.startsWith('/review/') || pathname === '/media' || pathname.startsWith('/media/')) {
+      if (req.method !== 'GET' && req.method !== 'HEAD') {
+        sendText(res, 405, 'Method not allowed');
+        return;
+      }
+      await handleSiteRoutes(req, res, pathname, req.method === 'HEAD');
+      return;
+    }
     if (req.method !== 'GET' && req.method !== 'HEAD') {
       sendText(res, 405, 'Method not allowed');
       return;

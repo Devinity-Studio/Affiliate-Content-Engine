@@ -19,3 +19,6 @@ node_modules/
 .env
 .env.*
 !.env.example
+
+# Local runtime state for the A1 article prototype (publications store)
+data/site/

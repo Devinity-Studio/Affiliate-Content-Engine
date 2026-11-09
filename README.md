@@ -158,3 +158,56 @@ Both suites build their own temporary workspace, so they do not touch the real s
 ## Boundaries
 
 No publication, no affiliate account, no credentials, no paid API, no analytics, no external calls. Mission 1 gates G2–G5 and the storage architecture are out of scope for this MVP.
+
+## A1 — Local synthetic article prototype (preview only)
+
+`app/site/` renders one synthetic content record (CNT-1) as an article for local review.
+It is deliberately smaller than the MVP slice and cannot publish anything:
+
+- Publication states are `DRAFT` and `PREVIEW` only. There is no `PUBLISHED` state,
+  no sitemap, no robots policy and no public route.
+- `/review/:slug` and `/media/:contentId/:file` bind to loopback and require
+  `Authorization: Bearer $ACE_PREVIEW_TOKEN`. A missing token, a wrong token, a missing
+  publication, a `DRAFT` publication or unresolved evidence all return `404`.
+- The article body is synthesised deterministically from `storyboard.scenes[]`. Every
+  section cites `EV-*` evidence ids that must resolve, and the prose adds no new numbers
+  or claims beyond the record.
+- `/media` serves only image files the content record references, by basename, from the
+  exports directory.
+- Click tracking, `/go`, the admin summary and all SEO metadata are out of scope for A1.
+
+### Run it
+
+```bash
+# 1. Copy a synthetic state file into a scratch workspace (never edit the original)
+mkdir -p .tmp/a1
+cp .tmp/ace-mvp-evidence/state.json .tmp/a1/state.json
+
+# 2. Seed a PREVIEW publication record
+node app/site/seed.js --content CNT-1 --mvp .tmp/a1/state.json --out .tmp/a1/publications.json
+
+# 3. Serve it on loopback
+ACE_MVP_STATE_FILE=.tmp/a1/state.json \
+ACE_SITE_PUBLICATIONS_FILE=.tmp/a1/publications.json \
+ACE_PREVIEW_TOKEN=local-preview \
+PORT=4400 node app/server.js
+
+# 4. Fetch the article
+curl -H "Authorization: Bearer local-preview" \
+http://127.0.0.1:4400/review/cat-food-1-5kg-cnt-1
+```
+
+### Environment
+
+| Variable | Purpose |
+|---|---|
+| `ACE_PREVIEW_TOKEN` | Required for any article response; when unset, every article route answers `404`. |
+| `ACE_SITE_PUBLICATIONS_FILE` | Publication store path (default `data/site/publications.json`, git-ignored). |
+| `ACE_MVP_STATE_FILE` | MVP state the article reads (default `data/mvp/fixture-state.json`). |
+| `ACE_MVP_EXPORTS_DIR` | Where rendered artefacts live (default `<state dir>/exports`). |
+
+### Verify
+
+```bash
+node verification/site-article-acceptance.js
+```

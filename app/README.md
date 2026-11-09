@@ -160,3 +160,15 @@ Mission records under `data/mission1/` are read-only for this app. In particular
 - The decision recorded here is an **opportunity decision**, not G2. G1 stays plan-level (`APPROVED_WITH_NOTES`); G2–G5 stay unapproved.
 - `Edit` and `Next` are disabled, with the reason shown. Workflow advancement is out of scope.
 - No build step, no tests runner, no dependencies.
+
+## A1 — Article preview routes
+
+| Method | Route | Notes |
+|---|---|---|
+| `GET` | `/review/:slug` | `200` only when a `PREVIEW` publication exists **and** the request carries the preview token. Everything else is `404`. |
+| `GET` | `/media/:contentId/:file` | Same gate. Serves only image files referenced by the content record, by basename, from the exports directory. |
+| `GET` | `/review.css` | Static stylesheet, served from `app/public`; external because the CSP forbids inline styles. |
+
+Publication records live in `data/site/publications.json` (git-ignored) and are created with
+`node app/site/seed.js`. The store is separate from the MVP content lifecycle:
+`READY_TO_PUBLISH` never implies a publication, and A1 has no `PUBLISHED` state at all.
