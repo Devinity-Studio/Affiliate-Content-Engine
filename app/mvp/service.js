@@ -2888,6 +2888,98 @@ async function handleContentFinalize(req, res, ctx, contentId) {
   ctx.sendJson(res, 200, result);
 }
 
+async function handleContentLibraryList(req, res, ctx) {
+  // Library listing: every stored export with live integrity evidence, so the
+  // workflow can find and retrieve a past export without already knowing its
+  // content ID. One missing or damaged file must never hide the rest.
+  const library = await contentModule.readContentLibrary();
+  const exportsRoot = path.resolve(EXPORTS_DIR);
+  const counts = { VERIFIED: 0, MISSING: 0, MISMATCH: 0, UNREADABLE: 0 };
+  const items = [];
+  for (const entry of library.items) {
+    if (!entry || typeof entry.id !== 'string' || !entry.id) {
+      counts.UNREADABLE += 1;
+      items.push({
+        entry,
+        file: { path: null, exists: false, bytes: null, sha256: null, sha256_match: null, integrity: 'UNREADABLE' },
+      });
+      continue;
+    }
+    const file = path.resolve(exportsRoot, entry.id, String(entry.filename || ''));
+    if (!file.startsWith(`${exportsRoot}${path.sep}`)) {
+      counts.UNREADABLE += 1;
+      items.push({
+        entry,
+        file: { path: file, exists: false, bytes: null, sha256: null, sha256_match: null, integrity: 'UNREADABLE' },
+      });
+      continue;
+    }
+    let exists = false;
+    let bytes = null;
+    let actualSha256 = null;
+    try {
+      const data = await fsp.readFile(file);
+      exists = true;
+      bytes = data.length;
+      actualSha256 = crypto.createHash('sha256').update(data).digest('hex');
+    } catch {
+      exists = false;
+    }
+    const sha256Match = exists ? actualSha256 === entry.sha256 : null;
+    const integrity = exists ? (sha256Match ? 'VERIFIED' : 'MISMATCH') : 'MISSING';
+    counts[integrity] += 1;
+    items.push({
+      entry,
+      file: { path: file, exists, bytes, sha256: actualSha256, sha256_match: sha256Match, integrity },
+    });
+  }
+  // Newest export first; entries without a timestamp keep their stored order.
+  items.sort((a, b) => String((b.entry && b.entry.exported_at) || '')
+    .localeCompare(String((a.entry && a.entry.exported_at) || '')));
+  ctx.sendJson(res, 200, {
+    items,
+    total: items.length,
+    counts,
+    library_file: contentModule.contentLibraryFile(),
+    exports_root: exportsRoot,
+  });
+}
+
+async function handleContentLibraryFile(req, res, ctx, libraryId) {
+  // Retrieval of the stored bytes themselves through the library, so a past
+  // export can be downloaded without the content project still being open.
+  // The record decides the location; the request never supplies a path.
+  const entry = await contentModule.getLibraryItem(libraryId);
+  if (!entry) throw httpError(404, `content library item not found: ${libraryId}`);
+  const name = String(entry.filename || '');
+  if (!name || path.basename(name) !== name) {
+    throw httpError(403, 'refusing to serve a library record with an unsafe filename');
+  }
+  const exportsRoot = path.resolve(EXPORTS_DIR);
+  const file = path.resolve(exportsRoot, entry.id, name);
+  if (!file.startsWith(`${exportsRoot}${path.sep}`)) {
+    throw httpError(403, 'refusing to serve a file outside the exports directory');
+  }
+  let data;
+  try {
+    data = await fsp.readFile(file);
+  } catch (err) {
+    if (err && err.code === 'ENOENT') {
+      throw httpError(404, `the stored file for ${libraryId} is missing on disk: ${name}`);
+    }
+    throw err;
+  }
+  res.writeHead(200, {
+    'Content-Type': 'video/mp4',
+    'Content-Length': data.length,
+    'Content-Disposition': `attachment; filename="${name}"`,
+    'X-Content-Library-Integrity': crypto.createHash('sha256').update(data).digest('hex') === entry.sha256
+      ? 'VERIFIED'
+      : 'MISMATCH',
+  });
+  res.end(data);
+}
+
 async function handleContentLibraryItem(req, res, ctx, libraryId) {
   // G-13 retrieval: the library record plus live integrity evidence for the
   // exported asset it refers to. A record is never reported as verified when
@@ -3064,6 +3156,7 @@ async function handleContentGenerate(req, res, ctx) {
     // Persist state with artifact reference
     project.artifact = {
       artifact_id: artifactId,
+      artifact_type: 'SCRIPT_ARTIFACT',
       file_path: filePath,
       version: 1,
       generated_at: new Date().toISOString(),
@@ -3075,6 +3168,10 @@ async function handleContentGenerate(req, res, ctx) {
     };
     project.status = 'EXPORTED';
     project.export = {
+      // EXPORT_KIND: a Markdown script only. It shares the EXPORTED status for
+      // the ratified Content Artifact v1 contract, but publish preparation
+      // requires kind VIDEO, so this can never be handed off as a video.
+      kind: 'SCRIPT_ARTIFACT',
       filename: fileName,
       bytes: Buffer.from(markdownContent).length,
       sha256: crypto.createHash('sha256').update(markdownContent).digest('hex'),
@@ -3230,8 +3327,11 @@ async function handleMvp(req, res, ctx) {
           'GET /api/mvp/content/:id/export/video',
           'GET /api/mvp/content/:id/export/still',
           'POST /api/mvp/content/generate',
-          'GET /api/mvp/content/export/:artifact_id',          'POST /api/mvp/content/:id/publish-prep',
+          'GET /api/mvp/content/export/:artifact_id',
+          'POST /api/mvp/content/:id/publish-prep',
+          'GET /api/mvp/library',
           'GET /api/mvp/library/:id',
+          'GET /api/mvp/library/:id/file',
         ],
       });
       return true;
@@ -3447,6 +3547,24 @@ async function handleMvp(req, res, ctx) {
 
     if (pathname === '/api/mvp/content/generate' && method === 'POST') {
       await handleContentGenerate(req, res, ctx);
+      return true;
+    }
+
+    if (pathname === '/api/mvp/library' && method === 'GET') {
+      await handleContentLibraryList(req, res, ctx);
+      return true;
+    }
+
+    const libraryFileMatch = pathname.match(/^\/api\/mvp\/library\/([^/]+)\/file$/);
+    if (libraryFileMatch && method === 'GET') {
+      let libraryFileRef;
+      try {
+        libraryFileRef = decodeURIComponent(libraryFileMatch[1]);
+      } catch (decodeErr) {
+        if (!(decodeErr instanceof URIError)) throw decodeErr;
+        throw httpError(400, 'invalid content library id encoding');
+      }
+      await handleContentLibraryFile(req, res, ctx, libraryFileRef);
       return true;
     }
 

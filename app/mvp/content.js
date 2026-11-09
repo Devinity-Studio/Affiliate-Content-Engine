@@ -1195,6 +1195,7 @@ async function exportProject(project, options) {
   library.items = library.items.filter((item) => !(item && item.id === project.content_id && item.filename === path.basename(outFile)));
   library.items.push({
     id: project.content_id,
+    kind: 'VIDEO',
     filename: path.basename(outFile),
     sha256: rendered.sha256,
     exported_at: nowIso(),
@@ -1211,6 +1212,10 @@ async function exportProject(project, options) {
 
   project.status = 'EXPORTED';
   project.export = {
+    // EXPORT_KIND: what the export actually is. Only VIDEO means "a rendered
+    // 9:16 MP4 exists"; a Markdown script artifact is SCRIPT_ARTIFACT and can
+    // never satisfy the publish-preparation gate.
+    kind: 'VIDEO',
     exported_at: nowIso(),
     file: outFile,
     filename: path.basename(outFile),
@@ -1280,9 +1285,31 @@ async function exportProject(project, options) {
 /* Publish preparation                                                 */
 /* ------------------------------------------------------------------ */
 
+/**
+ * The single meaning of an export record.
+ *
+ *   VIDEO           — a rendered MP4 exists on disk (width/height recorded).
+ *   SCRIPT_ARTIFACT — only a Markdown script was written; no video exists.
+ *
+ * Records written before the kind field existed carry file + width + height,
+ * so they are read as VIDEO instead of being reported as unknown.
+ */
+function exportKindOf(project) {
+  const exp = project && project.export;
+  if (!exp) return null;
+  if (exp.kind) return exp.kind;
+  return exp.file && exp.width && exp.height ? 'VIDEO' : null;
+}
+
 function buildPublishPrep(project) {
   if (project.status !== 'EXPORTED') {
     throw httpError(409, `publish preparation requires an EXPORTED project (current status ${project.status})`);
+  }
+  const kind = exportKindOf(project);
+  if (kind !== 'VIDEO') {
+    throw httpError(409,
+      'publish preparation requires a VIDEO export: this content has ' +
+      `${kind || 'no'} export, so there is no rendered MP4 to hand off`);
   }
   const offer = project.offer_snapshot;
   const scenes = project.storyboard.scenes || [];
@@ -1298,7 +1325,7 @@ function buildPublishPrep(project) {
   ].filter(Boolean).join('\n');
 
   const checks = [
-    { id: 'exported', label: 'มีไฟล์วิดีโอที่ export แล้ว', ok: Boolean(project.export && project.export.file) },
+    { id: 'exported', label: 'มีไฟล์วิดีโอที่ export แล้ว', ok: exportKindOf(project) === 'VIDEO' && Boolean(project.export.file) },
     { id: 'aspect', label: 'ไฟล์เป็นแนวตั้ง 9:16', ok: project.export && project.export.width === 1080 && project.export.height === 1920 },
     { id: 'cta', label: 'มี CTA พร้อมคำบรรยาย', ok: Boolean(project.cta && project.cta.text) },
     { id: 'script', label: 'บันทึก Script version และ checksum', ok: project.script_version >= 1 && Boolean(project.script && project.script.checksum) },
@@ -1487,6 +1514,7 @@ module.exports = {
   removeAsset,
   refreshAudioStatus,
   exportProject,
+  exportKindOf,
   contentLibraryFile,
   readContentLibrary,
   getLibraryItem,

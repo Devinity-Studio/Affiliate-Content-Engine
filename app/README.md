@@ -100,6 +100,43 @@ Fixture state defaults to `data/mvp/fixture-state.json` (git-ignored) and can be
 
 No real Shopee Affiliate export has been supplied to this workspace, so the import path is verified against **SYNTHETIC-labelled fixtures only**. `node verification/real-shopee-export-check.js` reports that blocker with exit code 2 and, once a real file is dropped into `data/imports/`, runs the real preview → commit → promote and prints the actual status codes and bodies.
 
+## Content creation → export → Content Library
+
+`app/mvp/content.js` owns the second half of the workflow and `app/remotion/render.js` renders the video.
+
+**Prerequisite:** FFmpeg (with `libass`, `libx264`, `aac`) and optionally ffprobe. Discovery order is `$ACE_FFMPEG` / `$FFMPEG_PATH` → `.tmp/tools/node_modules/@ffmpeg-installer/win32-x64/ffmpeg.exe` → `PATH`; ffprobe is read from the same directory. Without FFmpeg the app works up to FINALIZED and export returns `503`. Thai captions use `$ACE_THAI_FONT` when set, otherwise the first font found in `render.js`'s candidate list (Leelawadee UI / Tahoma / Cordia on Windows). Setup and troubleshooting are in the [root README](../README.md).
+
+| Area | Behaviour |
+|---|---|
+| Lifecycle | `DRAFT → REVIEW → FINALIZED → EXPORTED → READY_TO_PUBLISH`, one step at a time; every other transition is a 409. |
+| Storyboard | Scenes with visual / text / audio tracks, per-scene duration, reorder and delete, plus uploaded image and narration assets. |
+| Script + CTA | Versioned script with a sha256 checksum; editing the last scene's text keeps the CTA in sync. |
+| Thai QA | Seven categories (spelling, price, promotion, product name, CTA, evidence, external scope) recorded on the project without changing its status. |
+| Finalize | 11-item checklist: QA `FAIL = 0`, previews, per-scene image/headline/voiceover, CTA in the last scene, evidence for factual lines, 5–90 s duration, audio state, script version and IDs. |
+| Export | Local ffmpeg render to `1080×1920` H.264 + AAC at 30 fps, plus a still frame. Writes the Content Library index in the same transaction. |
+| `EXPORT_KIND` | Every export records `kind`. `VIDEO` means a real MP4 exists; `SCRIPT_ARTIFACT` means only Markdown was written. Publish prep requires `VIDEO`. |
+| Content Library | Append-or-replace index at `data/mission1/content-library.json` (`ACE_CONTENT_LIBRARY_FILE` override); leading `#` comments tolerated; a malformed index is refused, never overwritten. |
+| Retrieval | By ID with live integrity (`VERIFIED` / `MISMATCH` / `MISSING`), whole-library listing, and a download route that derives the path from the record. |
+
+Content endpoints:
+
+| Method | Route | Purpose |
+|---|---|---|
+| `GET` | `/api/mvp/content` | List content projects. |
+| `POST` | `/api/mvp/content/draft` | Create a project from a plan or a candidate. |
+| `POST` | `/api/mvp/content/:id/track/:track` | Edit the visual / text / audio track of a scene. |
+| `POST` | `/api/mvp/content/:id/qa` | Run Thai QA. |
+| `POST` | `/api/mvp/content/:id/review` | `DRAFT → REVIEW`. |
+| `POST` | `/api/mvp/content/:id/finalize` | `REVIEW → FINALIZED` behind the checklist. |
+| `POST` | `/api/mvp/content/:id/export` | `FINALIZED → EXPORTED`, renders the MP4, writes the library entry. |
+| `GET` | `/api/mvp/content/:id/export/video` \| `/still` | Stream the exported file or its still frame. |
+| `POST` | `/api/mvp/content/:id/publish-prep` | `EXPORTED → READY_TO_PUBLISH`; requires a `VIDEO` export. |
+| `GET` | `/api/mvp/library` | List the whole library with per-entry integrity and counts. |
+| `GET` | `/api/mvp/library/:id` | One stored record plus live integrity evidence. |
+| `GET` | `/api/mvp/library/:id/file` | Download the stored bytes; 404 when the file is gone. |
+| `POST` | `/api/mvp/content/generate` | Content Artifact v1: Markdown only, `kind = SCRIPT_ARTIFACT`. |
+| `GET` | `/api/mvp/content/export/:artifact_id` | Download that Markdown artifact. |
+
 ## API
 
 | Method | Route | Purpose |

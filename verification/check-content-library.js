@@ -146,6 +146,23 @@ function httpCall(base, method, route, body) {
   });
 }
 
+// Binary GET: the library file route returns the MP4 bytes themselves.
+function httpBinary(base, route) {
+  return new Promise((resolve, reject) => {
+    const req = http.request(`${base}${route}`, { method: 'GET' }, (res) => {
+      const chunks = [];
+      res.on('data', (chunk) => chunks.push(chunk));
+      res.on('end', () => resolve({
+        status: res.statusCode,
+        headers: res.headers,
+        bytes: Buffer.concat(chunks),
+      }));
+    });
+    req.on('error', reject);
+    req.end();
+  });
+}
+
 async function waitForServer(base, deadlineMs) {
   const deadline = Date.now() + deadlineMs;
   while (Date.now() < deadline) {
@@ -180,7 +197,7 @@ async function driveWorkflow(base) {
   await step('edit audio track', await httpCall(base, 'POST', `/api/mvp/content/${contentId}/track/audio`, {
     sceneId: 'SC-2', audio: { voiceover: 'ผู้ซื้อเลือกเซรั่มผิดมาแล้ว งบหมดโดยไม่จำเป็น เช็กข้อมูลก่อนตัดสินใจ' },
   }));
-  return { contentId };
+  return { contentId, candidateId };
 }
 
 async function e2e() {
@@ -315,6 +332,61 @@ async function e2e() {
 
     // Index count sanity: exactly the seeded entry plus the export record.
     check('final index holds exactly expected entries', libItems.length === 2, `${libItems.length} entr(ies)`);
+
+    // 8) Listing: the workflow must be able to find a past export without
+    //    already knowing its content ID.
+    const listed = await httpCall(base, 'GET', '/api/mvp/library');
+    check('library list returns 200', listed.status === 200, `status ${listed.status}`);
+    const listedItem = ((listed.body || {}).items || []).find((it) => it.entry && it.entry.id === contentId);
+    check('library list exposes the export with VERIFIED integrity',
+      Boolean(listedItem) && listedItem.file.integrity === 'VERIFIED',
+      listedItem && listedItem.file.integrity);
+    const listedMissing = ((listed.body || {}).items || []).find((it) => it.entry && it.entry.id === 'PRE-EXISTING-ITEM');
+    check('library list reports the dead entry as MISSING without hiding the rest',
+      Boolean(listedMissing) && listedMissing.file.integrity === 'MISSING',
+      listedMissing && listedMissing.file.integrity);
+    check('library list counts agree with the entries',
+      Boolean(listed.body && listed.body.counts)
+      && listed.body.counts.VERIFIED === 1 && listed.body.counts.MISSING === 1,
+      JSON.stringify(listed.body && listed.body.counts));
+    check('library list exposes the artefact kind as VIDEO',
+      Boolean(listedItem) && listedItem.entry.kind === 'VIDEO',
+      listedItem && listedItem.entry.kind);
+
+    // 9) Retrieval of the bytes themselves, and refusal when they are gone.
+    const downloaded = await httpBinary(base, `/api/mvp/library/${encodeURIComponent(contentId)}/file`);
+    check('library file download returns 200', downloaded.status === 200, `status ${downloaded.status}`);
+    check('library file download is the stored MP4 byte-for-byte',
+      downloaded.bytes.length === fs.statSync(exp.file).size
+      && crypto.createHash('sha256').update(downloaded.bytes).digest('hex') === diskSha,
+      `${downloaded.bytes.length} bytes`);
+    check('library file download reports an mp4 content type',
+      String(downloaded.headers['content-type'] || '').includes('video/mp4'),
+      downloaded.headers['content-type']);
+    check('library file download of an unknown id is 404',
+      (await httpBinary(base, '/api/mvp/library/DOES-NOT-EXIST/file')).status === 404);
+
+    // 10) EXPORT_KIND: a Markdown script artifact shares the EXPORTED status
+    //     but must never satisfy publish preparation.
+    const generated = await httpCall(base, 'POST', '/api/mvp/content/generate', {
+      candidate_id: prospect.candidateId, approach_key: 'personalized_b',
+    });
+    check('script artifact generation returns 200', generated.status === 200, `status ${generated.status}`);
+    const artState = JSON.parse(await fsp.readFile(stateFile, 'utf-8'));
+    const artProject = Object.values(artState.contents || {})
+      .find((p) => p.artifact && p.artifact.artifact_id === generated.body.artifact_id);
+    check('script artifact is recorded with kind SCRIPT_ARTIFACT',
+      Boolean(artProject) && artProject.export && artProject.export.kind === 'SCRIPT_ARTIFACT',
+      artProject && artProject.export && artProject.export.kind);
+    const artPrep = await httpCall(base, 'POST', `/api/mvp/content/${artProject.content_id}/publish-prep`);
+    check('script artifact cannot pass publish preparation (409)', artPrep.status === 409, `status ${artPrep.status}`);
+    check('the refusal names the VIDEO requirement',
+      typeof artPrep.body.error === 'string' && artPrep.body.error.includes('VIDEO export'),
+      artPrep.body.error);
+    const videoPrep = await httpCall(base, 'POST', `/api/mvp/content/${contentId}/publish-prep`);
+    check('the real video export still passes publish preparation',
+      videoPrep.status === 200 && videoPrep.body.publish_prep && videoPrep.body.publish_prep.ready === true,
+      `status ${videoPrep.status}`);
   } finally {
     if (server) {
       try { server.kill('SIGTERM'); } catch { /* already gone */ }

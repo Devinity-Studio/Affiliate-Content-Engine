@@ -13,7 +13,15 @@ const SECTIONS = [
   { key: 'candidates', label: 'Candidates', hint: '5 ranked + workspace + queue' },
   { key: 'plan', label: 'Plan', hint: '4 approaches + impact preview' },
   { key: 'content', label: 'Content', hint: 'Storyboard → export' },
+  { key: 'library', label: 'Library', hint: 'Content Library' },
 ];
+
+const LIBRARY_INTEGRITY = {
+  VERIFIED: { label: 'VERIFIED', kind: 'badge-fact' },
+  MISMATCH: { label: 'MISMATCH', kind: 'badge-reject' },
+  MISSING: { label: 'MISSING', kind: 'badge-defer' },
+  UNREADABLE: { label: 'UNREADABLE', kind: 'badge-neutral' },
+};
 
 const CONTENT_STATUSES = ['DRAFT', 'REVIEW', 'FINALIZED', 'EXPORTED', 'READY_TO_PUBLISH'];
 const CONTENT_TABS = [
@@ -80,6 +88,7 @@ const ui = {
   contentQa: null,
   contentExport: null,
   contentPrep: null,
+  library: { items: null, counts: null, meta: null, loading: false, error: null },
 };
 
 const els = {
@@ -239,6 +248,11 @@ function sectionStatus(key) {
   if (key === 'research') return state.summary.offers ? `${state.summary.offers} offers` : 'awaiting import';
   if (key === 'candidates') return state.summary.candidates ? `${state.summary.candidates} candidates` : 'not generated';
   if (key === 'plan') return state.summary.plans ? `${state.summary.plans} plan(s)` : ui.draft ? 'draft open' : 'no plan';
+  if (key === 'library') {
+    if (ui.library.error) return 'unavailable';
+    if (ui.library.items === null) return 'not loaded';
+    return ui.library.items.length ? `${ui.library.items.length} export(s)` : 'empty';
+  }
   if (key === 'content') {
     const open = (state.contents || []).find((c) => c.content_id === ui.contentId);
     if (open) return `${open.content_id} · ${open.status}`;
@@ -260,6 +274,7 @@ function go(section) {
   ui.section = section;
   ui.error = null;
   render();
+  if (section === 'library' && ui.library.items === null && !ui.library.loading) loadLibrary();
 }
 
 function renderNav() {
@@ -2629,6 +2644,134 @@ function renderContent() {
   return wrap;
 }
 
+/* ---------- Content Library ---------- */
+
+async function loadLibrary() {
+  if (ui.library.loading) return;
+  ui.library.loading = true;
+  ui.library.error = null;
+  if (ui.section === 'library') render();
+  try {
+    const res = await api('/api/mvp/library');
+    ui.library.items = res.items || [];
+    ui.library.counts = res.counts || null;
+    ui.library.meta = res;
+  } catch (err) {
+    ui.library.error = err.message;
+    ui.library.items = [];
+  } finally {
+    ui.library.loading = false;
+    if (ui.section === 'library') render();
+  }
+}
+
+function libraryEntryTitle(item) {
+  const entry = item.entry || {};
+  return entry.filename || entry.id || '(record without an id)';
+}
+
+function renderLibraryItem(item) {
+  const entry = item.entry || {};
+  const file = item.file || {};
+  const integrity = LIBRARY_INTEGRITY[file.integrity]
+    || { label: file.integrity || 'UNKNOWN', kind: 'badge-neutral' };
+  const known = new Set(((ui.state && ui.state.contents) || []).map((c) => c.content_id));
+  return h('section', { class: 'mvp-card' },
+    h('div', { class: 'card-head' },
+      h('div', null,
+        h('p', { class: 'eyebrow', text: `export · ${entry.kind || 'VIDEO'}` }),
+        h('h2', { text: libraryEntryTitle(item) }),
+      ),
+      badge(integrity.label, integrity.kind),
+    ),
+    h('dl', { class: 'kv compact' },
+      h('div', null, h('dt', { text: 'content_id' }), h('dd', { class: 'mono', text: entry.id || '—' })),
+      h('div', null, h('dt', { text: 'เวลา export' }), h('dd', { text: entry.exported_at ? fmtDate(entry.exported_at) : '—' })),
+      h('div', null, h('dt', { text: 'ขนาดบนดิสก์' }), h('dd', { text: file.bytes === null || file.bytes === undefined ? 'ไม่มีไฟล์' : `${Math.round(file.bytes / 1024)} KB` })),
+      h('div', null, h('dt', { text: 'รูปแบบ' }), h('dd', { text: entry.width && entry.height ? `${entry.width}×${entry.height} · ${entry.aspect_ratio || '9:16'} · ${entry.duration_s || '—'}s` : '—' })),
+      h('div', null, h('dt', { text: 'sha256 ที่บันทึก' }), h('dd', { class: 'mono small', text: entry.sha256 || '—' })),
+      h('div', null, h('dt', { text: 'sha256 บนดิสก์' }), h('dd', { class: 'mono small', text: file.sha256 || '—' })),
+    ),
+    h('div', { class: 'toolbar' },
+      file.integrity === 'VERIFIED'
+        ? h('a', {
+          class: 'btn btn-primary',
+          href: `/api/mvp/library/${encodeURIComponent(entry.id)}/file`,
+          download: entry.filename,
+        }, 'ดาวน์โหลด MP4')
+        : h('span', { class: 'warn', text: 'ไฟล์ไม่ผ่านการตรวจ — ปิดการดาวน์โหลดจนกว่าจะแก้ไข' }),
+      known.has(entry.id) ? h('button', {
+        type: 'button', class: 'btn btn-ghost', disabled: ui.busy,
+        on: {
+          click: () => {
+            ui.contentId = entry.id;
+            ui.contentNew = false;
+            ui.contentTab = 'export';
+            go('content');
+          },
+        },
+      }, 'เปิดใน Content') : h('span', { class: 'mono small', text: 'project ไม่ได้อยู่ใน state ปัจจุบัน' }),
+    ),
+  );
+}
+
+function renderLibrary() {
+  const lib = ui.library;
+  const wrap = h('div', { class: 'stack' });
+  const clean = lib.counts && lib.counts.VERIFIED > 0
+    && !lib.counts.MISMATCH && !lib.counts.MISSING && !lib.counts.UNREADABLE;
+  wrap.append(h('section', { class: 'mvp-card' },
+    h('div', { class: 'card-head' },
+      h('div', null,
+        h('p', { class: 'eyebrow', text: 'Content Library · store & retrieve' }),
+        h('h2', { text: 'ไฟล์ที่ export แล้วทั้งหมด' }),
+      ),
+      lib.counts
+        ? badge(`${lib.counts.VERIFIED} VERIFIED · ${lib.counts.MISMATCH} MISMATCH · ${lib.counts.MISSING} MISSING`, clean ? 'badge-fact' : 'badge-neutral')
+        : null,
+    ),
+    h('p', { class: 'lead' },
+      'ดัชนีกลางของไฟล์ที่ export แล้ว — ทุกครั้งที่เปิดหน้านี้ ระบบจะเทียบ sha256 กับไฟล์จริงบนดิสก์ จึงเห็น MISSING หรือ MISMATCH ได้ทันที'),
+    h('div', { class: 'toolbar' },
+      h('button', {
+        type: 'button', class: 'btn btn-ghost', disabled: ui.busy || lib.loading,
+        on: { click: () => loadLibrary() },
+      }, lib.loading ? 'กำลังโหลด…' : 'โหลดใหม่ / ตรวจสอบ hash'),
+    ),
+    lib.meta
+      ? h('p', { class: 'trace mono small', text: `index: ${lib.meta.library_file} · exports: ${lib.meta.exports_root}` })
+      : null,
+  ));
+  if (lib.error) {
+    wrap.append(h('section', { class: 'notice' },
+      h('div', { class: 'notice-head' }, h('h2', { text: 'อ่าน Content Library ไม่ได้' })),
+      h('p', { class: 'error-text', text: lib.error }),
+    ));
+    return wrap;
+  }
+  if (lib.items === null) {
+    wrap.append(h('section', { class: 'notice' },
+      h('div', { class: 'notice-head' }, h('h2', { text: lib.loading ? 'กำลังโหลดรายการ…' : 'ยังไม่ได้โหลดรายการ' })),
+      lib.loading ? null : h('p', null, h('button', {
+        type: 'button', class: 'link-btn', on: { click: () => loadLibrary() },
+      }, 'โหลด Content Library →')),
+    ));
+    return wrap;
+  }
+  if (!lib.items.length) {
+    wrap.append(h('section', { class: 'notice' },
+      h('div', { class: 'notice-head' }, h('h2', { text: 'ยังไม่มีไฟล์ใน Content Library' })),
+      h('p', null, 'export วิดีโอจากแท็บ Export ของ Content project แล้วรายการจะปรากฏที่นี่'),
+      h('p', null, h('button', {
+        type: 'button', class: 'link-btn', on: { click: () => go('content') },
+      }, 'ไปที่ Content →')),
+    ));
+    return wrap;
+  }
+  for (const item of lib.items) wrap.append(renderLibraryItem(item));
+  return wrap;
+}
+
 /* ---------- Render ---------- */
 
 function renderDataChip() {
@@ -2662,6 +2805,7 @@ function render() {
     candidates: 'Candidate workspace',
     plan: 'Plan and impact preview',
     content: 'Content creation and export',
+    library: 'Content Library',
   }[ui.section];
   els.save.textContent = ui.busy
     ? 'Working…'
@@ -2674,6 +2818,7 @@ function render() {
   else if (section === 'research') els.body.append(renderResearch());
   else if (section === 'candidates') els.body.append(renderCandidates());
   else if (section === 'content') els.body.append(renderContent());
+  else if (section === 'library') els.body.append(renderLibrary());
   else els.body.append(renderPlan());
 }
 
