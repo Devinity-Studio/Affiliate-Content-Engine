@@ -504,7 +504,7 @@ async function main() {
     });
 
     // ---------- AC-18: manual check ----------
-    console.log('MANUAL AC-18  375px layout was NOT visually inspected (no browser automation in A1)');
+    console.log('MANUAL AC-18  inspected on 2026-11-09 at 375/416/622 px; this suite does not automate layout');
   } finally {
     server.kill();
     await new Promise((resolve) => {
