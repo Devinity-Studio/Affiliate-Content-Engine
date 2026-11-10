@@ -933,12 +933,27 @@ function buildFinalizeChecklist(project, qa) {
   };
 }
 
-function finalizeProject(project, qa) {
+function finalizeProject(project, qa, review) {
   const checklist = buildFinalizeChecklist(project, qa || project.qa);
   if (!checklist.passed) {
     const failed = checklist.items.filter((item) => !item.ok).map((item) => item.label);
     throw httpError(409, `finalize blocked: ${failed.join('; ')}`, { checklist });
   }
+
+  // Human-in-the-loop interlock, enforced again here so no other caller can
+  // reach FINALIZED without a recorded review of the Thai draft.
+  if (!review || review.confirmed !== true) {
+    throw httpError(409, 'finalize blocked: ต้องมีการตรวจรับบทพูดภาษาไทยก่อน', {
+      code: 'draft_review_required',
+    });
+  }
+  const currentChecksum = project.script ? project.script.checksum : null;
+  if (review.script_checksum !== currentChecksum) {
+    throw httpError(409, 'finalize blocked: การตรวจรับไม่ตรงกับบทพูดปัจจุบัน', {
+      code: 'draft_review_stale',
+    });
+  }
+
   project.status = 'FINALIZED';
   const audioState = refreshAudioStatus(project);
   if (audioState.status === 'AUDIO_ATTACHED') {
@@ -957,8 +972,22 @@ function finalizeProject(project, qa) {
       approved: audioState.approved,
       mismatches: audioState.mismatches || [],
     },
+    review: {
+      confirmed: true,
+      reviewed_by: review.reviewed_by,
+      reviewed_at: review.reviewed_at,
+      script_checksum: review.script_checksum,
+      script_source: review.script_source,
+      note: review.note === undefined ? null : review.note,
+    },
   };
   project.updated_at = nowIso();
+  project.edit_log.push({
+    at: project.updated_at,
+    track: null,
+    scene_id: null,
+    change: `ตรวจรับบทพูดภาษาไทยโดย ${review.reviewed_by} ก่อน FINALIZED (${String(review.script_checksum || '').slice(0, 12)}…)`,
+  });
   return project;
 }
 

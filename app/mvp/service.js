@@ -2911,21 +2911,80 @@ async function handleContentReview(req, res, ctx, contentId) {
   ctx.sendJson(res, 200, result);
 }
 
+/**
+ * Human-in-the-loop interlock (Owner directive, 2026-11-10).
+ *
+ * FINALIZED is the last state a human can still cheaply reject, so the Owner
+ * must confirm with their own eyes that they read the Thai draft first. The
+ * confirmation is bound to the script checksum: if the script changes after the
+ * review, the confirmation is stale and the review has to be repeated.
+ */
+function requireDraftReview(project, body) {
+  const script = project.script || {};
+  const checksum = typeof script.checksum === 'string' ? script.checksum : null;
+  const review = body && typeof body.draft_review === 'object' && body.draft_review !== null
+    ? body.draft_review
+    : null;
+
+  if (!review || review.confirmed !== true) {
+    throw httpError(409, 'finalize blocked: ต้องอ่านบทพูดภาษาไทยด้วยตาและกดยืนยันก่อน (draft_review.confirmed = true)', {
+      code: 'draft_review_required',
+      draft_review: {
+        script_checksum: checksum,
+        script_source: typeof script.source === 'string' ? script.source : null,
+        script_text: typeof script.text === 'string' ? script.text : '',
+      },
+    });
+  }
+
+  const reviewedBy = typeof review.reviewed_by === 'string' ? review.reviewed_by.trim() : '';
+  if (reviewedBy === '') {
+    throw httpError(409, 'finalize blocked: ต้องระบุชื่อผู้ตรวจรับ (draft_review.reviewed_by)', {
+      code: 'draft_review_required',
+    });
+  }
+
+  if (review.script_checksum !== checksum) {
+    throw httpError(409, 'finalize blocked: บทพูดเปลี่ยนหลังการตรวจรับ ต้องตรวจใหม่ (draft_review.script_checksum ไม่ตรงกับบทปัจจุบัน)', {
+      code: 'draft_review_stale',
+      draft_review: {
+        expected_checksum: checksum,
+        supplied_checksum: typeof review.script_checksum === 'string' ? review.script_checksum : null,
+      },
+    });
+  }
+
+  return {
+    confirmed: true,
+    reviewed_by: reviewedBy,
+    reviewed_at: nowIso(),
+    script_checksum: checksum,
+    script_source: typeof script.source === 'string' ? script.source : null,
+    note: typeof review.note === 'string' && review.note.trim() !== ''
+      ? review.note.trim().slice(0, 200)
+      : null,
+  };
+}
+
 async function handleContentFinalize(req, res, ctx, contentId) {
+  const raw = await ctx.readBody(req, 64 * 1024);
+  const body = parseJsonBody(raw);
   const result = await withLock(async () => {
     const state = await readState();
     const project = findContent(state, contentId);
     if (project.status !== 'REVIEW') {
       throw httpError(409, `finalize requires a REVIEW project (current status ${project.status})`);
     }
+    const review = requireDraftReview(project, body);
     const context = contentContext(state, project);
     const report = contentModule.runProjectQa(project, context);
     project.preview = contentModule.buildPreview(project);
-    contentModule.finalizeProject(project, report);
+    contentModule.finalizeProject(project, report, review);
     await writeState(state);
     return {
       project: contentView(state, project),
       checklist: project.finalize.checklist,
+      review: project.finalize.review,
       state: viewState(state),
     };
   });

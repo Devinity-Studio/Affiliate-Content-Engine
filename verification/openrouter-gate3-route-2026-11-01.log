@@ -6,7 +6,7 @@ ok   A1  a default draft returns 201 with no trace and no provider fields — tr
 ok   B1  opt-in without the live interlock refuses egress and falls back — source=TEMPLATE, fallbackReason=provider_disabled, 0 requests
 ok   B2  the fallback draft still carries the deterministic script — text=252 chars, checksum consistent
 ok   C1  live mode without a key refuses before any request — executionMode=LIVE, fallbackReason=missing_credential, 0 requests
-ok   C2  the top-level useLlm flag is accepted as well as scriptDraft.useLlm — traceId=05fb87ba…
+ok   C2  the top-level useLlm flag is accepted as well as scriptDraft.useLlm — traceId=688922ff…
 ok   D1  the route writes only fixture state — contents=3, all synthetic
 
 checks: 6  passed: 6  failed: 0

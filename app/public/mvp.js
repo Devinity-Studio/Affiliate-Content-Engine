@@ -72,6 +72,8 @@ const ui = {
   account: '',
   dateRange: { from: '', to: '' },
   mappingConfirmed: false,
+  draftReviewConfirmed: false,
+  draftReviewBy: 'Owner',
   lastStaged: null,
   staging: [],
   sourceFilter: null,
@@ -2319,6 +2321,9 @@ function checklistTable(items) {
 function renderFinalizeTab(project) {
   const checklist = project.finalize && project.finalize.checklist;
   const blockedChecklist = ui.error && ui.error.details && ui.error.details.checklist;
+  const scriptText = project.script && typeof project.script.text === 'string' ? project.script.text : '';
+  const scriptChecksum = project.script && typeof project.script.checksum === 'string' ? project.script.checksum : null;
+  const scriptSource = project.script && typeof project.script.source === 'string' ? project.script.source : null;
   return h('section', { class: 'mvp-card' },
     h('div', { class: 'card-head' },
       h('div', null,
@@ -2341,17 +2346,55 @@ function renderFinalizeTab(project) {
         },
       }, 'ส่งตรวจ (DRAFT → REVIEW)'),
     ) : null,
-    project.status === 'REVIEW' ? h('div', { class: 'toolbar' },
-      h('button', {
-        type: 'button', class: 'btn btn-primary', disabled: ui.busy,
-        on: {
-          click: () => run(async () => {
-            await api(`/api/mvp/content/${project.content_id}/finalize`, 'POST');
-            ui.error = null;
-            toast('Finalize ผ่าน — พร้อม export');
+    project.status === 'REVIEW' ? h('div', null,
+      h('div', { class: 'mvp-card' },
+        h('div', { class: 'card-head' },
+          h('div', null,
+            h('p', { class: 'eyebrow', text: 'Human-in-the-loop' }),
+            h('h2', { text: 'อ่านบทพูดภาษาไทยด้วยตาก่อนยืนยัน' }),
+          ),
+          badge(scriptSource === 'LIVE_LLM' ? 'LIVE_LLM' : 'TEMPLATE', scriptSource === 'LIVE_LLM' ? 'badge-fact' : 'badge-neutral'),
+        ),
+        h('p', { class: 'lead', text: 'ระบบจะไม่ยอมเปลี่ยนสถานะเป็น FINALIZED จนกว่าจะยืนยันว่าอ่านบทนี้ด้วยตาแล้ว และการยืนยันผูกกับ checksum ของบท ถ้าบทเปลี่ยนหลังจากนี้ต้องยืนยันใหม่' }),
+        h('p', { class: 'mono small', text: scriptText || '(ไม่มีบทพูด)' }),
+        h('p', { class: 'note', text: `checksum: ${scriptChecksum || '-'}` }),
+        h('label', { class: 'check-row' },
+          h('input', {
+            id: 'draft-review-confirm', type: 'checkbox', checked: ui.draftReviewConfirmed,
+            on: { change: (event) => { ui.draftReviewConfirmed = event.target.checked; } },
           }),
-        },
-      }, 'Finalize (REVIEW → FINALIZED)'),
+          h('span', { text: 'ข้าพเจ้าได้อ่านบทพูดภาษาไทยข้างต้นด้วยตาทั้งหมดแล้ว' }),
+        ),
+        h('div', { class: 'field-grid' },
+          h('label', { class: 'field' },
+            h('span', { class: 'field-label', text: 'ผู้ตรวจรับ' }),
+            h('input', {
+              id: 'draft-review-by', type: 'text', value: ui.draftReviewBy || '',
+              on: { input: (event) => { ui.draftReviewBy = event.target.value; } },
+            }),
+          ),
+        ),
+        h('div', { class: 'toolbar' },
+          h('button', {
+            type: 'button', class: 'btn btn-primary',
+            disabled: ui.busy || !ui.draftReviewConfirmed || String(ui.draftReviewBy || '').trim() === '',
+            on: {
+              click: () => run(async () => {
+                const res = await api(`/api/mvp/content/${project.content_id}/finalize`, 'POST', {
+                  draft_review: {
+                    confirmed: true,
+                    reviewed_by: String(ui.draftReviewBy || '').trim(),
+                    script_checksum: scriptChecksum,
+                  },
+                });
+                ui.error = null;
+                ui.draftReviewConfirmed = false;
+                applyState(res.state);
+              }, 'Finalize ผ่าน — พร้อม export'),
+            },
+          }, 'ยืนยันตรวจรับแล้ว Finalize (REVIEW → FINALIZED)'),
+        ),
+      ),
     ) : null,
     blockedChecklist ? h('div', null,
       h('p', { class: 'error-text', text: `ยัง finalize ไม่ได้: ${ui.error.message.replace(/^finalize blocked: /, '')}` }),
