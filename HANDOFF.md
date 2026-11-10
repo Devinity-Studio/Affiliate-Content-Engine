@@ -4,7 +4,7 @@
 **Branch:** `ace-mvp-repair-2026-11-09`
 **Handoff date:** 2026-11-10
 **Written against:** HEAD `f7f2af6` plus the documentation commit that carries this file
-**Status in one line:** the MVP workflow, the A1 article preview slice and the OpenRouter Gate 3 implementation are **implemented and verified offline**; **Gate 4 is authorized but NOT RUN** because no credential exists on this machine; and **Mission 1 itself is still not complete**.
+**Status in one line:** the MVP workflow, the A1 article preview slice, the OpenRouter Gate 3 implementation and **Gate 4 (live API test)** are **implemented and verified — Gate 4 PASSED on 2026-11-10 with a live Thai draft at THB 0**; the live draft is still not publishable copy, and **Mission 1 itself is still not complete**.
 
 This file replaces the 2026-10-21 handoff. That version is obsolete — the runtime gained an MVP slice, an A1 article slice and the Gate 3 provider path since it was written. Do not treat its statements about `package.json`, the endpoint list or the working tree as current.
 
@@ -44,7 +44,7 @@ The server records OPPORTUNITY decisions only. No gate approval is ever inferred
 | Gate 1 — OpenRouter as first AI Provider | APPROVED | — |
 | Gate 2 — Proof Contract v0.1 | APPROVED | — |
 | Gate 3 — Implementation | **PASS** | `verification/ace-mission1-openrouter-gate3-owner-pass-2026-11-10.md` |
-| Gate 4 — Live API Test | **OPEN — 1 request sent, FINDING (`empty_response`)** | authorization: `…-gate4-owner-authorization-2026-11-10.md`; result: `…-gate4-result-2026-11-10.md` |
+| Gate 4 — Live API Test | **PASS** (`LIVE_LLM`, validation ok, THB 0) | authorization: `…-gate4-owner-authorization-2026-11-10.md`; first result (finding): `…-gate4-result-2026-11-10.md`; PASS: `…-gate4-pass-2026-11-10.md` |
 
 The Script Draft provider path is opt-in and fallback-safe: without `useLlm: true` the deterministic builder runs exactly as before, and `ACE_LLM_LIVE_ENABLED` is unset by default, so a key alone cannot spend anything.
 
@@ -76,7 +76,8 @@ Nothing was pushed. The Gate 3/Gate 4 records follow the append-only convention:
 | `node --check` on the four edited runtime files | passed | — |
 | FFmpeg resolution | available (`.tmp/tools/.../ffmpeg.exe`) | video export path is usable on this machine |
 | Gate 4 preflight sequence (temp state, interlock off) | import/generate/select/SAVE `201`-`200`, draft `201` with `missing_credential` fallback, `external_calls: 0`, `spend_thb: 0` | proves the runbook in the Gate 4 record; no egress |
-| Gate 4 live run (temp state, interlock on, 1 request) | `executionMode: LIVE`, `external_calls: 1`, `spend_thb: 0`, 773 ms, `fallbackReason: empty_response` → deterministic template, `201` | transport, credential and containment proven; **no usable provider text**, so no Gate 4 PASS. Bundle: `verification/evidence/openrouter/6b3bb618-…/` |
+| Gate 4 live run #1 (temp state, interlock on, 1 request) | `executionMode: LIVE`, `external_calls: 1`, `spend_thb: 0`, 773 ms, `fallbackReason: empty_response` → deterministic template, `201` | transport, credential and containment proven; no usable text. Bundle: `verification/evidence/openrouter/6b3bb618-…/` |
+| Gate 4 diagnostic sequence + PASS (6 further requests) | request #7: `source: LIVE_LLM`, `status: success`, `validation.ok: true`, `usage` 475/258, 734 ms, `external_calls: 1`, `spend_thb: 0` | **Gate 4 PASS.** Cause of #1 measured as reasoning-token exhaustion; fixed with `reasoning: { enabled: false }` and a 1200 ceiling. Bundle: `verification/evidence/openrouter/fb1e140c-…/` |
 
 All suites build their own temporary workspace and assert that the real state files are byte-identical afterwards.
 
@@ -85,8 +86,8 @@ All suites build their own temporary workspace and assert that the real state fi
 ## 4. Not verified — do not treat these as done
 
 1. **REAL SHOPEE EXPORT PENDING.** No real Shopee Affiliate export exists in this workspace; `data/imports/` is empty. The importer's column mapping is provisional until a real file is supplied (`node verification/real-shopee-export-check.js`, exit 2 = pending).
-2. **Gate 4 content contract.** One request has left the machine and the exchange was authenticated, but the provider returned no usable text, so the response-body contract (which field carries the Thai script) is still unconfirmed. See `ace-mission1-openrouter-gate4-result-2026-11-10.md`.
-3. **Why the text was empty is not recorded.** The trace persists neither `httpStatus`, `usage` nor `finish_reason`, and the adapter never echoes the body — so the three candidate causes (reasoning-token exhaustion at the 700 ceiling, array-form `content`, text in a sibling field) cannot be told apart without a diagnostic re-run.
+2. **The live draft is not publishable copy.** It is a fixture-data draft whose per-scene lines remain deterministic (`lines_source: TEMPLATE`), narration is still absent, and no human has reviewed it as copy. The accepted Thai text lives only in an untracked evidence bundle.
+3. **An unexplained body-read anomaly.** At a 2400-token ceiling, requests #2–#4 returned HTTP 200 with a body that could not be read (`bodyError: true`, `content-type: application/json`), while the same endpoint at 700 and 1200 tokens parsed normally. Cause not established; it is recorded as an open observation in the Gate 4 PASS record, not as a failure, because the passing configuration does not exhibit it.
 4. **`DEF-CWI-1` — CWI creation is not concurrency-safe.** `POST /api/content-work-item` does its read-modify-write outside the state lock: two concurrent creates can receive the same `CWI-<n>` and one record is lost. Reported, not fixed.
 5. **OQ-8** — mapping dashboard fields to commission statuses is blocked on affiliate-account access.
 6. **CWI acceptance case D5** is still `NOT RUN`; it now needs a `type` in the request body.
@@ -102,9 +103,11 @@ All suites build their own temporary workspace and assert that the real state fi
 The approved package (one request, `nvidia/nemotron-3.5-lightning:free`, ≤700 output tokens, ≤8,000 prompt characters, THB 0, fixture data only, Owner-operated) and the exact commands are in
 `verification/ace-mission1-openrouter-gate4-owner-authorization-2026-11-10.md` §5.
 
-The run has since happened once (the Owner supplied the key locally, in `.env`, which the runner lifts into the process environment; the app itself has no `.env` loader). It proved the interlock permits egress, the credential is accepted, exactly one request left the machine and nothing was charged — and it returned `empty_response`, so no live Thai text exists yet.
+**Gate 4 has since PASSED.** The Owner supplied the key locally in `.env` (which the runner lifts into the process environment; the app itself has no `.env` loader) and authorized a diagnostic re-run plus a package amendment. Request #7 returned `LIVE_LLM` text that ACE's validator accepted, at THB 0.
 
-Recorded in `verification/ace-mission1-openrouter-gate4-result-2026-11-10.md`, which also names the diagnostic capture needed to make the next request conclusive and the two decisions that remain the Owner's (grant a second request; amend the package if the cause is reasoning-token exhaustion).
+The decisive measurement: the configured model is a reasoning model, and for such models `max_tokens` covers reasoning plus visible output — at 700 tokens the whole budget went to reasoning (`finish_reason: length`, `content: null`, 2,187 reasoning characters). `reasoning: { exclude: true }` does **not** help, because those tokens are still billed and still count against `max_tokens`; `reasoning: { enabled: false }` is the switch that works. Both facts are now baked into the provider defaults (1200-token ceiling, reasoning disabled) with the evidence in the code comment.
+
+Full chain: `verification/ace-mission1-openrouter-gate4-result-2026-11-10.md` (the finding) and `verification/ace-mission1-openrouter-gate4-pass-2026-11-10.md` (the PASS, including the anomaly in §3 of that record).
 
 After any run: `unset ACE_LLM_LIVE_ENABLED` to return to the no-egress default. The runner does this itself.
 
@@ -145,7 +148,7 @@ After any run: `unset ACE_LLM_LIVE_ENABLED` to return to the no-egress default. 
 
 ## 9. Next steps, in order
 
-1. **Run Gate 4** with the Owner-supplied key, one request, and record the bundle. A pass needs `executionMode: LIVE` + `source: LIVE_LLM` + `validation.ok` + `external_calls: 1`.
+1. **Decide what to do with the Gate 4 evidence bundle** (may its accepted Thai draft be committed?) and whether to chase the 2400-ceiling body-read anomaly. Then decide whether a live draft may ever reach `FINALIZED` without a human reading it — today nothing forces that review.
 2. **Supply a real Shopee export**, then run `node verification/real-shopee-export-check.js <path>` and correct the alias catalogue against a real header.
 3. **Fix `DEF-CWI-1`** (bring CWI create inside the state lock) and re-run the D5 case with a `type`.
 4. **Review the ACE-MAI-S1 Phase A plan** and decide whether Phase A starts.
