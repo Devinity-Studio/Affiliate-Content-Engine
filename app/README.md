@@ -127,7 +127,7 @@ Content endpoints:
 | `POST` | `/api/mvp/content/:id/track/:track` | Edit the visual / text / audio track of a scene. |
 | `POST` | `/api/mvp/content/:id/qa` | Run Thai QA. |
 | `POST` | `/api/mvp/content/:id/review` | `DRAFT → REVIEW`. |
-| `POST` | `/api/mvp/content/:id/finalize` | `REVIEW → FINALIZED` behind the checklist. |
+| `POST` | `/api/mvp/content/:id/finalize` | `REVIEW → FINALIZED` behind the checklist **and** the human review interlock: the body must carry `draft_review: { confirmed: true, reviewed_by, script_checksum }` matching the current script checksum. |
 | `POST` | `/api/mvp/content/:id/export` | `FINALIZED → EXPORTED`, renders the MP4, writes the library entry. |
 | `GET` | `/api/mvp/content/:id/export/video` \| `/still` | Stream the exported file or its still frame. |
 | `POST` | `/api/mvp/content/:id/publish-prep` | `EXPORTED → READY_TO_PUBLISH`; requires a `VIDEO` export. |

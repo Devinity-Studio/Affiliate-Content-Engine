@@ -22,3 +22,7 @@ node_modules/
 
 # Local runtime state for the A1 article prototype (publications store)
 data/site/
+
+# Live provider evidence bundles stay on this machine only (Owner policy,
+# 2026-11-10): they hold accepted Thai copy and must never be committed.
+verification/evidence/

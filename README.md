@@ -79,7 +79,7 @@ The left sidebar is the pipeline. Each step only enables once the previous one e
    - *Storyboard / Script / CTA* — edit the visual, text and audio tracks per scene.
    - *Preview* — check each scene.
    - *Thai QA* — runs 7 checks. Finalize is blocked while any check is `FAIL`.
-   - *Finalize* — `DRAFT → REVIEW → FINALIZED`, gated by an 11-item checklist.
+   - *Finalize* — `DRAFT → REVIEW → FINALIZED`, gated by an 11-item checklist **and** a human review interlock: the Thai draft must be read and confirmed with its checksum before the status may become `FINALIZED`.
    - *Export* — renders the MP4.
    - *Publish prep* — builds a hand-off caption payload. It requires a **VIDEO** export and never publishes anything.
 6. **Library** — every stored export, with live hash verification and a download link.
@@ -125,7 +125,7 @@ The MVP never writes `data/app/state.json`. Deleting `data/mvp/` resets the MVP 
 ## 5. Verification
 
 ```bash
-node verification/mvp-workflow-acceptance.js    # 86 checks, up to FINALIZED, no FFmpeg needed
+node verification/mvp-workflow-acceptance.js    # 93 checks, up to FINALIZED, no FFmpeg needed
 node verification/check-content-library.js --e2e # export → store → retrieve → verify, needs FFmpeg
 node verification/check-content-library.js       # audit the real index against the real files
 ```
@@ -141,7 +141,7 @@ Both suites build their own temporary workspace, so they do not touch the real s
 | `503 ffmpeg is not available on this machine` | FFmpeg not found. Run the install above, or set `ACE_FFMPEG`. |
 | Export returns 500 with a filter error mentioning `ass` | Your FFmpeg lacks `libass`. Use a build configured with `--enable-libass`. |
 | Thai text shows as boxes or `□` | No Thai font found. Set `ACE_THAI_FONT` to a `.ttf` you are licensed to use. |
-| Finalize refuses to run | It requires `status = REVIEW` and a QA run with `FAIL = 0`. Check the checklist in the Finalize tab. |
+| Finalize refuses to run | It requires `status = REVIEW`, a QA run with `FAIL = 0`, and a confirmed draft review (`draft_review_required` / `draft_review_stale` mean the Thai draft has not been reviewed, or was edited after review). Check the checklist and the review panel in the Finalize tab. |
 | Publish prep returns 409 | It requires a **VIDEO** export. A Markdown script artifact (`SCRIPT_ARTIFACT`) deliberately cannot satisfy it. |
 | Library row shows `MISSING` | The video was deleted or moved. The index is not rewritten automatically. |
 | Library row shows `MISMATCH` | The file's bytes changed after export. Re-export from the Content tab. |

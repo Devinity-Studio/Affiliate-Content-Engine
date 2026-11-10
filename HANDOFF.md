@@ -34,7 +34,7 @@ The server records OPPORTUNITY decisions only. No gate approval is ever inferred
 | Slice | Entry point | What it does |
 |---|---|---|
 | Classic Mission 1 | `/` | Mock opportunity list, SELECT / REJECT / DEFER, plan versions, CWI records |
-| MVP affiliate workflow | `/mvp.html`, `/api/mvp/*` | Import → research → 5 candidates → plan → storyboard/script/CTA → Thai QA → finalize → render 9:16 MP4 → Content Library |
+| MVP affiliate workflow | `/mvp.html`, `/api/mvp/*` | Import → research → 5 candidates → plan → storyboard/script/CTA → Thai QA → **human review interlock** → finalize → render 9:16 MP4 → Content Library |
 | A1 article prototype | `/review/:slug`, `/media/:contentId/:file` | One synthetic content record rendered as an article for local review; `DRAFT` and `PREVIEW` only, no publish state |
 
 ### 1.3 Provider / AI gates (OpenRouter)
@@ -70,7 +70,7 @@ Nothing was pushed. The Gate 3/Gate 4 records follow the append-only convention:
 | `verification/openrouter-gate3-offline-check.js` | 21/21, exit 0 | provider + provenance behaviour, key never appears in output |
 | `verification/openrouter-gate3-route-check.js` | 6/6, exit 0 | opt-in route refuses egress without the interlock, 0 requests |
 | `verification/openrouter-gate3-script-validation-check.js` | 20/20, exit 0 | fabricated prices/discounts/claim categories rejected |
-| `verification/mvp-workflow-acceptance.js` | 86/86, exit 0 | through FINALIZED, no FFmpeg needed, 0 commits created |
+| `verification/mvp-workflow-acceptance.js` | 93/93, exit 0 | through FINALIZED, no FFmpeg needed, 0 commits created; 7 of the checks cover the finalize review interlock |
 | `verification/site-article-acceptance.js` | 18 passed, 0 failed, exit 0 | one check is MANUAL: layout inspected at 375/416/622 px on 2026-11-09 |
 | `verification/check-content-library.js` | index parses, 0 entries, exit 0 | no export has been registered in the real index yet |
 | `node --check` on the four edited runtime files | passed | — |
@@ -111,6 +111,8 @@ Full chain: `verification/ace-mission1-openrouter-gate4-result-2026-11-10.md` (t
 
 After any run: `unset ACE_LLM_LIVE_ENABLED` to return to the no-egress default. The runner does this itself.
 
+**Owner policy from the same session (2026-11-10):** the live evidence bundles stay on this machine only (`.gitignore` now covers `verification/evidence/`), and the 2400-ceiling body-read anomaly stays a written observation rather than an investigation, so effort moves to the next phase. The third decision — a mandatory human review before `FINALIZED` — is implemented: see `verification/ace-mission1-finalize-review-interlock-2026-11-10.md`.
+
 ---
 
 ## 6. Working-tree hygiene
@@ -130,6 +132,8 @@ After any run: `unset ACE_LLM_LIVE_ENABLED` to return to the no-egress default. 
 - **Mock stays labelled.** Served candidate data is mock/fixture and must stay visibly labelled in API and UI.
 - **Append-only records.** Evidence log, decision history, run history, and governance decision records. A correction is a new entry that references the old one.
 - **Evidence discipline.** Nothing enters the evidence log before it was inspected; a submission is `PENDING`, never `VERIFIED`.
+- **Live-provider evidence stays local.** `verification/evidence/` is git-ignored by Owner policy (2026-11-10): the bundles hold accepted Thai copy and must never be committed.
+- **A human reads the Thai draft before `FINALIZED`.** Enforced by the review interlock (`draft_review.confirmed` + `reviewed_by` + a matching `script_checksum`); a review does not carry across an edit. See `verification/ace-mission1-finalize-review-interlock-2026-11-10.md`.
 - **Runtime stays dependency-free.** `package.json` exists (start script plus optional `@posthog/ai` / `posthog-node`, which no runtime module requires), and the app runs with no `npm install`. Do not add a runtime dependency without an Owner decision and a README update.
 - **The deterministic content path stays the default.** Any provider path is opt-in, fallback-safe, and must never mutate the deterministic output.
 - **The key never leaves the process.** Not logged, not in a trace, not in an error, not in a file.
@@ -148,7 +152,7 @@ After any run: `unset ACE_LLM_LIVE_ENABLED` to return to the no-egress default. 
 
 ## 9. Next steps, in order
 
-1. **Decide what to do with the Gate 4 evidence bundle** (may its accepted Thai draft be committed?) and whether to chase the 2400-ceiling body-read anomaly. Then decide whether a live draft may ever reach `FINALIZED` without a human reading it — today nothing forces that review.
+1. **Nothing is owed on Gate 4.** Its evidence stays local by policy, the 2400-ceiling body-read anomaly is recorded as an observation (the Owner chose not to dig further), and the finalize review interlock is implemented and tested.
 2. **Supply a real Shopee export**, then run `node verification/real-shopee-export-check.js <path>` and correct the alias catalogue against a real header.
 3. **Fix `DEF-CWI-1`** (bring CWI create inside the state lock) and re-run the D5 case with a `type`.
 4. **Review the ACE-MAI-S1 Phase A plan** and decide whether Phase A starts.
@@ -164,4 +168,4 @@ After any run: `unset ACE_LLM_LIVE_ENABLED` to return to the no-egress default. 
 | OQ-D / OQ-8 | Dashboard-field to commission-status mapping; blocked on account access | Keep the gap visible; never infer field names from terms text |
 | OQ-E | Stay with the in-process JSON Schema subset, or adopt `ajv` | Stay zero-dependency until full-schema coverage is genuinely needed |
 | — | Live price-fidelity rule for an accepted live draft | The Gate 3 validator already runs on the live path; confirm that is sufficient |
-| — | Evidence retention for `verification/evidence/` | Keep it uncommitted until reviewed; accepted Thai copy is not casual repository content |
+| — | Evidence retention for `verification/evidence/` | **Decided 2026-11-10:** stays on this machine only; the path is git-ignored |
