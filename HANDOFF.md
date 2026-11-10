@@ -44,7 +44,7 @@ The server records OPPORTUNITY decisions only. No gate approval is ever inferred
 | Gate 1 — OpenRouter as first AI Provider | APPROVED | — |
 | Gate 2 — Proof Contract v0.1 | APPROVED | — |
 | Gate 3 — Implementation | **PASS** | `verification/ace-mission1-openrouter-gate3-owner-pass-2026-11-10.md` |
-| Gate 4 — Live API Test | **AUTHORIZED, NOT RUN** | `verification/ace-mission1-openrouter-gate4-owner-authorization-2026-11-10.md` |
+| Gate 4 — Live API Test | **OPEN — 1 request sent, FINDING (`empty_response`)** | authorization: `…-gate4-owner-authorization-2026-11-10.md`; result: `…-gate4-result-2026-11-10.md` |
 
 The Script Draft provider path is opt-in and fallback-safe: without `useLlm: true` the deterministic builder runs exactly as before, and `ACE_LLM_LIVE_ENABLED` is unset by default, so a key alone cannot spend anything.
 
@@ -76,6 +76,7 @@ Nothing was pushed. The Gate 3/Gate 4 records follow the append-only convention:
 | `node --check` on the four edited runtime files | passed | — |
 | FFmpeg resolution | available (`.tmp/tools/.../ffmpeg.exe`) | video export path is usable on this machine |
 | Gate 4 preflight sequence (temp state, interlock off) | import/generate/select/SAVE `201`-`200`, draft `201` with `missing_credential` fallback, `external_calls: 0`, `spend_thb: 0` | proves the runbook in the Gate 4 record; no egress |
+| Gate 4 live run (temp state, interlock on, 1 request) | `executionMode: LIVE`, `external_calls: 1`, `spend_thb: 0`, 773 ms, `fallbackReason: empty_response` → deterministic template, `201` | transport, credential and containment proven; **no usable provider text**, so no Gate 4 PASS. Bundle: `verification/evidence/openrouter/6b3bb618-…/` |
 
 All suites build their own temporary workspace and assert that the real state files are byte-identical afterwards.
 
@@ -84,8 +85,8 @@ All suites build their own temporary workspace and assert that the real state fi
 ## 4. Not verified — do not treat these as done
 
 1. **REAL SHOPEE EXPORT PENDING.** No real Shopee Affiliate export exists in this workspace; `data/imports/` is empty. The importer's column mapping is provisional until a real file is supplied (`node verification/real-shopee-export-check.js`, exit 2 = pending).
-2. **Gate 4 live exchange.** No request has left the machine. The provider contract (endpoint path, `Authorization: Bearer`, request/response shape) remains documentation-derived.
-3. **The interlock has never been proven to permit egress** — only to block it.
+2. **Gate 4 content contract.** One request has left the machine and the exchange was authenticated, but the provider returned no usable text, so the response-body contract (which field carries the Thai script) is still unconfirmed. See `ace-mission1-openrouter-gate4-result-2026-11-10.md`.
+3. **Why the text was empty is not recorded.** The trace persists neither `httpStatus`, `usage` nor `finish_reason`, and the adapter never echoes the body — so the three candidate causes (reasoning-token exhaustion at the 700 ceiling, array-form `content`, text in a sibling field) cannot be told apart without a diagnostic re-run.
 4. **`DEF-CWI-1` — CWI creation is not concurrency-safe.** `POST /api/content-work-item` does its read-modify-write outside the state lock: two concurrent creates can receive the same `CWI-<n>` and one record is lost. Reported, not fixed.
 5. **OQ-8** — mapping dashboard fields to commission statuses is blocked on affiliate-account access.
 6. **CWI acceptance case D5** is still `NOT RUN`; it now needs a `type` in the request body.
@@ -101,9 +102,11 @@ All suites build their own temporary workspace and assert that the real state fi
 The approved package (one request, `nvidia/nemotron-3.5-lightning:free`, ≤700 output tokens, ≤8,000 prompt characters, THB 0, fixture data only, Owner-operated) and the exact commands are in
 `verification/ace-mission1-openrouter-gate4-owner-authorization-2026-11-10.md` §5.
 
-The blocker is narrow and external: `OPENROUTER_API_KEY` is not set in this machine's environment, so the code refuses before opening a socket and returns `fallbackReason: missing_credential`. The key must be supplied by the Owner in the process environment of the shell that starts the server — never in a file in this repository, never in a chat message.
+The run has since happened once (the Owner supplied the key locally, in `.env`, which the runner lifts into the process environment; the app itself has no `.env` loader). It proved the interlock permits egress, the credential is accepted, exactly one request left the machine and nothing was charged — and it returned `empty_response`, so no live Thai text exists yet.
 
-After the test: `unset ACE_LLM_LIVE_ENABLED` to return to the no-egress default.
+Recorded in `verification/ace-mission1-openrouter-gate4-result-2026-11-10.md`, which also names the diagnostic capture needed to make the next request conclusive and the two decisions that remain the Owner's (grant a second request; amend the package if the cause is reasoning-token exhaustion).
+
+After any run: `unset ACE_LLM_LIVE_ENABLED` to return to the no-egress default. The runner does this itself.
 
 ---
 
