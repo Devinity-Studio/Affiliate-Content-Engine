@@ -1,0 +1,29 @@
+ACE — Gate 3 evidence-based script draft validation (offline)
+node: v22.23.2
+no network, no key, executionMode: OFFLINE_TEST
+
+ok   01  claims fully supported by offer_snapshot pass — price, list price, rating, rating count, discount all matched
+ok   01b  Thai digits in a claim are normalised before comparison — ๒๙๙ accepted as 299
+ok   02  an invented price fails validation — field=offer_snapshot.price_thb, expected=299, claim=199
+ok   02b  an extra invented amount anywhere in the draft fails — unsupported_price for 1,299
+ok   03  the list price stated as the current price fails — 599 rejected in the current-price slot
+ok   03b  the current price stated as the original price fails — 299 rejected in the list-price slot
+ok   04  a discount the snapshot does not support fails — 70% rejected against promo.depth_pct=50
+ok   04b  a commission claim fails because the snapshot carries no commission — unsupported_claim:commission
+ok   04c  a discount stated with no promotion in the snapshot fails — depth_pct=0 → 10% rejected
+ok   05  an invented review count fails — 500 rejected against rating_count=128
+ok   05b  invented quantities, durations and shipping promises fail — unsupported_claim:stock, unsupported_claim:shipping, unsupported_claim:guarantee
+ok   05c  a personal-experience claim fails because ACE has no such evidence — unsupported_claim:personal_experience
+ok   05d  an unsupported date fails — unsupported_date
+ok   06  a snapshot with no price does not permit any price claim — missing price → claim rejected as absent
+ok   06b  no snapshot at all is rejected rather than passed — missing_snapshot_evidence
+ok   06c  a generic draft that never names the product is rejected — missing_product_identity
+ok   07  creative copy with no unsupported claim remains eligible — tone and storytelling preserved
+ok   08  a fabricated draft cannot become an accepted LIVE_LLM result — validation.failed=[conflicting_price,unsupported_discount]
+ok   09  fallback provenance is TEMPLATE regardless of the provider success — source=TEMPLATE, fallback_reason=validation_failed
+ok   10  the safety interlock still defaults OFF and blocks real egress — ACE_LLM_LIVE_ENABLED unset → provider_disabled, 0 requests
+
+checks: 20  passed: 20  failed: 0
+network calls made: 0
+real API key used: no
+safety interlock: default OFF, unchanged

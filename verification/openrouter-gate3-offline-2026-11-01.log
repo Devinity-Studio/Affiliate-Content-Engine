@@ -1,0 +1,31 @@
+ACE — OpenRouter Gate 3 offline verification
+repo: Y:\DevProject\Affiliate Content Engine
+node: v22.23.2
+executionMode: OFFLINE_TEST — no network, no real key, no live evidence
+
+ok   01  missing API key is a normal refusal, not a network attempt — status=missing_credential, fetch calls=0
+ok   02  malformed configuration is rejected before any request — 4 configuration refusals, 0 requests
+ok   02b  Gate 3 interlock blocks real egress even with a key present — allowNetwork unset/false → provider_disabled, 0 requests
+ok   03  provider error responses are classified without echoing the body — 401->auth_error, 403->auth_error, 429->rate_limited, 500->provider_error, 502->provider_error
+ok   04  a hanging provider hits the timeout and does not hang the caller — status=timeout in 72ms
+ok   04b  a network failure is classified as network_error — status=network_error
+ok   05  a non-JSON body is invalid_response — status=invalid_response
+ok   06  an empty completion is empty_response — 4 empty shapes -> empty_response
+ok   07  a non-Thai draft fails ACE validation and falls back to TEMPLATE — validation.failed=[not_thai,missing_product_identity]
+ok   07b  placeholder and markup leaks are rejected by validation — placeholder_leak+missing_product_identity | placeholder_leak+missing_product_identity | markup+missing_product_identity | too_short+missing_product_identity
+ok   08  explicit provider failure produces TEMPLATE + graceful_fallback — source=TEMPLATE, status=graceful_fallback, deterministic text intact
+ok   08b  missing key through the content operation also falls back honestly — source=TEMPLATE, fallbackReason=missing_credential, executionMode=LIVE
+ok   09  a stubbed provider success is MOCK, never LIVE_LLM — source=MOCK, executionMode=OFFLINE_TEST, checksum recomputed
+ok   09b  provenance refuses to record LIVE_LLM in an offline test — 4 impossible combinations rejected
+ok   09c  provenance rejects fields outside the allowlist — raw payload field and unknown usage field rejected
+ok   10  one trace schema for mock success, template default, and fallback — fields=12/12, usage absent when unreported
+ok   10b  provider reports usage only when the provider sent it — usage present=77/33, absent=null
+ok   11  the key never appears in any result, trace, or log line — 9 output surfaces checked, header sent exactly once
+ok   11b  the request body carries the model and prompt, never the key — url=https://openrouter.ai/api/v1/chat/completions, model=nvidia/nemotron-3.5-lightning:free
+ok   12  createContentProject is untouched: no provider fields, stable checksum — script keys=version,language,lines,text,checksum
+ok   12b  the opt-in path composes with the deterministic builder without mutating it — deterministic output identical after a provider attempt
+
+checks: 21  passed: 21  failed: 0
+network calls made to OpenRouter: 0
+real API key used: no
+executionMode: OFFLINE_TEST
