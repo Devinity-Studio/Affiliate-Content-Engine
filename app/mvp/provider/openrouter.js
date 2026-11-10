@@ -32,6 +32,20 @@ const MODEL_VAR = 'OPENROUTER_MODEL';
 const LIVE_INTERLOCK_VAR = 'ACE_LLM_LIVE_ENABLED';
 
 /**
+ * Gate 4 diagnostic controls. They exist so one variable can be changed between
+ * measured runs without editing code; they cannot widen the hard bounds.
+ */
+const MAX_OUTPUT_TOKENS_VAR = 'ACE_LLM_MAX_OUTPUT_TOKENS';
+
+function maxOutputTokensFromEnv(env) {
+  const raw = env && env[MAX_OUTPUT_TOKENS_VAR];
+  if (typeof raw !== 'string' || raw.trim() === '') return DEFAULT_MAX_OUTPUT_TOKENS;
+  const value = Number(raw.trim());
+  if (!Number.isInteger(value) || value <= 0 || value > MAX_OUTPUT_TOKENS) return DEFAULT_MAX_OUTPUT_TOKENS;
+  return value;
+}
+
+/**
  * Model used when neither the caller nor `OPENROUTER_MODEL` names one.
  * Gate 4 requires the Owner to approve the exact model; this constant is a
  * placeholder for offline wiring, not a live-test selection.
@@ -40,7 +54,10 @@ const DEFAULT_MODEL = 'nvidia/nemotron-3.5-lightning:free';
 
 const DEFAULT_TIMEOUT_MS = 20000;
 const MAX_TIMEOUT_MS = 60000;
-const DEFAULT_MAX_OUTPUT_TOKENS = 700;
+// Gate 4 request #1 returned no usable text at a 700-token ceiling. The Owner
+// amended the package for the diagnostic re-run: a higher ceiling, and internal
+// reasoning excluded from the billed completion so it cannot eat the budget.
+const DEFAULT_MAX_OUTPUT_TOKENS = 1200;
 const MAX_OUTPUT_TOKENS = 4000;
 const MAX_PROMPT_CHARS = 8000;
 
@@ -218,11 +235,13 @@ async function generateScriptDraft(options = {}) {
   }
 
   const maxOutputTokens = options.maxOutputTokens === undefined
-    ? DEFAULT_MAX_OUTPUT_TOKENS
+    ? maxOutputTokensFromEnv(env)
     : options.maxOutputTokens;
   if (!Number.isInteger(maxOutputTokens) || maxOutputTokens <= 0 || maxOutputTokens > MAX_OUTPUT_TOKENS) {
     return fail('invalid_configuration', { model });
   }
+
+  const reasoningDisabled = options.disableReasoning !== false;
 
   const { present, key } = readApiKey(env);
   if (!present) return fail('missing_credential', { model });
@@ -261,6 +280,18 @@ async function generateScriptDraft(options = {}) {
     stream: false,
   };
 
+  // Measured in Gate 4 (2026-11-10): the configured model spends its whole
+  // `max_tokens` budget on internal reasoning before writing any answer — at a
+  // 700-token ceiling it returned finish_reason "length" with content null and
+  // 2,187 reasoning characters. `reasoning.exclude` is NOT a fix: those tokens
+  // are still billed and still count against `max_tokens`. `enabled: false`
+  // turns reasoning off, and with it the model answers in ~258 tokens.
+  // `max_tokens` covers reasoning plus visible output, so the two settings are
+  // recorded together here rather than tuned separately.
+  if (reasoningDisabled) {
+    body.reasoning = { enabled: false };
+  }
+
   let networkAttempted = false;
   try {
     networkAttempted = true;
@@ -285,14 +316,30 @@ async function generateScriptDraft(options = {}) {
     // The body is consumed but never echoed: auth errors in particular can
     // contain a partial key, so it is read and discarded.
     let rawBody = '';
+    let bodyError = false;
+    let bodyErrorName = null;
     try {
       const textResponse = response && typeof response.text === 'function'
         ? response.text()
         : Promise.resolve('');
       rawBody = await raceDeadline(textResponse, deadline, controller, state);
-    } catch {
+    } catch (bodyThrown) {
+      // An unreadable body and an empty body are different failures; record which.
+      // Only the error's name is kept: a message can carry request details.
+      bodyError = true;
+      bodyErrorName = bodyThrown && typeof bodyThrown.name === 'string' ? bodyThrown.name : 'unknown';
       rawBody = '';
     }
+    const headerValue = (name) => {
+      try {
+        const headers = response && response.headers;
+        if (!headers || typeof headers.get !== 'function') return null;
+        const value = headers.get(name);
+        return typeof value === 'string' ? value.slice(0, 64) : null;
+      } catch {
+        return null;
+      }
+    };
 
     if (httpStatus === 401 || httpStatus === 403) {
       return { ...fail('auth_error', { model }), model, httpStatus, latencyMs, networkAttempted };
@@ -311,12 +358,41 @@ async function generateScriptDraft(options = {}) {
       payload = null;
     }
     if (!payload || typeof payload !== 'object') {
-      return { ...fail('invalid_response', { model }), model, httpStatus, latencyMs, networkAttempted };
+      // Metadata about the unparseable body, never the body itself: a proxy or
+      // an error page can be large and may echo request details.
+      const trimmed = rawBody.trim();
+      const unparsed = {
+        parsed: false,
+        maxOutputTokens,
+        reasoningDisabled,
+        bodyChars: rawBody.length,
+        bodyError,
+        bodyErrorName,
+        timedOut: state.timedOut === true,
+        contentType: headerValue('content-type'),
+        contentLength: headerValue('content-length'),
+        startsWithBrace: trimmed.startsWith('{'),
+        finishReason: null,
+        choiceCount: null,
+        contentKind: null,
+        contentParts: null,
+        reasoningChars: null,
+        usage: null,
+      };
+      return { ...fail('invalid_response', { model }), model, httpStatus, latencyMs, networkAttempted, diagnostics: unparsed };
     }
 
+    const diagnostics = diagnosticsFromPayload(payload);
+    if (diagnostics) {
+      diagnostics.maxOutputTokens = maxOutputTokens;
+      diagnostics.reasoningDisabled = reasoningDisabled;
+      diagnostics.bodyError = bodyError;
+      diagnostics.contentType = headerValue('content-type');
+      diagnostics.contentLength = headerValue('content-length');
+    }
     const text = textFromResponse(payload);
     if (typeof text !== 'string' || text.trim() === '') {
-      return { ...fail('empty_response', { model }), model, httpStatus, latencyMs, networkAttempted };
+      return { ...fail('empty_response', { model }), model, httpStatus, latencyMs, networkAttempted, diagnostics };
     }
 
     return {
@@ -329,6 +405,7 @@ async function generateScriptDraft(options = {}) {
       latencyMs,
       httpStatus,
       networkAttempted,
+      diagnostics,
       message: null,
     };
   } catch (error) {
@@ -342,6 +419,53 @@ async function generateScriptDraft(options = {}) {
       // idempotent
     }
   }
+}
+
+/**
+ * Shape of `choices[0].message.content`, as metadata only.
+ *
+ * Gate 4 diagnostics: a model that used its whole budget on internal reasoning
+ * returns an empty string, and some models return content parts instead of a
+ * string. Both break `textFromResponse`, and without a shape fingerprint the
+ * two cases are indistinguishable from the outside. No text is captured here —
+ * only the type name and, for arrays, the number of parts.
+ */
+function describeContentShape(content) {
+  if (content === undefined) return { contentKind: 'absent', contentParts: null };
+  if (content === null) return { contentKind: 'null', contentParts: null };
+  if (typeof content === 'string') return { contentKind: 'string', contentParts: null };
+  if (Array.isArray(content)) return { contentKind: 'array', contentParts: content.length };
+  return { contentKind: typeof content, contentParts: null };
+}
+
+/**
+ * Non-text facts about a provider response: why it stopped, what it charged, and
+ * the shape of the message. Deliberately excludes the completion text, the
+ * prompt, the headers and the credential.
+ */
+function diagnosticsFromPayload(payload) {
+  if (!payload || typeof payload !== 'object') return null;
+  const choices = Array.isArray(payload.choices) ? payload.choices : [];
+  const choice = choices[0] && typeof choices[0] === 'object' ? choices[0] : null;
+  const message = choice && choice.message && typeof choice.message === 'object' ? choice.message : null;
+  const finishReason = choice && typeof choice.finish_reason === 'string' ? choice.finish_reason : null;
+  const shape = describeContentShape(message ? message.content : undefined);
+  const reasoningChars = message && typeof message.reasoning === 'string'
+    ? message.reasoning.length
+    : null;    return {
+      parsed: true,
+      bodyChars: null,
+      bodyError: null,
+      contentType: null,
+      contentLength: null,
+      startsWithBrace: null,
+      finishReason,
+      choiceCount: choices.length,
+      contentKind: shape.contentKind,
+      contentParts: shape.contentParts,
+      reasoningChars,
+      usage: usageFromPayload(payload),
+    };
 }
 
 /**
@@ -379,9 +503,13 @@ module.exports = {
   readApiKey,
   isConfigured,
   isLiveEnabled,
+  MAX_OUTPUT_TOKENS_VAR,
   resolveModel,
+  maxOutputTokensFromEnv,
   textFromResponse,
   usageFromPayload,
+  describeContentShape,
+  diagnosticsFromPayload,
   generateScriptDraft,
   describeTraceForLog,
 };

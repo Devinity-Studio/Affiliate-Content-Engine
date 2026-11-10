@@ -7,7 +7,7 @@ ok   01  missing API key is a normal refusal, not a network attempt — status=m
 ok   02  malformed configuration is rejected before any request — 4 configuration refusals, 0 requests
 ok   02b  Gate 3 interlock blocks real egress even with a key present — allowNetwork unset/false → provider_disabled, 0 requests
 ok   03  provider error responses are classified without echoing the body — 401->auth_error, 403->auth_error, 429->rate_limited, 500->provider_error, 502->provider_error
-ok   04  a hanging provider hits the timeout and does not hang the caller — status=timeout in 72ms
+ok   04  a hanging provider hits the timeout and does not hang the caller — status=timeout in 69ms
 ok   04b  a network failure is classified as network_error — status=network_error
 ok   05  a non-JSON body is invalid_response — status=invalid_response
 ok   06  an empty completion is empty_response — 4 empty shapes -> empty_response

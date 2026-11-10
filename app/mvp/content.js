@@ -1486,6 +1486,17 @@ async function createScriptDraftWithProvider(input = {}) {
     allowNetwork: live && allowNetwork === true,
   });
 
+  // Gate 4 diagnostics: which field carried the answer, why the model stopped,
+  // and what it charged. Metadata only — never the prompt, the completion text,
+  // or the credential.
+  if (result.networkAttempted === true) {
+    console.log(`[ace] provider diagnostics ${JSON.stringify({
+      httpStatus: typeof result.httpStatus === 'number' ? result.httpStatus : null,
+      status: result.status,
+      ...(result.diagnostics || {}),
+    })}`);
+  }
+
   const traceBase = {
     traceId: traceId || crypto.randomUUID(),
     timestamp: nowIso(),
@@ -1514,6 +1525,14 @@ async function createScriptDraftWithProvider(input = {}) {
       };
       return { project, trace, networkAttempted: result.networkAttempted === true };
     }
+
+    // Validation diagnostics: which rules fired and against which snapshot
+    // field. The finding's `claim` slice is deliberately dropped — it contains
+    // draft text, and the Owner's diagnostic rule allows metadata only.
+    console.log(`[ace] draft validation rejected ${JSON.stringify({
+      failed: validation.failed || [],
+      findings: (validation.findings || []).map((f) => ({ code: f.code, field: f.field, expected: f.expected })),
+    })}`);
 
     const trace = provenance.fallbackTrace({
       ...traceBase,
