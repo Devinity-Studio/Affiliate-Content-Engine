@@ -28,6 +28,8 @@ const path = require('node:path');
 
 const thaiQa = require('./thai-qa');
 const renderer = require('../remotion/render');
+const providerModule = require('./provider/openrouter');
+const provenance = require('./provider/provenance');
 
 const STATUSES = ['DRAFT', 'REVIEW', 'FINALIZED', 'EXPORTED', 'READY_TO_PUBLISH'];
 const TRACKS = ['visual', 'text', 'audio'];
@@ -1094,6 +1096,455 @@ function removeAsset(project, assetId) {
 }
 
 /* ------------------------------------------------------------------ */
+/* Script draft from a provider (opt-in — Gate 3)                      */
+/* ------------------------------------------------------------------ */
+
+/**
+ * The deterministic path above is the default and is never modified by this
+ * section. These helpers only run when a caller explicitly opts in.
+
+ * A provider result is evidence, not an answer: `source` is written by
+ * provider/provenance.js, so a template result cannot claim to be live and a
+ * mock cannot either.
+ */
+
+const SCRIPT_DRAFT_OPERATION = 'script_draft.create';
+const SCRIPT_DRAFT_MIN_CHARS = 20;
+const SCRIPT_DRAFT_MAX_CHARS = 4000;
+const SCRIPT_DRAFT_MIN_THAI_RATIO = 0.5;
+const PLACEHOLDER_MARKERS = ['{{', '}}', '[insert', '[insert ', 'TODO', 'lorem ipsum'];
+
+/** Thai prompt built only from records the project already carries. */
+function buildScriptDraftPrompt(project) {
+  const snapshot = project.offer_snapshot || {};
+  const scenes = (project.storyboard && project.storyboard.scenes) || [];
+  const totalDuration = scenes.reduce((sum, scene) => sum + (Number(scene.duration_s) || 0), 0);
+  const promo = (snapshot.promo && snapshot.promo.label) || 'ไม่มีข้อมูลโปรโมชัน';
+
+  return [
+    'เขียนบทพูดวิดีโอสั้นภาษาไทย 1 บท สำหรับสินค้าด้านล่างนี้',
+    'ตอบเฉพาะบทพูด ไม่ต้องมีหัวข้อ ไม่ต้องมีเครื่องหมายคำพูดครอบทั้งบท',
+    '',
+    `ชื่อสินค้า: ${snapshot.product_name || 'ไม่ระบุ'}`,
+    `ราคาปัจจุบัน: ${snapshot.price_thb} บาท`,
+    `ราคาปกติ: ${snapshot.list_price_thb} บาท`,
+    `โปรโมชัน: ${promo}`,
+    `คะแนนรีวิว: ${snapshot.rating} จาก 5 (${snapshot.rating_count} รายการ)`,
+    `จำนวนฉาก: ${scenes.length} ฉาก รวมประมาณ ${totalDuration} วินาที`,
+    `บทสรุปที่ต้องมีตอนท้าย: ${project.cta ? project.cta.text : 'คลิกลิงก์ด้านล่างเพื่อเช็กราคาปัจจุบัน'}`,
+    '',
+    'ข้อบังคับ:',
+    '- ใช้เฉพาะตัวเลขที่ให้ไว้ข้างบน ห้ามคำนวณหรือแต่งราคา ส่วนลด หรือจำนวนรีวิวใหม่',
+    '- ห้ามกล่าวอ้างว่าได้ทดลองใช้สินค้า หรืออ้างรีวิวที่ไม่มีในข้อมูล',
+    '- ความยาว 60 ถึง 120 คำ ต่อเนื่องเป็นย่อหน้าเดียว',
+  ].join('\n');
+}
+
+/* --- Evidence-based script validation -------------------------------- */
+
+// Thai digits, so "๒๙๙" is comparable to 299.
+const THAI_DIGITS = '๐๑๒๓๔๕๖๗๘๙';
+
+function normalizeDigits(value) {
+  return String(value).replace(/[๐-๙]/g, (char) => String(THAI_DIGITS.indexOf(char)));
+}
+
+function canonicalNumber(value) {
+  const parsed = Number(String(value).replace(/,/g, ''));
+  return Number.isFinite(parsed) ? String(parsed) : null;
+}
+
+/** Accepts either a content project (reads its `offer_snapshot`) or a snapshot. */
+function snapshotOf(source) {
+  if (!source || typeof source !== 'object') return null;
+  if (source.offer_snapshot && typeof source.offer_snapshot === 'object') return source.offer_snapshot;
+  return source;
+}
+
+function finiteOrNull(value) {
+  // Number(null) is 0 and Number('') is 0, so a missing field must be screened
+  // out first — otherwise an absent price would look like a real price of 0.
+  if (value === null || value === undefined || value === '') return null;
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+/**
+ * Everything the snapshot can actually prove.
+ *
+ * Only fields that exist in the real `offer_snapshot` contract are used:
+ * item_id, product_id, shop_id, product_name, shop_name, price_thb,
+ * list_price_thb, promo {label, type, depth_pct}, rating, rating_count,
+ * product_url, affiliate_link, checked_at, data_as_of.
+ *
+ * Notably absent from the snapshot: commission, shipping, stock, guarantees,
+ * gifts, and any personal-experience evidence. Those are therefore treated as
+ * unprovable rather than guessed.
+ */
+function buildFactBase(source) {
+  const snapshot = snapshotOf(source);
+  const project = snapshot && snapshot !== source ? source : null;
+  const promo = (snapshot && snapshot.promo) || {};
+
+  const prices = [finiteOrNull(snapshot && snapshot.price_thb), finiteOrNull(snapshot && snapshot.list_price_thb)]
+    .filter((value) => value !== null);
+  const currentPrice = finiteOrNull(snapshot && snapshot.price_thb);
+  const listPrice = finiteOrNull(snapshot && snapshot.list_price_thb);
+  const discountPct = finiteOrNull(promo.depth_pct);
+  const rating = finiteOrNull(snapshot && snapshot.rating);
+  const ratingCount = finiteOrNull(snapshot && snapshot.rating_count);
+
+  const ids = [snapshot && snapshot.item_id, snapshot && snapshot.shop_id, snapshot && snapshot.product_id]
+    .filter((value) => typeof value === 'string' && value !== '');
+
+  const dates = [snapshot && snapshot.checked_at, snapshot && snapshot.data_as_of]
+    .filter((value) => typeof value === 'string' && value !== '');
+
+  const supportedStrings = [
+    snapshot && snapshot.product_name,
+    snapshot && snapshot.shop_name,
+    promo.label,
+    promo.type,
+    snapshot && snapshot.product_url,
+    snapshot && snapshot.affiliate_link,
+  ].filter((value) => typeof value === 'string' && value !== '');
+
+  // Numbers a draft may legitimately contain without inventing anything.
+  const allowed = new Set();
+  const allow = (value) => {
+    if (value === null || value === undefined) return;
+    const canonical = canonicalNumber(value);
+    if (canonical !== null) allowed.add(canonical);
+  };
+  for (const price of prices) allow(price);
+  allow(discountPct);
+  allow(rating);
+  allow(ratingCount);
+  if (rating !== null) allow(5); // the "4.6 จาก 5" rating scale
+  allow(9); // 9:16 aspect ratio
+  allow(16);
+
+  if (project) {
+    const scenes = (project.storyboard && project.storyboard.scenes) || [];
+    allow(scenes.length);
+    allow(scenes.reduce((sum, scene) => sum + (Number(scene.duration_s) || 0), 0));
+  }
+
+  // Date components (year / month / day) so "ข้อมูล ณ 2026" is not a fabrication.
+  for (const date of dates) {
+    for (const part of String(date).match(/\d+/g) || []) allow(part);
+  }
+
+  return {
+    hasSnapshot: Boolean(snapshot),
+    prices,
+    currentPrice,
+    listPrice,
+    discountPct,
+    rating,
+    ratingCount,
+    productName: snapshot && typeof snapshot.product_name === 'string' ? snapshot.product_name : null,
+    ids,
+    dates,
+    supportedStrings,
+    allowedNumbers: allowed,
+  };
+}
+
+// A price stated as the current price, and one stated as the original price.
+const CURRENT_PRICE_CLAIM = /(?:ราคา(?!ปกติ|เต็ม|ก่อน)|ตอนนี้|ตอนนี้เพียง|เหลือ(?:เพียง)?)\s*(?:เพียง|แค่)?\s*([\d,]+(?:\.\d+)?)/g;
+const LIST_PRICE_CLAIM = /(?:ราคาปกติ|ราคาเต็ม|จากปกติ|ราคาก่อนลด)\s*(?:เพียง|แค่)?\s*([\d,]+(?:\.\d+)?)/g;
+const ID_TOKEN = /\b[A-Z]{2,}-\d+\b/g;
+const DATE_TOKEN = /\b\d{4}-\d{2}-\d{2}\b|\b\d{1,2}[/.]\d{1,2}[/.]\d{2,4}\b/g;
+const PERCENT_TOKEN = /(\d+(?:\.\d+)?)\s*(?:%|เปอร์เซนต์|เปอร์เซ็นต์)/g;
+const RATIO_TOKEN = /\d{1,2}\s*[:x×]\s*\d{1,2}/g;
+const BARE_NUMBER = /\d+(?:[.,]\d+)?/g;
+
+/**
+ * Claim categories the snapshot cannot support. If a draft asserts one of
+ * these and the phrase is not literally present in the snapshot, it fails
+ * closed — an absent field is not permission to invent.
+ */
+const UNPROVABLE_CLAIM_CATEGORIES = [
+  { code: 'commission', phrases: ['คอมมิชชัน', 'ค่าคอม', 'commission'] },
+  { code: 'shipping', phrases: ['ส่งฟรี', 'จัดส่งฟรี', 'ฟรีค่าส่ง', 'ค่าจัดส่ง', 'shipping', 'free delivery'] },
+  { code: 'guarantee', phrases: ['รับประกัน', 'คืนเงิน', 'เปลี่ยนคืน', 'guarantee', 'warranty', 'money back'] },
+  { code: 'stock', phrases: ['คงเหลือ', 'จำนวนจำกัด', 'ของหมด', 'สินค้าเหลือ', 'in stock', 'limited stock'] },
+  { code: 'gift', phrases: ['ของแถม', 'แถมฟรี', 'free gift'] },
+  { code: 'personal_experience', phrases: ['ทดลองใช้', 'ใช้เอง', 'ลองแล้ว', 'ซื้อมาใช้', 'ฉันใช้', 'personal experience'] },
+  { code: 'certification', phrases: ['อย.', 'รับรองมาตรฐาน', 'iso', 'certified'] },
+];
+
+/**
+ * ACE's own acceptance checks on a provider draft.
+ *
+ * Structural checks (length, Thai content, placeholders, markup) plus
+ * evidence-based checks against `offer_snapshot`. A draft that cannot be
+ * supported by the snapshot is rejected rather than accepted quietly.
+ *
+ * Known limits, stated rather than hidden:
+ *   - It verifies that a number exists in the snapshot, not that the sentence
+ *     around it means what the author intended. It does check price *role* for
+ *     the common Thai patterns ("ราคา X" vs "ราคาปกติ X"), which can reject a
+ *     human-readable sentence that lists the original price after "ราคา".
+ *   - Product identity is a whitespace-insensitive substring check, so a draft
+ *     that paraphrases the product name instead of quoting it fails closed.
+ *   - Commission, shipping, stock, guarantees, gifts, and personal-experience
+ *     claims are unprovable from the snapshot and are always rejected unless
+ *     the exact phrase appears in the snapshot's own text.
+ *   - Derived arithmetic (e.g. "ประหยัด 300 บาท") is rejected: it is not a
+ *     snapshot value, and this validator does not calculate on the model's
+ *     behalf.
+ */
+function validateScriptDraft(text, source) {
+  const value = typeof text === 'string' ? text.trim() : '';
+  const findings = [];
+  const add = (code, claim, field, expected) => {
+    findings.push({
+      code,
+      claim: claim === undefined ? null : String(claim).slice(0, 80),
+      field: field === undefined ? null : field,
+      expected: expected === undefined ? null : expected,
+    });
+  };
+
+  // --- structural ---------------------------------------------------
+  if (value === '') add('empty', '');
+  if (value !== '' && value.length < SCRIPT_DRAFT_MIN_CHARS) add('too_short', value.slice(0, 40));
+  if (value.length > SCRIPT_DRAFT_MAX_CHARS) add('too_long', `${value.length} chars`);
+
+  const nonSpace = value.replace(/\s/g, '');
+  if (nonSpace !== '') {
+    const thaiChars = (nonSpace.match(/[\u0E00-\u0E7F]/g) || []).length;
+    if (thaiChars / nonSpace.length < SCRIPT_DRAFT_MIN_THAI_RATIO) add('not_thai', 'thai ratio below 0.5');
+  } else if (value !== '') {
+    add('not_thai', 'no thai characters');
+  }
+
+  const lower = value.toLowerCase();
+  for (const marker of PLACEHOLDER_MARKERS) {
+    if (lower.includes(marker.toLowerCase())) add('placeholder_leak', marker);
+  }
+  if (/<[a-z/][^>]*>/i.test(value)) add('markup', 'html-like tag');
+
+  if (value === '') {
+    return { ok: false, failed: uniqueCodes(findings), findings };
+  }
+
+  // --- evidence -----------------------------------------------------
+  const facts = buildFactBase(source);
+  let scan = normalizeDigits(value);
+
+  if (!facts.hasSnapshot) {
+    // No snapshot means no offer fact can be proven; say so instead of passing.
+    add('missing_snapshot_evidence', 'no offer_snapshot supplied', 'offer_snapshot', 'required');
+    return { ok: false, failed: uniqueCodes(findings), findings };
+  }
+
+  // 1. identity tokens
+  for (const token of scan.match(ID_TOKEN) || []) {
+    if (!facts.ids.includes(token)) {
+      add('identity_mismatch', token, 'offer_snapshot.item_id', facts.ids.join('|') || 'none');
+    }
+  }
+  scan = scan.replace(ID_TOKEN, ' ');
+
+  // 2. dates
+  for (const token of scan.match(DATE_TOKEN) || []) {
+    const supported = facts.dates.some((date) => String(date).includes(token) || token.includes(String(date).slice(0, 10)));
+    if (!supported) add('unsupported_date', token, 'offer_snapshot.checked_at', facts.dates.join('|') || 'none');
+  }
+  scan = scan.replace(DATE_TOKEN, ' ');
+
+  // 3. price role: "ราคา X" must be the current price, "ราคาปกติ X" the list price
+  const checkRole = (raw, role) => {
+    const claimed = canonicalNumber(raw);
+    const expected = role === 'current' ? facts.currentPrice : facts.listPrice;
+    if (expected === null) {
+      add('unsupported_price', raw, `offer_snapshot.${role === 'current' ? 'price_thb' : 'list_price_thb'}`, 'absent');
+      return;
+    }
+    if (claimed === null || Math.abs(Number(claimed) - expected) > 0.01) {
+      add('conflicting_price', raw, `offer_snapshot.${role === 'current' ? 'price_thb' : 'list_price_thb'}`, expected);
+    }
+  };
+  for (const match of scan.matchAll(LIST_PRICE_CLAIM)) checkRole(match[1], 'list');
+  scan = scan.replace(LIST_PRICE_CLAIM, ' ');
+  for (const match of scan.matchAll(CURRENT_PRICE_CLAIM)) checkRole(match[1], 'current');
+  scan = scan.replace(CURRENT_PRICE_CLAIM, ' ');
+
+  // 4. any remaining currency amount must be a snapshot price
+  for (const mention of thaiQa.priceMentions(scan)) {
+    if (!facts.prices.some((price) => Math.abs(price - mention.value) <= 0.01)) {
+      add('unsupported_price', mention.raw, 'offer_snapshot.price_thb', facts.prices.join(' or ') || 'absent');
+    }
+  }
+  scan = scan.replace(/[\d,]+(?:\.\d+)?\s*(?:บาท|฿|THB|thb)/g, ' ');
+
+  // 5. percentages must match the promotion depth
+  for (const match of scan.matchAll(PERCENT_TOKEN)) {
+    const claimed = Number(match[1]);
+    if (facts.discountPct === null || Math.abs(facts.discountPct - claimed) > 0.01) {
+      add('unsupported_discount', match[0], 'offer_snapshot.promo.depth_pct', facts.discountPct);
+    }
+  }
+  scan = scan.replace(PERCENT_TOKEN, ' ');
+  scan = scan.replace(/(?:%|เปอร์เซนต์|เปอร์เซ็นต์)/g, ' ');
+
+  // 6. aspect ratio (9:16) is structural, not a claim
+  for (const token of scan.match(RATIO_TOKEN) || []) {
+    const [left, right] = token.split(/\s*[:x×]\s*/);
+    const canonical = `${canonicalNumber(left)}x${canonicalNumber(right)}`;
+    if (!['9x16', '16x9', '1x1', '4x5'].includes(canonical)) {
+      add('unsupported_number', token, 'project.storyboard.aspect_ratio', '9:16');
+    }
+  }
+  scan = scan.replace(RATIO_TOKEN, ' ');
+
+  // 7. every remaining bare number must be an allowed snapshot/project value
+  for (const token of scan.match(BARE_NUMBER) || []) {
+    const canonical = canonicalNumber(token);
+    if (canonical === null || !facts.allowedNumbers.has(canonical)) {
+      add('unsupported_number', token, 'offer_snapshot', [...facts.allowedNumbers].join(','));
+    }
+  }
+
+  // 8. claims the snapshot has no evidence for
+  const lowerScan = value.toLowerCase();
+  for (const category of UNPROVABLE_CLAIM_CATEGORIES) {
+    for (const phrase of category.phrases) {
+      if (!lowerScan.includes(phrase.toLowerCase())) continue;
+      const supported = facts.supportedStrings.some((item) => String(item).toLowerCase().includes(phrase.toLowerCase()));
+      if (!supported) add(`unsupported_claim:${category.code}`, phrase);
+    }
+  }
+
+  // 9. the draft must actually be about this product
+  const squashed = (input) => String(input).replace(/\s/g, '');
+  if (!facts.productName) {
+    add('missing_product_identity', 'snapshot has no product_name', 'offer_snapshot.product_name', 'required');
+  } else if (!squashed(normalizeDigits(value)).includes(squashed(facts.productName))) {
+    add('missing_product_identity', 'product name not present', 'offer_snapshot.product_name', facts.productName);
+  }
+
+  return { ok: findings.length === 0, failed: uniqueCodes(findings), findings };
+}
+
+function uniqueCodes(findings) {
+  return [...new Set(findings.map((finding) => finding.code))];
+}
+
+function normalizeScriptDraftText(text) {
+  return String(text).replace(/\r\n/g, '\n').replace(/[ \t]+/g, ' ').trim();
+}
+
+function msOrUndefined(value) {
+  return typeof value === 'number' && Number.isFinite(value) ? Math.round(value) : undefined;
+}
+
+/**
+ * Create a content project and, when opted in, try to fill the Script Draft
+ * from OpenRouter. On any provider, configuration, or validation failure the
+ * deterministic script from `createContentProject()` stands unchanged and the
+ * trace records TEMPLATE + graceful_fallback.
+ *
+ * Network egress needs both `executionMode: 'LIVE'` and `allowNetwork: true`,
+ * so an offline test can never reach the provider and a Gate 3 build cannot
+ * spend anything even if a key is present.
+ *
+ * @returns {Promise<{project: object, trace: object, networkAttempted: boolean}>}
+ */
+async function createScriptDraftWithProvider(input = {}) {
+  const {
+    projectInput,
+    traceId,
+    model,
+    timeoutMs,
+    maxOutputTokens,
+    fetchImpl,
+    env,
+    allowNetwork,
+  } = input;
+
+  if (!projectInput || typeof projectInput !== 'object') {
+    throw httpError(400, 'projectInput is required');
+  }
+
+  const executionMode = input.executionMode === 'LIVE' ? 'LIVE' : 'OFFLINE_TEST';
+  const live = executionMode === 'LIVE';
+
+  const project = createContentProject(projectInput);
+  const prompt = buildScriptDraftPrompt(project);
+
+  const result = await providerModule.generateScriptDraft({
+    prompt,
+    model,
+    timeoutMs,
+    maxOutputTokens,
+    fetchImpl,
+    env,
+    allowNetwork: live && allowNetwork === true,
+  });
+
+  const traceBase = {
+    traceId: traceId || crypto.randomUUID(),
+    timestamp: nowIso(),
+    operation: SCRIPT_DRAFT_OPERATION,
+    executionMode,
+    provider: result.provider,
+    model: result.model,
+    latencyMs: msOrUndefined(result.latencyMs),
+  };
+
+  if (result.ok) {
+    const validation = validateScriptDraft(result.text, project);
+    if (validation.ok) {
+      const text = normalizeScriptDraftText(result.text);
+      const trace = live
+        ? provenance.liveTrace({ ...traceBase, usage: result.usage || undefined, validation })
+        : provenance.mockTrace({ ...traceBase, usage: result.usage || undefined, validation });
+      project.script = {
+        ...project.script,
+        text,
+        checksum: sha256(text),
+        source: trace.source,
+        // Per-scene lines stay deterministic; only the draft text is replaced.
+        lines_source: 'TEMPLATE',
+        trace,
+      };
+      return { project, trace, networkAttempted: result.networkAttempted === true };
+    }
+
+    const trace = provenance.fallbackTrace({
+      ...traceBase,
+      validation,
+      fallbackReason: 'validation_failed',
+    });
+    project.script = {
+      ...project.script,
+      source: trace.source,
+      lines_source: 'TEMPLATE',
+      trace,
+      fallback_reason: 'validation_failed',
+    };
+    return { project, trace, networkAttempted: result.networkAttempted === true };
+  }
+
+  const trace = provenance.fallbackTrace({
+    ...traceBase,
+    fallbackReason: result.status,
+  });
+  project.script = {
+    ...project.script,
+    source: trace.source,
+    lines_source: 'TEMPLATE',
+    trace,
+    fallback_reason: result.status,
+  };
+  return { project, trace, networkAttempted: result.networkAttempted === true };
+}
+
+/* ------------------------------------------------------------------ */
 /* Export                                                              */
 /* ------------------------------------------------------------------ */
 
@@ -1501,6 +1952,10 @@ module.exports = {
   buildFinalizeChecklist,
   buildPublishPrep,
   createContentProject,
+  SCRIPT_DRAFT_OPERATION,
+  buildScriptDraftPrompt,
+  validateScriptDraft,
+  createScriptDraftWithProvider,
   applyVisualEdit,
   applyTextEdit,
   applyAudioEdit,

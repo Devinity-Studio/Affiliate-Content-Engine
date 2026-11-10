@@ -2709,26 +2709,70 @@ async function handleContentDraft(req, res, ctx) {
       offer_id: offer.id,
       product_id: product.id,
     });
-    const project = contentModule.createContentProject({
-      state,
-      candidate,
-      offer,
-      product,
-      plan,
-      approachKey: approachKey || 'problem_first',
-      custom,
-      dataAsOf: context.dataAsOf,
-    });
+
+    // Opt-in only. Without this flag the deterministic path below runs exactly
+    // as it always has, and nothing in the provider module is called.
+    const scriptDraftOptions = body.scriptDraft && typeof body.scriptDraft === 'object' ? body.scriptDraft : null;
+    const useLlm = body.useLlm === true || (scriptDraftOptions !== null && scriptDraftOptions.useLlm === true);
+
+    // Gate 4 interlock: a request is only allowed out when an operator has
+    // explicitly enabled live execution. Unset means no egress at all, so a
+    // key present in the environment cannot spend anything by default.
+    const liveEnabled = process.env.ACE_LLM_LIVE_ENABLED === '1';
+
+    let project;
+    let trace = null;
+    let networkAttempted = false;
+
+    if (useLlm) {
+      const draft = await contentModule.createScriptDraftWithProvider({
+        projectInput: {
+          state,
+          candidate,
+          offer,
+          product,
+          plan,
+          approachKey: approachKey || 'problem_first',
+          custom,
+          dataAsOf: context.dataAsOf,
+        },
+        traceId: crypto.randomUUID(),
+        model: scriptDraftOptions && typeof scriptDraftOptions.model === 'string'
+          ? scriptDraftOptions.model
+          : undefined,
+        timeoutMs: scriptDraftOptions && Number.isFinite(scriptDraftOptions.timeoutMs)
+          ? scriptDraftOptions.timeoutMs
+          : undefined,
+        executionMode: liveEnabled ? 'LIVE' : 'OFFLINE_TEST',
+        allowNetwork: liveEnabled,
+      });
+      project = draft.project;
+      trace = draft.trace;
+      networkAttempted = draft.networkAttempted;
+    } else {
+      project = contentModule.createContentProject({
+        state,
+        candidate,
+        offer,
+        product,
+        plan,
+        approachKey: approachKey || 'problem_first',
+        custom,
+        dataAsOf: context.dataAsOf,
+      });
+    }
+
     state.contents[project.content_id] = project;
     state.contentOrder.push(project.content_id);
     await writeState(state);
     return {
       project: contentView(state, project),
       approaches: project.approaches,
+      trace,
       boundary: {
         writes: 'MVP fixture state only',
         real_state_touched: false,
-        external_calls: 0,
+        external_calls: networkAttempted ? 1 : 0,
         spend_thb: 0,
       },
       state: viewState(state),
