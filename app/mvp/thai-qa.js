@@ -862,6 +862,109 @@ function addVocabulary(words) {
   return LEXICON.size;
 }
 
+/** Thai content affiliate disclosure and link verification */
+const AFFILIATE_DISCLOSURE_PHRASES = ['แอดลิงก์', 'ลิงก์แอฟฟิลเอต', 'โพสต์นี้เป็นลิงก์แนะนำ', 'มีความเกี่ยวข้องกับแอฟฟิลิเอต'];
+const AFFILIATE_LINK_PATTERN = /^https?:\/\//;
+
+function checkAffiliateDisclosure(project, texts) {
+  const results = [];
+  // collectText() returns { where, text } records, so read the text field.
+  const lines = texts.map((item) => String(item.text || ''));
+  let foundDisclosure = false;
+  for (const phrase of AFFILIATE_DISCLOSURE_PHRASES) {
+    if (lines.some((line) => line.toLowerCase().includes(phrase.toLowerCase()))) {
+      foundDisclosure = true;
+      break;
+    }
+  }
+  if (!foundDisclosure) {
+    results.push(check('affiliate_disclosure', 'copy', 'ไม่พบคำเปิดเผยลิงก์แนะนำแอฟฟิลเอตในบทพูด', 'WARN', 'กรุณาเพิ่มข้อความ "แอดลิงก์" หรือ "ลิงก์แอฟฟิลเอต" เพื่อเปิดเผยความสัมพันธ์ Affiliate'));
+  } else {
+    results.push(check('affiliate_disclosure', 'copy', 'พบคำเปิดเผยลิงก์แนะนำแอฟฟิลเอต', 'PASS', 'เรียบร้อยแล้ว'));
+  }
+  return results;
+}
+
+function checkAffiliateLink(project, offer, texts) {
+  const results = [];
+  // Check if any text contains a URL that looks like an affiliate link
+  const lines = texts.map((item) => String(item.text || ''));
+  const hasLink = lines.some((line) => /https?:\/\/\S+/.test(line));
+  if (!hasLink) {
+    results.push(check('affiliate_link', 'copy', 'ไม่พบลิงก์ในบทพูด', 'WARN', 'กรุณาเพิ่มลิงก์เว็บไซต์หรือลิงก์แอฟฟิลเอตในบทพูด'));
+  } else {
+    results.push(check('affiliate_link', 'copy', 'พบลิงก์ในบทพูด', 'PASS', 'เรียบร้อยแล้ว'));
+  }
+  // If there's an offer, verify the link matches the product
+  if (offer && offer.product_url) {
+    const productUrl = String(offer.product_url).toLowerCase();
+    const linkMatchesProduct = lines.some((line) => line.toLowerCase().includes(productUrl));
+    if (!linkMatchesProduct) {
+      results.push(check('affiliate_link_match', 'copy', 'ลิงก์ไม่ตรงกับชื่อ/รายละเอียดสินค้า', 'WARN', 'ตรวจสอบว่าลิงก์สอดคล้องกับชื่อสินค้าในบทพูด'));
+    } else {
+      results.push(check('affiliate_link_match', 'copy', 'ลิงก์ตรงกับรายละเอียดสินค้า', 'PASS', 'เรียบร้อยแล้ว'));
+    }
+  }
+  return results;
+}
+
+/** Runs every check over the project. */
+/**
+ *
+ * @param {object} input
+ * @param {object} input.project    the content project
+ * @param {object} input.offer      the source offer record
+ * @param {object} input.product    the source product record
+ * @param {object} input.candidate  the candidate the project came from
+ * @param {Array}  input.siblingProducts other products in the same import
+ * @param {object} input.sourceFreshness freshness of the source
+ * */
+function runQa(input) {
+  const project = input.project || {};
+  const offer = input.offer || {};
+  const product = input.product || {};
+  const candidate = input.candidate || {};
+  const sourceFreshness = input.sourceFreshness || null;
+
+  const texts = collectText(project);
+
+  const checks = [
+    ...checkSpelling(texts),
+    ...checkPrice(texts, offer, sourceFreshness),
+    ...checkPromotion(texts, offer, sourceFreshness),
+    ...checkProductName(texts, product, offer, input.siblingProducts || []),
+    ...checkCta(project, texts),
+    ...checkEvidence(project, offer, candidate),
+    ...checkExternal(texts, offer),
+    ...checkAffiliateDisclosure(project, texts),
+    ...checkAffiliateLink(project, offer, texts),
+  ];
+
+  const summary = { PASS: 0, WARN: 0, FAIL: 0 };
+  for (const item of checks) summary[item.status] = (summary[item.status] || 0) + 1;
+
+  const blocking = checks.filter((item) => item.status === 'FAIL');
+  const warnings = checks.filter((item) => item.status === 'WARN');
+
+  const byCategory = {};
+  for (const item of checks) {
+    byCategory[item.category] = byCategory[item.category] || { PASS: 0, WARN: 0, FAIL: 0 };
+    byCategory[item.category][item.status] += 1;
+  }
+
+  return {
+    ran_at: new Date().toISOString(),
+    checks,
+    summary,
+    by_category: byCategory,
+    blocking,
+    warnings,
+    passed: blocking.length === 0,
+    scope_note:
+      'การตรวจการสะกดใช้คลังคำและรายการคำพิมพ์ผิดที่กำหนดไว้ในระบบ ไม่ใช่พจนานุกรมไทยเต็มรูปแบบ ต้องให้คนตรวจซ้ำก่อนเผยแพร่',
+  };
+}
+
 module.exports = {
   runQa,
   collectText,
@@ -874,4 +977,6 @@ module.exports = {
   LEXICON,
   FORBIDDEN_CLAIMS,
   UNSOURCED_PROMO_PHRASES,
+  checkAffiliateDisclosure,
+  checkAffiliateLink,
 };

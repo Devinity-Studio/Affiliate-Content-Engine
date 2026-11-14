@@ -1,1 +1,25 @@
-[]
+{
+  "items": [
+    {
+      "id": "CNT-1",
+      "kind": "VIDEO",
+      "filename": "CNT-1-v1.mp4",
+      "sha256": "bea04f2d6c5224ed91326972cab03cf0bd74f7af68532adb3b521bd27983072c",
+      "exported_at": "2026-11-14T12:37:04.011Z",
+      "width": 1080,
+      "height": 1920,
+      "duration_s": 26.4,
+      "aspect_ratio": "9:16",
+      "status": "EXPORTED",
+      "publication": {
+        "status": "PUBLISHED",
+        "channel": "SHOPEE",
+        "scheduled_at": "2026-11-14T12:59:15.000Z",
+        "published_at": "2026-11-14T13:01:25.483Z",
+        "published_by": "Owner",
+        "simulated": true,
+        "via_queue": true
+      }
+    }
+  ]
+}

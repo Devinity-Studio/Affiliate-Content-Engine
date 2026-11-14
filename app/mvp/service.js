@@ -25,6 +25,23 @@ const path = require('node:path');
 const crypto = require('node:crypto');
 const importer = require('./importer');
 const contentModule = require('./content');
+const thaiQa = require('./thai-qa');
+const voiceover = require('./voiceover');
+const researchAi = require('./research-ai');
+const traceModule = require('./trace');
+const profilesModule = require('./profiles');
+const settingsModule = require('./settings');
+const analyticsModule = require('./analytics');
+const planModule = require('./plan');
+const aiEnv = require('./env');
+const visionResearcher = require('./skills/01-vision-researcher');
+const behaviorStrategist = require('./skills/02-behavior-strategist');
+const thaiScriptwriter = require('./skills/03-thai-scriptwriter');
+const assetAssembler = require('./skills/04-asset-assembler');
+const complianceGuardian = require('./skills/05-compliance-guardian');
+const libraryScheduler = require('./skills/06-library-scheduler');
+const csvReconciler = require('./skills/07-csv-reconciler');
+const ruleEvolver = require('./skills/08-rule-evolver');
 
 const APP_DIR = path.join(__dirname, '..');
 const REPO_DIR = path.join(APP_DIR, '..');
@@ -52,7 +69,135 @@ const STAGING_LIMIT = 20;
 
 const CLAIM_CLASSES = new Set(['FACT', 'INFERENCE', 'HYPOTHESIS', 'UNKNOWN']);
 const ACTIONS = new Set(['SAVE', 'REJECT', 'QUEUE', 'REMOVE']);
+const DATA_STATUS = new Set(['SYNTHETIC', 'REAL']);  // <<< เพิ่มเพื่อแยกสถานะข้อมูล
 const APPROACH_KEYS = ['personalized_a', 'personalized_b', 'exploration', 'user_custom'];
+const ORCHESTRATOR = {
+  // เรียกใช้งาน Skills ต่อเนื่องจาก Research จน ถึง Report
+  async runFullPipeline(input = {}) {
+    const { 
+      stage = 'full', // research, plan, content, finalize, publish, report
+      candidate,
+      project,
+      offer,
+      product,
+      plan,
+      state,
+      csvData,
+      options = {}
+    } = input;
+    
+    const results = {};
+    
+    try {
+      // ขั้นตอนที่ 1: Vision Research - สกัดข้อมูลจากภาพ
+      if (stage === 'full' || stage === 'research') {
+        results.vision = await visionResearcher.extractProductInfoFromImage(
+          input.imageFile || null,
+          { category: input.category }
+        );
+        results.strategist = await behaviorStrategist.generateStrategy(
+          results.vision.extracted || {},
+          input.candidates || []
+        );
+      }
+      
+      // ขั้นตอนที่ 2: Thai Scriptwriter - สร้างบทพูดไทย
+      if (stage === 'full' || stage === 'content') {
+        results.scriptwriter = await thaiScriptwriter.createThaiScript(
+          candidate || {},
+          { includeDisclosure: true }
+        );
+        results.caption = await thaiScriptwriter.createSocialCaption(
+          candidate || {},
+          results.scriptwriter.script
+        );
+      }
+      
+      // ขั้นตอนที่ 3: Asset Assembler - จัดการภาพและข้อมูล
+      if (stage === 'full' || stage === 'content') {
+        results.assembler = await assetAssembler.assembleCandidateAssets(
+          input.imageInfo || {},
+          candidate || {}
+        );
+        const validation = assetAssembler.validateAssembledData(results.assembler);
+        results.validation = validation;
+      }
+      
+      // ขั้นตอนที่ 4: Compliance Guardian - ตรวจสอบลิงก์และกฎ
+      if (stage === 'full' || stage === 'finalize') {
+        results.compliance = await complianceGuardian.checkFinalizeReadiness({
+          candidates: input.candidates || [],
+          hasCompletedPreviousSteps: true
+        });
+      }
+      
+      // ขั้นตอนที่ 5: CSV Reconciler - จับคู่ข้อมูลผลจริง
+      if (stage === 'full' || stage === 'report') {
+        results.csvReconciler = await csvReconciler.reconcileCSVWithSystem(
+          csvData || [],
+          input.candidates || []
+        );
+        results.csvReport = await csvReconciler.generateThaiReport(
+          results.csvReconciler
+        );
+      }
+      
+      // ขั้นตอนที่ 6: Rule Evolver - Self-Learning ปรับปรุงเกณฑ์
+      if (stage === 'full' || stage === 'report') {
+        const csvResult = results.csvReconciler || {};
+        results.ruleEvolver = await ruleEvolver.analyzeResultDifference(
+          input.prevPredictions || {},
+          csvResult.csvData || { clicks: 0, orders: 0, commission: 0 }
+        );
+        results.evolution = await ruleEvolver.generateLearningReport(
+          results.ruleEvolver,
+          await ruleEvolver.adjustWeightsForNextRound(results.ruleEvolver)
+        );
+      }
+      
+      // ขั้นตอนที่ 7: Library Scheduler - บันทึกลง Library
+      if (stage === 'full' || stage === 'publish') {
+        results.library = await libraryScheduler.saveToContentLibrary({
+          candidateId: input.candidate?.id,
+          contentTitle: candidate?.productName || 'คอนเทนต์ใหม่',
+          script: results.scriptwriter?.script || '',
+          finalVideo: input.finalVideoPath,
+          metadata: {
+            ...results.scriptwriter?.components,
+            dataStatus: candidate?.data_status || 'SYNTHETIC'
+          }
+        });
+      }
+      
+      // ขั้นตอนที่ 8: สรุปผลรวม
+      if (stage === 'full' || stage === 'report') {
+        results.summary = {
+          pipeline: 'Thai-first Real Workflow 8-Skills',
+          stagesCompleted: Object.keys(results).length,
+          dataStatus: candidate?.data_status || 'SYNTHETIC',
+          pipelineCompleted: stage === 'full',
+          message: 'Pipeline เสร็จสิ้น - พร้อมเผยแพร่หรือวิเคราะห์ต่อ'
+        };
+      }
+      
+      return {
+        success: true,
+        results,
+        pipeline: 'Thai-first Real Workflow 8-Skills Orchestrator',
+        message: 'ดำเนินการสำเร็จแล้ว - พร้อมแสดงผลบนหน้าจอ'
+      };
+      
+    } catch (error) {
+      console.error('Orchestrator Error:', error);
+      return {
+        success: false,
+        error: error.message,
+        pipeline: 'Thai-first Real Workflow 8-Skills',
+        message: 'เกิดข้อผิดพลาดในระหว่างการดำเนินการ'
+      };
+    }
+  }
+};
 const GENERATED_APPROACH_KEYS = ['personalized_a', 'personalized_b', 'exploration'];
 const REQUIRED_COLUMNS = [
   'item_id', 'shop_id', 'shop_name', 'product_name', 'category',
@@ -158,6 +303,8 @@ function baseState() {
     contents: {},
     contentOrder: [],
     sourceArchiveLog: [],
+    ...profilesModule.baseProfiles(),
+    ...analyticsModule.baseResults(),
   };
 }
 
@@ -181,7 +328,14 @@ async function readState() {
     if (!parsed || typeof parsed !== 'object' || parsed.kind !== 'MVP_FIXTURE_STATE') {
       throw httpError(500, 'MVP fixture state file is not a valid fixture state');
     }
-    return { ...baseState(), ...parsed };
+    const state = { ...baseState(), ...parsed };
+    // A state file written before profiles existed still opens: the default
+    // channel profile is seeded once, in memory and on the next write.
+    profilesModule.ensureProfiles(state);
+    // No background worker here: the fallback queue is applied on read, so an
+    // overdue un-approved schedule never silently disappears.
+    contentModule.sweepPublishQueues(state);
+    return state;
   } catch (err) {
     if (err.code === 'ENOENT') {
       const empty = baseState();
@@ -1316,6 +1470,16 @@ function viewState(state) {
     planDrafts: Object.values(state.planDrafts),
     plans: state.planOrder.map((id) => state.plans[id]),
     contents: state.contentOrder.map((id) => state.contents[id]).filter(Boolean),
+    // Last advisory shortlist from the research model, so the panel can show it
+    // again after a reload instead of asking (and paying) twice.
+    ai_research: state.ai_research || null,
+    // Multi-platform profiles: one core workflow, one active channel at a time.
+    profiles: profilesModule.listProfiles(state),
+    active_profile: profilesModule.activeProfile(state)
+      ? profilesModule.profileView(state, profilesModule.activeProfile(state))
+      : null,
+    platforms: profilesModule.platformCatalog(),
+    results: state.resultOrder.map((id) => state.results[id]).filter(Boolean),
   };
 }
 
@@ -1417,6 +1581,7 @@ async function handleImport(req, res, ctx) {
       label: FIXTURE_LABEL,
       checkedAt,
       synthetic: true,
+      data_status: DATA_STATUS.SYNTHETIC,  // <<< เพิ่มเพื่อแยกสถานะข้อมูล
       sourceType: 'SHOPEE_AFFILIATE_EXPORT_SYNTHETIC',
       method: 'CSV_IMPORT',
       dateRange,
@@ -1439,6 +1604,7 @@ async function handleImport(req, res, ctx) {
       expires_at: built.analysis.expires_at,
       date_range: dateRange,
       synthetic: true,
+      data_status: DATA_STATUS.SYNTHETIC,  // <<< เพิ่มเพื่อแยกสถานะข้อมูล
       source_validation: built.sources[0].validation,
       provenance: {
         method: 'CSV_IMPORT',
@@ -1679,7 +1845,11 @@ async function handleCandidatesSelect(req, res, ctx) {
     const added = [];
     const entries = [];
     for (const entry of selected) {
+      // <<< ใช้ DATA_STATUS เพื่อแยกข้อมูลสังเคราะห์กับข้อมูลจริง
+      // เมื่อสร้าง candidate แบบ manual ให้ระบุสถานะเป็น REAL เสมอ
+      // เมื่อ Import จาก fixture ให้เป็น SYNTHETIC (จัดการที่ด้าน import)
       const candidate = buildCandidate(entry.offer, entry.product, null, checkedAt, meta);
+      candidate.data_status = DATA_STATUS.REAL;  // <<< กำหนดเป็น REAL สำหรับ manual creation
       state.candidates[candidate.id] = candidate;
       if (!state.candidateOrder.includes(candidate.id)) state.candidateOrder.push(candidate.id);
       added.push(candidate);
@@ -2718,7 +2888,8 @@ async function handleContentDraft(req, res, ctx) {
     // Gate 4 interlock: a request is only allowed out when an operator has
     // explicitly enabled live execution. Unset means no egress at all, so a
     // key present in the environment cannot spend anything by default.
-    const liveEnabled = process.env.ACE_LLM_LIVE_ENABLED === '1';
+    const effectiveEnv = settingsModule.effectiveEnv();
+    const liveEnabled = effectiveEnv.ACE_LLM_LIVE_ENABLED === '1';
 
     let project;
     let trace = null;
@@ -2745,6 +2916,9 @@ async function handleContentDraft(req, res, ctx) {
           : undefined,
         executionMode: liveEnabled ? 'LIVE' : 'OFFLINE_TEST',
         allowNetwork: liveEnabled,
+        // Same resolved credential/model as Research: the Settings override wins
+        // over `.env` for every stage of the pipeline.
+        env: effectiveEnv,
       });
       project = draft.project;
       trace = draft.trace;
@@ -2762,6 +2936,14 @@ async function handleContentDraft(req, res, ctx) {
       });
     }
 
+    // Every content item belongs to one publishing profile, so the same core
+    // workflow can serve another platform later without moving the data.
+    const activeProfile = profilesModule.activeProfile(state);
+    if (activeProfile) {
+      project.profile_id = activeProfile.id;
+      project.platform = activeProfile.platform;
+      project.channel = activeProfile.channel;
+    }
     state.contents[project.content_id] = project;
     state.contentOrder.push(project.content_id);
     await writeState(state);
@@ -2884,6 +3066,251 @@ async function handleContentAssets(req, res, ctx, contentId) {
   ctx.sendJson(res, 201, result);
 }
 
+/* ------------------------------------------------------------------ */
+/* Research AI (OpenRouter)                                            */
+/* ------------------------------------------------------------------ */
+
+function aiStatusPayload() {
+  // One resolver for every caller: Settings override first, then `.env`, then
+  // the built-in default. The key itself never leaves the server.
+  const described = settingsModule.describe();
+  return {
+    ai: researchAi.status(settingsModule.effectiveEnv(), {
+      key_source: described.key_source,
+      model_source: described.model_source,
+    }),
+    settings: described,
+    env: aiEnv.describeLoad(),
+  };
+}
+
+async function handleAiStatus(req, res, ctx) {
+  ctx.sendJson(res, 200, aiStatusPayload());
+}
+
+async function handleSettingsUpdate(req, res, ctx) {
+  const body = await readJsonBody(req, ctx, 16 * 1024);
+  const settings = settingsModule.apply(body);
+  ctx.sendJson(res, 200, { settings, ...aiStatusPayload() });
+}
+
+async function handleSettingsReset(req, res, ctx) {
+  const settings = settingsModule.apply({ reset: true });
+  ctx.sendJson(res, 200, { settings, ...aiStatusPayload() });
+}
+
+async function handleAiPing(req, res, ctx) {
+  // Operator-pressed connectivity test: one tiny request, nothing stored.
+  const result = await researchAi.ping({ allowNetwork: true, env: settingsModule.effectiveEnv() });
+  ctx.sendJson(res, 200, { ping: result, ...aiStatusPayload() });
+}
+
+/**
+ * Advisory shortlist: the model reads the imported pool and proposes five items
+ * with a hook and a short script. It never changes ranks, claims or candidates —
+ * a human still decides what to produce from the pool.
+ */
+async function handleAiResearch(req, res, ctx) {
+  const body = await readJsonBody(req, ctx, 16 * 1024);
+  const state = await readState();
+  if (!state.candidateOrder || state.candidateOrder.length === 0) {
+    throw httpError(409, 'no candidates in the pool yet — generate the candidate pool first');
+  }
+  const model = typeof body.model === 'string' && body.model.trim() !== '' ? body.model.trim() : undefined;
+  const result = await researchAi.analyzePool(state, {
+    model,
+    allowNetwork: true,
+    env: settingsModule.effectiveEnv(),
+  });
+  if (result.ok) {
+    state.ai_research = {
+      ran_at: nowIso(),
+      model: result.model,
+      latency_ms: result.latency_ms,
+      usage: result.usage,
+      analysis: result.analysis,
+    };
+  }
+  await writeState(state);
+  ctx.sendJson(res, 200, {
+    result,
+    ai: researchAi.status(settingsModule.effectiveEnv(), {
+      key_source: settingsModule.describe().key_source,
+      model_source: settingsModule.describe().model_source,
+    }),
+    state: viewState(state),
+  });
+}
+
+/* ------------------------------------------------------------------ */
+/* Profiles & platforms                                                */
+/* ------------------------------------------------------------------ */
+
+async function handleProfilesList(req, res, ctx) {
+  const state = await readState();
+  ctx.sendJson(res, 200, {
+    profiles: profilesModule.listProfiles(state),
+    active_profile_id: state.active_profile_id,
+    platforms: profilesModule.platformCatalog(),
+  });
+}
+
+async function handleProfileCreate(req, res, ctx) {
+  const body = await readJsonBody(req, ctx, 32 * 1024);
+  const result = await withLock(async () => {
+    const state = await readState();
+    const profile = profilesModule.createProfile(state, body);
+    await writeState(state);
+    return { profile: profilesModule.profileView(state, profile), state: viewState(state) };
+  });
+  ctx.sendJson(res, 201, result);
+}
+
+async function handleProfileUpdate(req, res, ctx, profileId) {
+  const body = await readJsonBody(req, ctx, 32 * 1024);
+  const result = await withLock(async () => {
+    const state = await readState();
+    const profile = profilesModule.updateProfile(state, profileId, body);
+    await writeState(state);
+    return { profile: profilesModule.profileView(state, profile), state: viewState(state) };
+  });
+  ctx.sendJson(res, 200, result);
+}
+
+async function handleProfileActivate(req, res, ctx, profileId) {
+  const result = await withLock(async () => {
+    const state = await readState();
+    const profile = profilesModule.activateProfile(state, profileId);
+    await writeState(state);
+    return { profile: profilesModule.profileView(state, profile), state: viewState(state) };
+  });
+  ctx.sendJson(res, 200, result);
+}
+
+/* ------------------------------------------------------------------ */
+/* Plan view & analytics                                               */
+/* ------------------------------------------------------------------ */
+
+async function handleContentPlan(req, res, ctx, contentId) {
+  // Read-only: the four beats and their timecodes are derived from the current
+  // storyboard, so opening the plan never edits the production record.
+  const state = await readState();
+  const project = findContent(state, contentId);
+  ctx.sendJson(res, 200, { plan: planModule.buildPlan(project), project: contentView(state, project) });
+}
+
+async function handleAnalytics(req, res, ctx) {
+  const state = await readState();
+  const url = new URL(req.url, 'http://127.0.0.1');
+  const profileId = url.searchParams.get('profile_id') || null;
+  if (profileId && !profilesModule.resolveProfile(state, profileId)) {
+    throw httpError(404, `profile not found: ${profileId}`);
+  }
+  ctx.sendJson(res, 200, analyticsModule.buildAnalytics(state, { profile_id: profileId }));
+}
+
+async function handleResultCreate(req, res, ctx) {
+  const body = await readJsonBody(req, ctx, 16 * 1024);
+  const result = await withLock(async () => {
+    const state = await readState();
+    const record = analyticsModule.addResult(state, body);
+    await writeState(state);
+    return {
+      result: record,
+      analytics: analyticsModule.buildAnalytics(state, {}),
+      state: viewState(state),
+    };
+  });
+  ctx.sendJson(res, 201, result);
+}
+
+/* ------------------------------------------------------------------ */
+/* End-to-End Traceability View                                        */
+/* ------------------------------------------------------------------ */
+
+async function handleCandidateTrace(req, res, ctx, candidateId) {
+  // Read-only: the trace is rebuilt from state + the Content Library index, and
+  // the export file is hashed on disk so VERIFIED is evidence, not a claim.
+  const state = await readState();
+  const library = await contentModule.readContentLibrary();
+  const trace = await traceModule.buildTrace(state, candidateId, { libraryItems: library.items });
+  if (!trace) throw httpError(404, `candidate not found: ${candidateId}`);
+  ctx.sendJson(res, 200, trace);
+}
+
+async function handleContentRevise(req, res, ctx, contentId) {
+  const body = await readJsonBody(req, ctx, 32 * 1024);
+  const result = await withLock(async () => {
+    const state = await readState();
+    const project = findContent(state, contentId);
+    const applied = contentModule.reviseContent(project, body);
+
+    // Only the layers the revision touched are rebuilt: the other scenes keep
+    // their narration files and their rendering untouched.
+    let voice = null;
+    if (applied.voice_changed && body.resynth_audio !== false) {
+      if (!voiceover.available()) {
+        voice = { error: 'Thai TTS is not installed; the old narration was kept' };
+      } else {
+        try {
+          const spoken = await contentModule.synthesizeVoiceover(
+            project,
+            ASSETS_DIR,
+            (text, outFile, options) => voiceover.synthesize(text, outFile, options),
+            { force: true, scene_ids: applied.affected_scene_ids },
+          );
+          voice = { scenes: spoken.scenes, failures: spoken.failures };
+        } catch (err) {
+          voice = { error: err.message };
+        }
+      }
+    }
+
+    let clip = null;
+    try {
+      clip = await contentModule.renderRevisionClip(project, EXPORTS_DIR, {
+        sceneIds: applied.affected_scene_ids,
+      });
+    } catch (err) {
+      clip = { error: err.message };
+    }
+
+    project.preview = contentModule.buildPreview(project);
+    await writeState(state);
+    return {
+      revision: applied.revision,
+      voice,
+      clip,
+      project: contentView(state, project),
+      state: viewState(state),
+    };
+  });
+  ctx.sendJson(res, 200, result);
+}
+
+async function handleContentRevisionFile(req, res, ctx, contentId) {
+  const state = await readState();
+  const project = findContent(state, contentId);
+  const requested = new URL(req.url, 'http://127.0.0.1').searchParams.get('name') || '';
+  const base = path.basename(requested);
+  if (!base.endsWith('.mp4')) throw httpError(400, 'only .mp4 revision clips are served');
+  const dir = path.resolve(EXPORTS_DIR, project.content_id, 'revise');
+  const file = path.join(dir, base);
+  if (!file.startsWith(`${dir}${path.sep}`)) throw httpError(403, 'refusing to serve a file outside the revision directory');
+  let data;
+  try {
+    data = await fsp.readFile(file);
+  } catch {
+    throw httpError(404, `revision clip not found: ${base}`);
+  }
+  res.writeHead(200, {
+    'Content-Type': 'video/mp4',
+    'Content-Length': data.length,
+    'Content-Disposition': `inline; filename="${base}"`,
+  });
+  res.end(data);
+}
+
 async function handleContentQa(req, res, ctx, contentId) {
   const result = await withLock(async () => {
     const state = await readState();
@@ -2895,6 +3322,155 @@ async function handleContentQa(req, res, ctx, contentId) {
     return { qa: report, project: contentView(state, project), state: viewState(state) };
   });
   ctx.sendJson(res, 200, result);
+}
+
+async function handleContentVoiceover(req, res, ctx, contentId) {
+  if (!voiceover.available()) throw httpError(503, voiceover.setupHint());
+  const result = await withLock(async () => {
+    const state = await readState();
+    const project = findContent(state, contentId);
+    const body = await ctx.readBody(req, 8 * 1024).catch(() => null);
+    const parsed = body ? parseJsonBody(body) : {};
+    const spoken = await contentModule.synthesizeVoiceover(
+      project,
+      ASSETS_DIR,
+      (text, outFile) => voiceover.synthesize(text, outFile),
+      { force: parsed && parsed.force === true },
+    );
+    project.preview = contentModule.buildPreview(project);
+    await writeState(state);
+    return {
+      voice: voiceover.voiceName(),
+      scenes: spoken.scenes,
+      skipped: spoken.skipped || [],
+      failures: spoken.failures || [],
+      total_duration_s: spoken.total_duration_s,
+      project: contentView(state, project),
+      state: viewState(state),
+    };
+  });
+  ctx.sendJson(res, 200, result);
+}
+
+async function readJsonBody(req, ctx, limit = 8 * 1024) {
+  const raw = await ctx.readBody(req, limit).catch(() => null);
+  if (!raw) return {};
+  try {
+    return parseJsonBody(raw) || {};
+  } catch {
+    return {};
+  }
+}
+
+async function handleContentSchedule(req, res, ctx, contentId) {
+  const body = await readJsonBody(req, ctx);
+  const result = await withLock(async () => {
+    const state = await readState();
+    const project = findContent(state, contentId);
+    const entry = await contentModule.getLibraryItem(project.content_id);
+    if (!entry) throw httpError(409, 'export the video first — scheduling needs a Content Library entry');
+    const profile = profilesModule.resolveProfile(state, body.profile_id)
+      || profilesModule.resolveProfile(state, project.profile_id)
+      || profilesModule.activeProfile(state);
+    const payload = { ...body };
+    if (!payload.channel && profile) payload.channel = profile.channel;
+    const schedule = contentModule.setPublishSchedule(project, payload);
+    if (profile) {
+      schedule.profile_id = profile.id;
+      schedule.platform = profile.platform;
+      if (!project.profile_id) project.profile_id = profile.id;
+      if (!project.platform) project.platform = profile.platform;
+    }
+    await writeState(state);
+    return { schedule, project: contentView(state, project), state: viewState(state) };
+  });
+  ctx.sendJson(res, 200, result);
+}
+
+async function handleContentScheduleApprove(req, res, ctx, contentId) {
+  const body = await readJsonBody(req, ctx);
+  const result = await withLock(async () => {
+    const state = await readState();
+    const project = findContent(state, contentId);
+    const schedule = contentModule.approvePublish(project, body);
+    await writeState(state);
+    return { schedule, project: contentView(state, project), state: viewState(state) };
+  });
+  ctx.sendJson(res, 200, result);
+}
+
+async function handleContentScheduleCancel(req, res, ctx, contentId) {
+  const result = await withLock(async () => {
+    const state = await readState();
+    const project = findContent(state, contentId);
+    const schedule = contentModule.cancelPublish(project);
+    await writeState(state);
+    return { schedule, project: contentView(state, project), state: viewState(state) };
+  });
+  ctx.sendJson(res, 200, result);
+}
+
+async function handleContentPublish(req, res, ctx, contentId) {
+  const body = await readJsonBody(req, ctx);
+  const result = await withLock(async () => {
+    const state = await readState();
+    const project = findContent(state, contentId);
+    const schedule = contentModule.publishScheduleOf(project);
+    if (!schedule) throw httpError(409, 'this content has no publish schedule yet');
+    if (schedule.status === 'CANCELLED') throw httpError(409, 'this schedule was cancelled');
+    // A queued item has already missed its human approval; publishing it needs an
+    // explicit acknowledgement, exactly like the other interlocking steps here.
+    if (!schedule.approved && !body.force) {
+      throw httpError(409, schedule.status === 'QUEUED'
+        ? 'this item is in the Publish Queue because it was never approved — approve it, then publish'
+        : 'human approval is required before publishing (approve first)');
+    }
+    const published = contentModule.markPublished(project, {
+      published_by: body.published_by || schedule.approved_by || 'Owner',
+      simulated: body.simulate !== false,
+    });
+    const entry = await contentModule.updateLibraryPublication(project.content_id, {
+      status: 'PUBLISHED',
+      channel: published.channel,
+      scheduled_at: published.scheduled_at,
+      published_at: published.published_at,
+      published_by: published.published_by,
+      simulated: published.simulated,
+      via_queue: Boolean(published.published_via_queue),
+    });
+    await writeState(state);
+    return { schedule: published, library: entry, project: contentView(state, project), state: viewState(state) };
+  });
+  ctx.sendJson(res, 200, result);
+}
+
+async function handlePublishQueue(req, res, ctx) {
+  const state = await readState();
+  const items = Object.values(state.contents || {})
+    .filter((project) => project && project.publish_schedule)
+    .map((project) => ({
+      content_id: project.content_id,
+      title: (project.offer_snapshot && project.offer_snapshot.product_name) || project.content_id,
+      status: project.publish_schedule.status,
+      channel: project.publish_schedule.channel,
+      scheduled_at: project.publish_schedule.scheduled_at,
+      approved: project.publish_schedule.approved,
+      approved_by: project.publish_schedule.approved_by,
+      fallback: project.publish_schedule.fallback,
+      published_at: project.publish_schedule.published_at,
+      simulated: project.publish_schedule.simulated,
+    }))
+    .sort((a, b) => String(a.scheduled_at).localeCompare(String(b.scheduled_at)));
+  ctx.sendJson(res, 200, {
+    items,
+    counts: {
+      SCHEDULED: items.filter((item) => item.status === 'SCHEDULED').length,
+      QUEUED: items.filter((item) => item.status === 'QUEUED').length,
+      PUBLISHED: items.filter((item) => item.status === 'PUBLISHED').length,
+      CANCELLED: items.filter((item) => item.status === 'CANCELLED').length,
+    },
+    channels: contentModule.PUBLISH_CHANNELS,
+  });
 }
 
 async function handleContentReview(req, res, ctx, contentId) {
@@ -3432,6 +4008,17 @@ async function handleMvp(req, res, ctx) {
           'POST /api/mvp/content/generate',
           'GET /api/mvp/content/export/:artifact_id',
           'POST /api/mvp/content/:id/publish-prep',
+          'GET /api/mvp/candidates/:id/trace',
+          'GET /api/mvp/settings/ai',
+          'POST /api/mvp/settings/ai',
+          'POST /api/mvp/settings/ai/reset',
+          'GET /api/mvp/profiles',
+          'POST /api/mvp/profiles',
+          'PATCH /api/mvp/profiles/:id',
+          'POST /api/mvp/profiles/:id/activate',
+          'GET /api/mvp/content/:id/plan',
+          'GET /api/mvp/analytics',
+          'POST /api/mvp/results',
           'GET /api/mvp/library',
           'GET /api/mvp/library/:id',
           'GET /api/mvp/library/:id/file',
@@ -3538,6 +4125,50 @@ async function handleMvp(req, res, ctx) {
       return true;
     }
 
+    if (pathname === '/api/mvp/profiles' && method === 'GET') {
+      await handleProfilesList(req, res, ctx);
+      return true;
+    }
+
+    if (pathname === '/api/mvp/profiles' && method === 'POST') {
+      await handleProfileCreate(req, res, ctx);
+      return true;
+    }
+
+    const profileActivateMatch = pathname.match(/^\/api\/mvp\/profiles\/([^/]+)\/activate$/);
+    if (profileActivateMatch && method === 'POST') {
+      await handleProfileActivate(req, res, ctx, decodeURIComponent(profileActivateMatch[1]));
+      return true;
+    }
+
+    const profileMatch = pathname.match(/^\/api\/mvp\/profiles\/([^/]+)$/);
+    if (profileMatch && (method === 'PATCH' || method === 'PUT')) {
+      await handleProfileUpdate(req, res, ctx, decodeURIComponent(profileMatch[1]));
+      return true;
+    }
+
+    if (pathname === '/api/mvp/analytics' && method === 'GET') {
+      await handleAnalytics(req, res, ctx);
+      return true;
+    }
+
+    if (pathname === '/api/mvp/results' && method === 'POST') {
+      await handleResultCreate(req, res, ctx);
+      return true;
+    }
+
+    const planMatch = pathname.match(/^\/api\/mvp\/content\/([^/]+)\/plan$/);
+    if (planMatch && method === 'GET') {
+      await handleContentPlan(req, res, ctx, decodeURIComponent(planMatch[1]));
+      return true;
+    }
+
+    const traceMatch = pathname.match(/^\/api\/mvp\/candidates\/([^/]+)\/trace$/);
+    if (traceMatch && method === 'GET') {
+      await handleCandidateTrace(req, res, ctx, decodeURIComponent(traceMatch[1]));
+      return true;
+    }
+
     const restoreMatch = pathname.match(/^\/api\/mvp\/candidates\/([^/]+)\/restore$/);
     if (restoreMatch && method === 'POST') {
       await handleCandidateRestore(req, res, ctx, decodeURIComponent(restoreMatch[1]));
@@ -3624,9 +4255,77 @@ async function handleMvp(req, res, ctx) {
       return true;
     }
 
+    if (pathname === '/api/mvp/settings/ai' && method === 'POST') {
+      await handleSettingsUpdate(req, res, ctx);
+      return true;
+    }
+
+    if (pathname === '/api/mvp/settings/ai/reset' && method === 'POST') {
+      await handleSettingsReset(req, res, ctx);
+      return true;
+    }
+
+    if (pathname === '/api/mvp/ai/status' && method === 'GET') {
+      await handleAiStatus(req, res, ctx);
+      return true;
+    }
+
+    if (pathname === '/api/mvp/ai/ping' && method === 'POST') {
+      await handleAiPing(req, res, ctx);
+      return true;
+    }
+
+    if (pathname === '/api/mvp/ai/research' && method === 'POST') {
+      await handleAiResearch(req, res, ctx);
+      return true;
+    }
+
+    if (pathname.match(/^\/api\/mvp\/content\/[^/]+\/revise$/) && method === 'POST') {
+      const id = decodeURIComponent(pathname.split('/')[4]);
+      await handleContentRevise(req, res, ctx, id);
+      return true;
+    }
+
+    if (pathname.match(/^\/api\/mvp\/content\/[^/]+\/revise\/file$/) && method === 'GET') {
+      const id = decodeURIComponent(pathname.split('/')[4]);
+      await handleContentRevisionFile(req, res, ctx, id);
+      return true;
+    }
+
     if (pathname.match(/^\/api\/mvp\/content\/[^/]+\/qa$/) && method === 'POST') {
       const id = decodeURIComponent(pathname.split('/')[4]);
       await handleContentQa(req, res, ctx, id);
+      return true;
+    }
+
+    if (pathname.match(/^\/api\/mvp\/content\/[^/]+\/voiceover$/) && method === 'POST') {
+      const id = decodeURIComponent(pathname.split('/')[4]);
+      await handleContentVoiceover(req, res, ctx, id);
+      return true;
+    }
+
+    if (pathname.match(/^\/api\/mvp\/publish-queue$/) && method === 'GET') {
+      await handlePublishQueue(req, res, ctx);
+      return true;
+    }
+
+    if (pathname.match(/^\/api\/mvp\/content\/[^/]+\/schedule$/) && method === 'POST') {
+      const id = decodeURIComponent(pathname.split('/')[4]);
+      await handleContentSchedule(req, res, ctx, id);
+      return true;
+    }
+
+    if (pathname.match(/^\/api\/mvp\/content\/[^/]+\/schedule\/(approve|cancel)$/) && method === 'POST') {
+      const id = decodeURIComponent(pathname.split('/')[4]);
+      const action = pathname.split('/')[6];
+      if (action === 'approve') await handleContentScheduleApprove(req, res, ctx, id);
+      else await handleContentScheduleCancel(req, res, ctx, id);
+      return true;
+    }
+
+    if (pathname.match(/^\/api\/mvp\/content\/[^/]+\/publish$/) && method === 'POST') {
+      const id = decodeURIComponent(pathname.split('/')[4]);
+      await handleContentPublish(req, res, ctx, id);
       return true;
     }
 

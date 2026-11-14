@@ -24,19 +24,29 @@
         <p id="mvp-data-chip" class="fixture-chip">
           <span aria-hidden="true">●</span>
           SYNTHETIC FIXTURE — not Shopee data
+          <span id="data-status-inline" class="data-status-inline">ข้อมูลสังเคราะห์</span>
         </p>
+
+        <div class="quickstart" aria-label="เริ่มต้นใช้งาน">
+          <p class="quickstart-title">เริ่มต้นใช้งาน</p>
+          <button type="button" id="quick-start" class="btn btn-primary">สร้าง Candidate Pool 5 รายการ</button>
+          <button type="button" id="open-offers" class="btn btn-ghost">+ ข้อเสนอใหม่ (เลือกจาก offers)</button>
+          <p id="quick-start-note" class="quickstart-note">ระบบจะโหลด fixture แล้วจัดอันดับ 5 candidate ให้พร้อมเลือก</p>
+        </div>
 
         <div class="step-heading">
           <p>Slice pipeline</p>
-          <span id="mvp-progress" class="step-count">0 / 5</span>
+          <span id="mvp-progress" class="step-count">0 / 6</span>
         </div>
         <nav aria-label="MVP pipeline">
           <ol id="mvp-nav" class="pipeline"></ol>
         </nav>
 
         <div class="sidebar-foot">
-          <p class="foot-label">Boundary</p>        <p>Import → Research → Candidates → Plan → Content (storyboard, script, CTA, Thai QA, export, publish prep) → Library (retrieve + verify).
-            No publish action, no Shopee Seller, no external account, no gate decision, THB 0.</p>
+          <p class="foot-label">Boundary</p>
+          <p>Profile &amp; Channels → Research &amp; Candidate Pool (AI shortlist of 5) → Plan &amp; AI Video (Hook, Action, Payoff, CTA) →
+            Production &amp; Finalize (storyboard, Thai voice, QC, export) → Schedule &amp; Task (calendar, queue, library) → Analytics.
+            No external publish, no seller account, no revenue import, THB 0 spent.</p>
           <p class="foot-link"><a href="/">Classic opportunity view →</a></p>
         </div>
       </aside>
@@ -58,6 +68,8 @@
 
     <div id="mvp-toast" class="toast" role="status" aria-live="polite"></div>
 
+    <!-- Stage views are defined first; mvp.js boots the shell and calls them. -->
+    <script src="/mvp-stages.js" defer></script>
     <script src="/mvp.js" defer></script>
   </body>
 </html>

@@ -10,6 +10,11 @@
  * OPPORTUNITY decision only, and never a gate approval.
  */
 
+// Fill in missing keys (OPENROUTER_API_KEY, ...) from .env. A value already in
+// the process environment wins, and only key names are ever logged.
+const aceEnv = require('./mvp/env');
+aceEnv.loadEnvFile(require('node:path').join(__dirname, '..', '.env'));
+
 const http = require('node:http');
 const fs = require('node:fs');
 const fsp = require('node:fs/promises');
@@ -26,6 +31,7 @@ const siteRender = require('./site/render');
 const siteMedia = require('./site/media');
 
 const HOST = process.env.HOST || '127.0.0.1';
+const envLoadNote = aceEnv.describeLoad();
 const requestedPort = Number(process.env.PORT);
 // PORT=0 means "any free port" to some shells; this slice wants a stable local URL.
 const PORT = Number.isInteger(requestedPort) && requestedPort > 0 ? requestedPort : 4173;
@@ -964,6 +970,7 @@ ensureState()
       const shown = HOST === '0.0.0.0' ? 'localhost' : HOST;
       console.log(`[ace] Mission 1 slice running at http://${shown}:${PORT}`);
       console.log(`[ace] state file: ${path.relative(process.cwd(), STATE_FILE)}`);
+      console.log(`[ace] ${envLoadNote}`);
     });
   })
   .catch((err) => {

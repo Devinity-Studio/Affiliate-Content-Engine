@@ -7,13 +7,16 @@
  * Plan Version or CWI endpoints, so a demo cannot change data/app/state.json.
  */
 
+// The dashboard follows the order the work actually happens in. Import is gone:
+// the pool is the system's own data, not an upload step.
+// One core workflow, six isolated stages. Each stage shows only its own tools.
 const SECTIONS = [
-  { key: 'import', label: 'Import', hint: 'Shopee Affiliate export' },
-  { key: 'research', label: 'Research', hint: 'Source / Product / Offer / Evidence' },
-  { key: 'candidates', label: 'Candidates', hint: '5 ranked + workspace + queue' },
-  { key: 'plan', label: 'Plan', hint: '4 approaches + impact preview' },
-  { key: 'content', label: 'Content', hint: 'Storyboard → export' },
-  { key: 'library', label: 'Library', hint: 'Content Library' },
+  { key: 'profile', label: 'Profile & Channels', hint: 'แพลตฟอร์ม · ช่องทาง · สถานะ AI' },
+  { key: 'research', label: 'Research & Candidate Pool', hint: 'วิเคราะห์ · คัด 5 รายการ' },
+  { key: 'plan', label: 'Plan & AI Video', hint: 'Hook · Action · Payoff · CTA' },
+  { key: 'production', label: 'Production & Finalize', hint: 'สตอรี่บอร์ด · เสียง · QC · Export' },
+  { key: 'schedule', label: 'Schedule & Task', hint: 'ปฏิทิน · คิว · Library' },
+  { key: 'analytics', label: 'Analytics', hint: 'รายได้ · อันดับคอนเทนต์' },
 ];
 
 const LIBRARY_INTEGRITY = {
@@ -56,7 +59,7 @@ const APPROACH_LABEL = {
 const ui = {
   meta: null,
   state: null,
-  section: 'import',
+  section: 'profile',
   busy: false,
   error: null,
   draft: null,
@@ -74,7 +77,6 @@ const ui = {
   mappingConfirmed: false,
   draftReviewConfirmed: false,
   draftReviewBy: 'Owner',
-  lastStaged: null,
   staging: [],
   sourceFilter: null,
   expiredWarning: null,
@@ -91,6 +93,12 @@ const ui = {
   contentExport: null,
   contentPrep: null,
   library: { items: null, counts: null, meta: null, loading: false, error: null },
+  trace: { candidateId: null, data: null, loading: false, error: null },
+  plan: null,
+  analytics: { data: null, loading: false, error: null, profileFilter: null },
+  analyticsForm: null,
+  profileForm: null,
+  scheduleProfileId: null,
 };
 
 const els = {
@@ -246,37 +254,62 @@ async function run(fn, successMessage) {
 function sectionStatus(key) {
   const state = ui.state;
   if (!state) return 'loading';
-  if (key === 'import') return state.import ? state.import.id : 'not imported';
-  if (key === 'research') return state.summary.offers ? `${state.summary.offers} offers` : 'awaiting import';
-  if (key === 'candidates') return state.summary.candidates ? `${state.summary.candidates} candidates` : 'not generated';
-  if (key === 'plan') return state.summary.plans ? `${state.summary.plans} plan(s)` : ui.draft ? 'draft open' : 'no plan';
-  if (key === 'library') {
-    if (ui.library.error) return 'unavailable';
-    if (ui.library.items === null) return 'not loaded';
-    return ui.library.items.length ? `${ui.library.items.length} export(s)` : 'empty';
+  const contents = state.contents || [];
+  if (key === 'profile') {
+    const active = state.active_profile;
+    if (!active) return 'ยังไม่มีโปรไฟล์';
+    return `${active.platform_label || active.platform} · ${active.counts ? active.counts.contents : 0} งาน`;
   }
-  if (key === 'content') {
-    const open = (state.contents || []).find((c) => c.content_id === ui.contentId);
-    if (open) return `${open.content_id} · ${open.status}`;
-    return (state.contents || []).length ? `${state.contents.length} project(s)` : 'not created';
+  if (key === 'research') {
+    const offers = state.summary ? state.summary.offers : 0;
+    const pool = state.summary ? state.summary.candidates : 0;
+    if (!offers) return 'ยังไม่มีข้อมูล';
+    return pool ? `${offers} offers · ${pool} candidates` : `${offers} offers`;
   }
-  return '';
+  if (key === 'production') {
+    if (ui.contentId) {
+      const open = contents.find((c) => c.content_id === ui.contentId);
+      if (open) return `${open.content_id} · ${open.status}`;
+    }
+    return contents.length ? `${contents.length} project(s)` : 'ยังไม่มีคอนเทนต์';
+  }
+  if (key === 'plan') {
+    return contents.length ? `${contents.length} คอนเทนต์ · 4 ช่วง` : 'ยังไม่มีคอนเทนต์';
+  }
+  if (key === 'schedule') {
+    const scheduled = contents.filter((c) => c.publish_schedule);
+    const queued = scheduled.filter((c) => c.publish_schedule.status === 'QUEUED');
+    if (!scheduled.length) return 'ยังไม่มีกำหนดการ';
+    return queued.length ? `${queued.length} รออนุมัติ` : `${scheduled.length} ในคิว`;
+  }
+  const published = contents.filter((c) => c.publish_schedule && c.publish_schedule.status === 'PUBLISHED');
+  return published.length ? `${published.length} เผยแพร่แล้ว` : 'ยังไม่มีผลลัพธ์';
 }
 
+// Next step in the pipeline: where the work actually is right now.
 function nextSection() {
   const state = ui.state;
-  if (!state || !state.import) return 'import';
-  if (!state.summary.candidates) return 'research';
-  if (!state.summary.plans && !ui.draft) return 'candidates';
-  if (!(state.contents || []).length) return 'plan';
-  return 'content';
+  const contents = (state && state.contents) || [];
+  if (!state || !state.summary || !state.summary.candidates) return 'research';
+  if (!contents.length) return 'production';
+  if (!contents.some((c) => c.publish_schedule)) return 'schedule';
+  return 'analytics';
 }
 
 function go(section) {
   ui.section = section;
   ui.error = null;
+  if (section !== 'research' && ui.trace.candidateId) {
+    ui.trace = { candidateId: null, data: null, loading: false, error: null };
+  }
+  if (SECTION_CONTENT_TAB[section]) ui.contentTab = SECTION_CONTENT_TAB[section];
   render();
-  if (section === 'library' && ui.library.items === null && !ui.library.loading) loadLibrary();
+  if (section === 'schedule' && ui.library.items === null && !ui.library.loading) loadLibrary();
+  // The Plan stage fetches its own view model once, so there is a single load
+  // path (and no duplicate request) whether it was opened from the nav or after
+  // creating a content item inside it.
+  if (section === 'analytics' && !(ui.analytics && ui.analytics.data) && !(ui.analytics && ui.analytics.loading)) loadAnalytics(null);
+  if ((section === 'profile' || section === 'research') && !(ui.ai && ui.ai.status) && !(ui.ai && ui.ai.loading)) loadAiStatus();
 }
 
 function renderNav() {
@@ -297,141 +330,40 @@ function renderNav() {
       )),
     ));
   }
-  const done = ['import', 'research', 'candidates', 'plan', 'content'].filter((key) => {
-    if (key === 'import') return Boolean(ui.state && ui.state.import);
-    if (key === 'research') return Boolean(ui.state && ui.state.import);
-    if (key === 'candidates') return Boolean(ui.state && ui.state.summary.candidates);
-    if (key === 'plan') return Boolean(ui.state && (ui.state.summary.plans || ui.draft));
-    return Boolean(ui.state && (ui.state.contents || []).length);
-  }).length;
-  els.progress.textContent = `${done} / 5`;
-}
-
-/* ---------- Import ---------- */
-
-/* ---------- Import: upload, preview, confirm, stage ---------- */
-
-function fieldLabel(key) {
-  return key.split('_').map((part) => part.charAt(0).toUpperCase() + part.slice(1)).join(' ');
-}
-
-function isRequiredField(key) {
-  const required = (ui.meta && ui.meta.import_contract && ui.meta.import_contract.required_fields) || [];
-  return required.includes(key);
-}
-
-function byteSize(bytes) {
-  if (!Number.isFinite(bytes)) return '—';
-  if (bytes < 1024) return `${bytes} B`;
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-  return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
-}
-
-async function fileToBase64(file) {
-  const buffer = new Uint8Array(await file.arrayBuffer());
-  let binary = '';
-  const chunk = 0x8000;
-  for (let offset = 0; offset < buffer.length; offset += chunk) {
-    binary += String.fromCharCode(...buffer.subarray(offset, offset + chunk));
-  }
-  return btoa(binary);
-}
-
-function previewIsBlocked() {
-  return Boolean(ui.preview && ui.preview.missing_required.length);
-}
-
-async function refreshStaging() {
-  const res = await api('/api/mvp/staging');
-  ui.staging = res.imports;
-}
-
-async function loadFilePreview(file) {
-  if (!file) throw new Error('Choose a CSV, XLSX or JSON file first');
-  if (file.size > 3 * 1024 * 1024) throw new Error('The file is larger than 3 MB');
-  const base64 = await fileToBase64(file);
-  ui.filePayload = { filename: file.name, size: file.size, base64 };
-  const res = await api('/api/mvp/import/preview', 'POST', {
-    filename: file.name,
-    content_base64: base64,
-  });
-  ui.preview = res.preview;
-  ui.mappingDraft = { ...res.preview.mapping };
-  ui.account = ui.account || '';
-  ui.dateRange = res.preview.date_range_default || { from: '', to: '' };
-  ui.mappingConfirmed = false;
-  ui.lastStaged = null;
-  ui.expiredWarning = null;
-}
-
-async function rePreviewWithMapping() {
-  if (!ui.filePayload) throw new Error('Choose a file first');
-  const res = await api('/api/mvp/import/preview', 'POST', {
-    filename: ui.filePayload.filename,
-    content_base64: ui.filePayload.base64,
-    mapping: ui.mappingDraft,
-  });
-  ui.preview = res.preview;
-  ui.mappingDraft = { ...res.preview.mapping };
-  ui.mappingConfirmed = false;
-  ui.error = null;
-  return res;
-}
-
-async function commitStagedImport() {
-  if (!ui.filePayload || !ui.preview) throw new Error('Preview a file first');
-  // The values are read from ui, not from the DOM: run() re-renders the panel
-  // before this runs, which would otherwise wipe whatever the user typed.
-  const account = (ui.account || '').trim();
-  const from = ui.dateRange.from || '';
-  const to = ui.dateRange.to || '';
-  if (!account) throw new Error('Account label is required');
-  if (!from || !to) throw new Error('Date range is required');
-  if (!ui.mappingConfirmed) throw new Error('Confirm the column mapping before importing');
-  const res = await api('/api/mvp/import/commit', 'POST', {
-    filename: ui.filePayload.filename,
-    content_base64: ui.filePayload.base64,
-    mapping: ui.mappingDraft,
-    account: { label: account },
-    date_range: { from, to },
-    confirmMapping: true,
-  });
-  ui.lastStaged = res;
-  ui.expiredWarning = null;
-  await refreshStaging();
-  return res;
-}
-
-async function promoteStaged(id, acknowledgeExpired = false) {
-  ui.expiredContext = 'promote';
-  const res = await api(`/api/mvp/staging/${encodeURIComponent(id)}/research`, 'POST', {
-    generateCandidates: true,
-    acknowledgeExpired,
-  });
-  ui.lastStaged = null;
-  ui.sourceFilter = null;
-  await refreshStaging();
-  applyState(res.state);
-  ui.selectedCandidateId = res.candidates && res.candidates[0] ? res.candidates[0].id : null;
-  ui.section = 'candidates';
-  return res;
+  const contents = (ui.state && ui.state.contents) || [];
+  const done = [
+    Boolean(ui.state && ui.state.active_profile),
+    Boolean(ui.state && ui.state.summary && ui.state.summary.candidates),
+    contents.length > 0,
+    contents.some((c) => ['FINALIZED', 'EXPORTED', 'READY_TO_PUBLISH'].includes(c.status)),
+    contents.some((c) => c.publish_schedule && c.publish_schedule.status !== 'CANCELLED'),
+    contents.some((c) => c.publish_schedule && c.publish_schedule.status === 'PUBLISHED'),
+  ].filter(Boolean).length;
+  els.progress.textContent = `${done} / ${SECTIONS.length}`;
 }
 
 async function generateFromResearch(acknowledgeExpired = false) {
   ui.expiredContext = 'generate';
   const res = await api('/api/mvp/candidates/generate', 'POST', { acknowledgeExpired });
   applyState(res.state);
-  ui.section = 'candidates';
+  ui.section = 'research';
   ui.selectedCandidateId = res.candidates[0] ? res.candidates[0].id : null;
+}
+
+async function synthesizeThaiVoiceover(contentId, force) {
+  const res = await api(`/api/mvp/content/${contentId}/voiceover`, 'POST', force ? { force: true } : {});
+  applyState(res.state);
+  const failed = res.failures || [];
+  if (failed.length) {
+    throw new Error(`สร้างเสียงได้ ${(res.scenes || []).length} ฉาก แต่ล้มเหลว ${failed.length} ฉาก `
+      + `(${failed[0].scene_id}) — กดอีกครั้งเพื่อลองเฉพาะฉากที่เหลือ`);
+  }
+  return res;
 }
 
 async function retryExpired() {
   const context = ui.expiredContext;
   ui.expiredWarning = null;
-  if (context === 'promote' && ui.staging && ui.staging.length) {
-    const staged = ui.staging.find((imp) => !imp.promoted);
-    if (staged) { await promoteStaged(staged.id, true); return; }
-  }
   const res = await api('/api/mvp/candidates/generate', 'POST', { acknowledgeExpired: true });
   applyState(res.state);
   ui.selectedCandidateId = res.candidates && res.candidates[0] ? res.candidates[0].id : null;
@@ -455,297 +387,6 @@ function issueList(title, items, render) {
   );
 }
 
-function renderMappingTable(preview) {
-  const keys = Object.keys(preview.mapping);
-  const columns = preview.columns || [];
-  return h('div', { class: 'table-scroll' },
-    h('table', { class: 'mvp-table mapping-table' },
-      h('thead', null, h('tr', null,
-        h('th', { scope: 'col', text: 'Canonical field' }),
-        h('th', { scope: 'col', text: 'Required' }),
-        h('th', { scope: 'col', text: 'Export column' }),
-      )),
-      h('tbody', null, keys.map((key) => h('tr', null,
-        h('td', null,
-          h('p', { class: 'cell-title', text: fieldLabel(key) }),
-          h('p', { class: 'cell-sub mono', text: key }),
-        ),
-        h('td', null, isRequiredField(key)
-          ? badge('Required', 'badge-reject')
-          : badge('Optional', 'badge-neutral')),
-        h('td', null, h('select', {
-          'aria-label': `${fieldLabel(key)} column`,
-          on: {
-            change: (event) => {
-              ui.mappingDraft[key] = event.target.value === '' ? null : Number(event.target.value);
-            },
-          },
-        },
-        h('option', { value: '', text: '— not mapped —', selected: ui.mappingDraft[key] === null }),
-        columns.map((column) => h('option', {
-          value: String(column.index),
-          text: `${column.header || `(column ${column.index + 1})`}`,
-          selected: ui.mappingDraft[key] === column.index,
-        })))),
-      ))),
-    ),
-  );
-}
-
-function renderImportPreviewCard() {
-  const preview = ui.preview;
-  const blocked = previewIsBlocked();
-  return h('section', { class: 'mvp-card' },
-    h('div', { class: 'card-head' },
-      h('div', null,
-        h('p', { class: 'eyebrow', text: 'Step 1b · Preview (nothing written)' }),
-        h('h2', { text: `${preview.file.name} · ${preview.format.toUpperCase()}` }),
-      ),
-      h('div', { class: 'head-meta' },
-        preview.synthetic ? badge('SYNTHETIC', 'badge-mock') : badge('USER FILE', 'badge-defer'),
-        badge(preview.encoding, 'badge-neutral'),
-      ),
-    ),
-    h('dl', { class: 'kv' },
-      h('div', null, h('dt', { text: 'File hash' }), h('dd', { class: 'mono small', text: preview.hash })),
-      h('div', null, h('dt', { text: 'Size' }), h('dd', { text: byteSize(preview.file.size_bytes) })),
-      h('div', null, h('dt', { text: 'Sheet' }), h('dd', { text: preview.sheet || '—' })),
-      h('div', null, h('dt', { text: 'Staging' }), h('dd', { class: 'mono small', text: 'temporary state only — Research is unchanged until promote' })),
-    ),
-    countChips(preview.counts),
-    preview.warnings.length ? h('ul', { class: 'limits' }, preview.warnings.map((text) => h('li', { text }))) : null,
-    h('h3', { class: 'sub-head', text: 'Confirm the column mapping' }),
-    h('p', { class: 'muted', text: 'The alias catalogue is provisional until a real export is supplied. Check every required field, then re-run the preview before importing.' }),
-    renderMappingTable(preview),
-    h('div', { class: 'toolbar' },
-      h('button', {
-        type: 'button', class: 'btn', disabled: ui.busy,
-        on: { click: () => run(() => rePreviewWithMapping(), 'Preview recomputed with the chosen mapping') },
-      }, 'Re-check mapping'),
-    ),
-    blocked
-      ? h('p', { class: 'warn', text: `Required fields are still unmapped: ${preview.missing_required.join(', ')}. Import is blocked until they are mapped.` })
-      : null,
-    h('h3', { class: 'sub-head', text: 'Confirm the account and data period' }),
-    h('div', { class: 'field-grid' },
-      h('label', { class: 'field' },
-        h('span', { class: 'field-label', text: 'Affiliate account label' }),
-        h('input', {
-          id: 'import-account', type: 'text', value: ui.account || '', placeholder: 'e.g. ACE test account',
-          on: { input: (event) => { ui.account = event.target.value; } },
-        }),
-      ),
-      h('label', { class: 'field' },
-        h('span', { class: 'field-label', text: 'Data from' }),
-        h('input', {
-          id: 'import-from', type: 'date', value: ui.dateRange.from || '',
-          on: { input: (event) => { ui.dateRange.from = event.target.value; } },
-        }),
-      ),
-      h('label', { class: 'field' },
-        h('span', { class: 'field-label', text: 'Data to' }),
-        h('input', {
-          id: 'import-to', type: 'date', value: ui.dateRange.to || '',
-          on: { input: (event) => { ui.dateRange.to = event.target.value; } },
-        }),
-      ),
-    ),
-    h('label', { class: 'check-row' },
-      h('input', {
-        id: 'import-confirm', type: 'checkbox', checked: ui.mappingConfirmed,
-        on: { change: (event) => { ui.mappingConfirmed = event.target.checked; } },
-      }),
-      h('span', { text: 'I checked the mapping, account and date range, and understand the rows are staged first.' }),
-    ),
-    h('div', { class: 'toolbar' },
-      h('button', {
-        type: 'button', class: 'btn btn-primary', disabled: ui.busy || blocked,
-        on: { click: () => run(() => commitStagedImport(), 'Import staged — Research is still unchanged') },
-      }, 'Import to staging'),
-      h('button', {
-        type: 'button', class: 'btn btn-ghost', disabled: ui.busy,
-        on: { click: () => { ui.preview = null; ui.filePayload = null; ui.error = null; render(); } },
-      }, 'Discard preview'),
-    ),
-    issueList('Invalid rows', preview.counts.invalid ? preview.rows.filter((row) => row.status === 'INVALID') : [], (row) => `row ${row.row_number}: ${row.reasons.join('; ')}`),
-    issueList('Unknown rows (not importable)', preview.counts.unknown ? preview.rows.filter((row) => row.status === 'UNKNOWN') : [], (row) => `row ${row.row_number}: ${row.reasons.join('; ')}`),
-    issueList('Duplicate rows', preview.counts.duplicate ? preview.rows.filter((row) => row.status === 'DUPLICATE') : [], (row) => `row ${row.row_number}: ${row.reasons.join('; ')}`),
-    h('details', { class: 'issue-block' },
-      h('summary', { text: 'Sample of parsed rows' }),
-      h('div', { class: 'table-scroll' },
-        h('table', { class: 'mvp-table' },
-          h('thead', null, h('tr', null, ['Row', 'Status', 'Item', 'Product', 'Price', 'Commission'].map((label) => h('th', { scope: 'col', text: label })))),
-          h('tbody', null, preview.sample.map((row) => h('tr', null,
-            h('td', { class: 'mono', text: String(row.row_number) }),
-            h('td', null, badge(row.status, row.status === 'VALID' ? 'badge-select' : row.status === 'INVALID' ? 'badge-reject' : 'badge-defer')),
-            h('td', { class: 'mono', text: row.item_id || '—' }),
-            h('td', { text: row.product_name || '—' }),
-            h('td', { text: row.price_thb === null ? '—' : thb(row.price_thb) }),
-            h('td', { text: row.commission_rate === null ? '—' : `${Math.round(row.commission_rate * 10000) / 100}%` }),
-          ))),
-        ),
-      ),
-    ),
-  );
-}
-
-function renderStagedCard() {
-  const staged = ui.lastStaged;
-  if (!staged || !staged.import) return null;
-  const imp = staged.import;
-  return h('section', { class: 'mvp-card staged-card' },
-    h('div', { class: 'card-head' },
-      h('div', null,
-        h('p', { class: 'eyebrow', text: 'Step 1c · Staged import' }),
-        h('h2', { text: `${imp.id} · ${imp.file}` }),
-      ),
-      h('div', { class: 'head-meta' },
-        imp.synthetic ? badge('SYNTHETIC', 'badge-mock') : badge('USER FILE', 'badge-defer'),
-        badge('staging only', 'badge-neutral'),
-      ),
-    ),
-    h('p', { class: 'lead' }, 'Nothing in Research has changed yet. Promote this staged import to build Source / Product / Offer / Evidence records and the five candidates.'),
-    countChips(staged.counts),
-    h('dl', { class: 'kv' },
-      h('div', null, h('dt', { text: 'File hash' }), h('dd', { class: 'mono small', text: imp.file_hash })),
-      h('div', null, h('dt', { text: 'Account' }), h('dd', { text: imp.account.label })),
-      h('div', null, h('dt', { text: 'Data period' }), h('dd', { text: `${imp.date_range.from} → ${imp.date_range.to}` })),
-      h('div', null, h('dt', { text: 'Source validation' }), h('dd', null, badge(imp.source_validation.status, imp.source_validation.status === 'PASSED' ? 'badge-select' : 'badge-reject'))),
-    ),
-    h('div', { class: 'toolbar' },
-      h('button', {
-        type: 'button', class: 'btn btn-primary', disabled: ui.busy || imp.source_validation.status !== 'PASSED',
-        on: { click: () => run(() => promoteStaged(imp.id), 'Staged import promoted to Research and candidates generated') },
-      }, 'Send to Research and generate 5 candidates'),
-      h('button', { type: 'button', class: 'btn btn-ghost', disabled: ui.busy, on: { click: () => go('research') } }, 'Open Research (current source) →'),
-    ),
-    h('ul', { class: 'limits' }, (imp.warnings || []).map((text) => h('li', { text }))),
-  );
-}
-
-function renderStagingList() {
-  const list = ui.staging || [];
-  return h('section', { class: 'mvp-card' },
-    h('div', { class: 'card-head' },
-      h('div', null, h('p', { class: 'eyebrow', text: 'Staging store' }), h('h2', { text: `${list.length} staged import${list.length === 1 ? '' : 's'}` })),
-      badge('separate from Research state', 'badge-neutral'),
-    ),
-    list.length === 0
-      ? h('p', { class: 'muted', text: 'No staged imports yet. Preview a file above; preview does not write state.' })
-      : h('div', { class: 'table-scroll' },
-        h('table', { class: 'mvp-table' },
-          h('thead', null, h('tr', null, ['Import', 'File', 'Rows', 'Valid', 'Duplicate', 'Invalid', 'Unknown', 'Status'].map((label) => h('th', { scope: 'col', text: label })))),
-          h('tbody', null, list.map((imp) => h('tr', null,
-            h('td', { class: 'mono', text: imp.id }),
-            h('td', null, h('p', { class: 'cell-title', text: imp.file }), h('p', { class: 'cell-sub mono', text: imp.file_hash.slice(0, 16) })),
-            h('td', { text: String(imp.counts.total) }),
-            h('td', { text: String(imp.counts.valid) }),
-            h('td', { text: String(imp.counts.duplicate) }),
-            h('td', { text: String(imp.counts.invalid) }),
-            h('td', { text: String(imp.counts.unknown) }),
-            h('td', null,
-              badge(imp.promoted ? 'PROMOTED' : 'STAGED', imp.promoted ? 'badge-select' : 'badge-defer'),
-              !imp.promoted ? h('button', {
-                type: 'button', class: 'link-btn', disabled: ui.busy,
-                on: { click: () => run(() => promoteStaged(imp.id), 'Staged import promoted to Research') },
-              }, 'Use →') : null,
-            ),
-          ))),
-        ),
-      ),
-  );
-}
-
-function renderImport() {
-  const meta = ui.meta;
-  const state = ui.state;
-  const wrap = h('div', { class: 'stack' });
-  const realPending = meta && meta.real_export && meta.real_export.status === 'PENDING';
-
-  wrap.append(h('section', { class: 'mvp-card' },
-    h('div', { class: 'card-head' },
-      h('div', null,
-        h('p', { class: 'eyebrow', text: 'Step 1 · Input' }),
-        h('h2', { text: 'Import a Shopee Affiliate export' }),
-      ),
-      h('div', { class: 'head-meta' },
-        realPending ? badge('REAL EXPORT PENDING', 'badge-mock') : badge('REAL EXPORT AVAILABLE', 'badge-select'),
-        badge('staging first', 'badge-neutral'),
-      ),
-    ),
-    h('p', { class: 'lead' },
-      'Upload the file you exported from Shopee Affiliate (CSV, XLSX or JSON). The app parses it locally, shows a preview with a proposed column mapping, and writes nothing until you confirm the mapping, account and data period.'),
-    realPending ? h('p', { class: 'warn' },
-      'No real Shopee export has been supplied yet, so every test so far uses SYNTHETIC fixtures. Real-file behaviour is unverified until you import one.') : null,
-    h('div', { class: 'upload-row' },
-      h('input', {
-        id: 'import-file',
-        type: 'file',
-        accept: '.csv,.tsv,.xlsx,.json',
-        disabled: ui.busy,
-        on: {
-          change: (event) => {
-            const file = event.target.files && event.target.files[0];
-            if (file) run(() => loadFilePreview(file), 'Preview ready — nothing was written');
-          },
-        },
-      }),
-      h('span', { class: 'muted small' }, 'Max 3 MB · 500 rows · .xls not supported'),
-    ),
-    h('ul', { class: 'limits' },
-      h('li', { text: 'Accepted: CSV, TSV, XLSX, JSON. UTF-8, UTF-16 and windows-874 (Thai) are detected automatically.' }),
-      h('li', { text: 'Preview is computed in memory: no staging file, no Research record and no candidate is created.' }),
-      h('li', { text: 'Duplicates are keyed by file hash + (item_id|shop_id); duplicates are reported and never imported twice.' }),
-    ),
-  ));
-
-  if (ui.preview) wrap.append(renderImportPreviewCard());
-  if (ui.error) {
-    wrap.append(h('section', { class: 'notice notice-error' },
-      h('div', { class: 'notice-head' }, h('h2', { text: ui.error.message })),
-      Array.isArray(ui.error.details) ? h('ul', null, ui.error.details.map((item) => h('li', { text: `${item.row ? `row ${item.row} · ` : ''}${item.field ? `${item.field}: ` : ''}${item.message}` }))) : null,
-      ui.error.details && ui.error.details.missing_required ? h('p', { class: 'mono small', text: `missing: ${ui.error.details.missing_required.join(', ')}` }) : null,
-      ui.expiredWarning ? h('div', { class: 'toolbar' },
-        h('button', { type: 'button', class: 'btn', disabled: ui.busy, on: { click: () => run(retryExpired, 'Continued with expired data acknowledged') } }, 'Acknowledge expired data and continue'),
-      ) : null,
-    ));
-  }
-  if (ui.lastStaged) mount(wrap, renderStagedCard());
-  wrap.append(renderStagingList());
-
-  wrap.append(h('details', { class: 'mvp-card fixture-card' },
-    h('summary', null, h('span', { text: 'Bundled SYNTHETIC fixture (no upload)' })),
-    h('p', { class: 'muted' },
-      'The original hand-authored fixture has no affiliate_link column, so it is only usable through the legacy fixture loader below. It keeps the 56-check workflow acceptance working.'),
-    h('dl', { class: 'kv' },
-      h('div', null, h('dt', { text: 'Fixture file' }), h('dd', { class: 'mono', text: meta ? meta.fixture.file : '—' })),
-      h('div', null, h('dt', { text: 'Rows' }), h('dd', { text: meta ? String(meta.fixture.row_count) : '—' })),
-      h('div', null, h('dt', { text: 'SHA-256' }), h('dd', { class: 'mono small', text: meta ? meta.fixture.sha256 : '—' })),
-      h('div', null, h('dt', { text: 'Fixture state' }), h('dd', { class: 'mono small', text: meta ? meta.state_file : '—' })),
-    ),
-    h('div', { class: 'toolbar' },
-      h('button', {
-        type: 'button', class: 'btn', disabled: ui.busy,
-        on: {
-          click: () => run(async () => {
-            const res = await api('/api/mvp/import', 'POST', {});
-            applyState(res.state);
-            ui.section = 'research';
-            ui.error = null;
-          }, 'Synthetic fixture loaded into Research state'),
-        },
-      }, state && state.import ? 'Re-load the synthetic fixture' : 'Load the synthetic fixture'),
-      h('button', { type: 'button', class: 'btn btn-ghost', disabled: ui.busy || !state || !state.import, on: { click: () => go('research') } }, 'Open research →'),
-    ),
-    state && state.import && state.data_mode === 'FIXTURE'
-      ? h('p', { class: 'note', text: `Current Research source: ${state.import.id} · ${state.import.label}` })
-      : null,
-  ));
-
-  return wrap;
-}
-
-
 /* ---------- Source library ---------- */
 
 function sourceSyntheticBadge(source) {
@@ -761,7 +402,7 @@ function freshnessBadge(freshness) {
 
 function filterBySource(sourceId) {
   ui.sourceFilter = sourceId;
-  go('candidates');
+  go('research');
 }
 
 async function archiveSource(source) {
@@ -939,8 +580,8 @@ function renderResearch() {
 
   if (!state || !state.import) {
     wrap.append(h('section', { class: 'notice' },
-      h('div', { class: 'notice-head' }, h('h2', { text: 'Nothing imported yet' })),
-      h('p', null, 'Import an export first. ', h('button', { type: 'button', class: 'link-btn', on: { click: () => go('import') } }, 'Go to import →')),
+      h('div', { class: 'notice-head' }, h('h2', { text: 'ยังไม่มีข้อมูลพูลสินค้า' })),
+      h('p', null, 'ข้อมูลพูลยังว่าง — ', h('button', { type: 'button', class: 'link-btn', on: { click: () => go('research') } }, 'ไปที่ Research →')),
     ));
     return wrap;
   }
@@ -1056,10 +697,10 @@ function renderResearch() {
       class: 'btn btn-primary',
       disabled: ui.busy,
       on: {
-        click: () => run(() => generateFromResearch(false), 'Generated 5 ranked candidates from the current import'),
+        click: () => run(() => generateFromResearch(false), 'สร้าง 5 แคนดิเดตจากข้อมูลพูลแล้ว'),
       },
     }, state.summary.candidates ? 'Regenerate 5 candidates' : 'Generate 5 candidates'),
-    h('button', { type: 'button', class: 'btn btn-ghost', on: { click: () => go('candidates') } }, 'Open candidates →'),
+    h('button', { type: 'button', class: 'btn btn-ghost', on: { click: () => go('research') } }, 'Open candidates →'),
   ));
 
   return wrap;
@@ -1159,6 +800,12 @@ function renderCandidateCard(candidate) {
       }, '✕ นำออก/แทนที่'),
       h('button', {
         type: 'button',
+        class: 'btn',
+        on: { click: () => openTrace(candidate.id) },
+        title: 'ดูเส้นทางชีวิตของรายการนี้ตั้งแต่ Research ถึงไฟล์ที่ export',
+      }, 'ไทม์ไลน์ →'),
+      h('button', {
+        type: 'button',
         class: 'btn btn-ghost',
         disabled: candidate.status !== 'SAVED' && candidate.status !== 'QUEUED',
         title: candidate.status === 'SAVED' || candidate.status === 'QUEUED' ? 'Create a plan draft from this candidate' : 'Save or queue the candidate first',
@@ -1166,6 +813,7 @@ function renderCandidateCard(candidate) {
           click: () => {
             ui.selectedCandidateId = candidate.id;
             ui.createdPlan = null;
+            ui.contentNew = true;
             go('plan');
           },
         },
@@ -1347,8 +995,8 @@ function renderCandidates() {
 
   if (!state || !state.import) {
     wrap.append(h('section', { class: 'notice' },
-      h('div', { class: 'notice-head' }, h('h2', { text: 'Import the fixture first' })),
-      h('p', null, h('button', { type: 'button', class: 'link-btn', on: { click: () => go('import') } }, 'Go to import →')),
+      h('div', { class: 'notice-head' }, h('h2', { text: 'ยังไม่มีข้อมูลพูลสินค้า' })),
+      h('p', null, h('button', { type: 'button', class: 'link-btn', on: { click: () => go('research') } }, 'ไปที่ Research →')),
     ));
     return wrap;
   }
@@ -1621,7 +1269,7 @@ function renderCreatedPlan(plan) {
             ui.contentApproach = 'problem_first';
             applyState(res.state);
             toast(`Content ${res.project.content_id} created from ${plan.plan_id}`);
-            go('content');
+            go('production');
           }, 'Content draft created from the plan'),
         },
       }, 'สร้าง Content จากแผนนี้ →'),
@@ -1635,8 +1283,8 @@ function renderPlan() {
 
   if (!state || !state.import) {
     wrap.append(h('section', { class: 'notice' },
-      h('div', { class: 'notice-head' }, h('h2', { text: 'Import and generate candidates first' })),
-      h('p', null, h('button', { type: 'button', class: 'link-btn', on: { click: () => go('import') } }, 'Go to import →')),
+      h('div', { class: 'notice-head' }, h('h2', { text: 'ยังไม่มีแคนดิเดตในพูล' })),
+      h('p', null, h('button', { type: 'button', class: 'link-btn', on: { click: () => go('research') } }, 'ไปที่ Research →')),
     ));
     return wrap;
   }
@@ -1648,7 +1296,7 @@ function renderPlan() {
     wrap.append(h('section', { class: 'notice' },
       h('div', { class: 'notice-head' }, h('h2', { text: 'No selected candidate' })),
       h('p', { text: 'Save a candidate or add it to the queue first — a plan is only created from a selected candidate.' }),
-      h('p', null, h('button', { type: 'button', class: 'link-btn', on: { click: () => go('candidates') } }, 'Open candidates →')),
+      h('p', null, h('button', { type: 'button', class: 'link-btn', on: { click: () => go('research') } }, 'Open candidates →')),
     ));
     return wrap;
   }
@@ -1774,7 +1422,7 @@ function renderPlan() {
       }, 'Create fixture plan'),
       h('button', {
         type: 'button', class: 'btn btn-ghost', disabled: ui.busy,
-        on: { click: () => go('candidates') },
+        on: { click: () => go('research') },
       }, 'Back to candidates'),
     ),
     !ui.confirmImpact ? h('p', { class: 'note', text: 'Confirm the impact preview above to enable this button.' }) : null,
@@ -2549,18 +2197,350 @@ function renderContentProject(project) {
       class: `status-step${status === project.status ? ' is-current' : CONTENT_STATUSES.indexOf(status) < CONTENT_STATUSES.indexOf(project.status) ? ' is-done' : ''}`,
     }, h('span', { class: 'status-dot' }), h('span', { class: 'status-label', text: status })))),
   ));
+  // Each pipeline step shows only the tools it owns, so the screen matches the
+  // stage instead of repeating every tab everywhere.
+  const allowed = SECTION_CONTENT_TABS[ui.section] || CONTENT_TABS.map((tab) => tab.key);
+  const tabs = CONTENT_TABS.filter((tab) => allowed.includes(tab.key));
+  const activeTab = tabs.some((tab) => tab.key === ui.contentTab) ? ui.contentTab : tabs[0].key;
   wrap.append(renderContentIdentity(project));
+  if (ui.section === 'production') wrap.append(renderVoiceoverPanel(project));
+  if (ui.section === 'production') wrap.append(renderRevisePanel(project));
+  if (ui.section === 'schedule') wrap.append(renderPublishPanel(project));
   wrap.append(h('nav', { class: 'content-tabs', 'aria-label': 'Content tabs' },
-    CONTENT_TABS.map((tab) => h('button', {
+    tabs.map((tab) => h('button', {
       type: 'button',
-      class: `content-tab${ui.contentTab === tab.key ? ' is-active' : ''}`,
+      class: `content-tab${activeTab === tab.key ? ' is-active' : ''}`,
       disabled: ui.busy,
       on: { click: () => { ui.contentTab = tab.key; render(); } },
     }, tab.label)),
   ));
-  const section = renderers[ui.contentTab] || renderStoryboardTab;
+  const section = renderers[activeTab] || renderStoryboardTab;
   wrap.append(section(project));
   return wrap;
+}
+
+/* ---------- Mini loop: targeted revision ---------- */
+
+const REVISE_TARGET_LABEL = {
+  HOOK: 'Hook (ฉากแรก)',
+  SCENE_TEXT: 'บท/ตัวหนังสือของฉาก',
+  SCENE_VISUAL: 'ภาพ/จังหวะของฉาก',
+};
+
+// The form is read synchronously: run() re-renders the panel to show the busy
+// state, which rebuilds these inputs and would otherwise discard what the human
+// just typed.
+function collectRevisionPayload() {
+  const target = document.getElementById('revise-target').value;
+  const sceneId = document.getElementById('revise-scene').value;
+  const payload = { target };
+  if (target !== 'HOOK') payload.scene_id = sceneId;
+  if (target === 'HOOK') {
+    payload.text = document.getElementById('revise-text').value;
+    payload.speak = document.getElementById('revise-speak').checked;
+  } else if (target === 'SCENE_TEXT') {
+    const headline = document.getElementById('revise-text').value.trim();
+    const voice = document.getElementById('revise-voice').value.trim();
+    if (headline) payload.headline = headline;
+    if (voice) payload.voiceover = voice;
+    if (!headline && !voice) throw new Error('ใส่ข้อความหรือบทพูดของฉากที่จะแก้ก่อน');
+  } else {
+    const preset = document.getElementById('revise-preset').value;
+    const duration = document.getElementById('revise-duration').value.trim();
+    if (preset) payload.preset = preset;
+    if (duration) payload.duration_s = Number(duration);
+    if (!preset && !duration) throw new Error('เลือกภาพหรือใส่ความยาวฉากใหม่ก่อน');
+  }
+  return payload;
+}
+
+async function applyRevision(project, payload) {
+  const res = await api(`/api/mvp/content/${project.content_id}/revise`, 'POST', payload);
+  ui.lastRevision = res;
+  applyState(res.state);
+  return res;
+}
+
+function renderRevisePanel(project) {
+  const scenes = (project.storyboard && project.storyboard.scenes) || [];
+  const locked = project.status === 'READY_TO_PUBLISH'
+    || (project.publish_schedule && project.publish_schedule.status === 'PUBLISHED');
+  const wrap = h('div', { class: 'stack' });
+
+  const form = h('div', { class: 'toolbar' },
+    h('label', { class: 'small' }, 'แก้เฉพาะ ',
+      h('select', { id: 'revise-target' },
+        h('option', { value: 'HOOK' }, REVISE_TARGET_LABEL.HOOK),
+        h('option', { value: 'SCENE_TEXT' }, REVISE_TARGET_LABEL.SCENE_TEXT),
+        h('option', { value: 'SCENE_VISUAL' }, REVISE_TARGET_LABEL.SCENE_VISUAL))),
+    h('label', { class: 'small' }, ' ฉาก ',
+      h('select', { id: 'revise-scene' }, scenes.map((scene, index) =>
+        h('option', { value: scene.id }, `#${index + 1} ${scene.id}`)))),
+  );
+  const fields = h('div', { class: 'stack' },
+    h('label', { class: 'small' }, 'Hook / ตัวหนังสือฉากใหม่',
+      h('input', { type: 'text', id: 'revise-text', placeholder: 'เช่น 3 อย่างที่ต้องดู ก่อนซื้อกระเป๋าใบนี้' })),
+    h('label', { class: 'small' },
+      h('input', { type: 'checkbox', id: 'revise-speak', checked: true }),
+      ' ให้พากย์เสียงตามข้อความใหม่ (เฉพาะฉากนี้)'),
+    h('label', { class: 'small' }, 'บทพากย์ของฉาก (เว้นว่าง = ไม่แตะเสียง)',
+      h('textarea', { id: 'revise-voice', rows: 2, placeholder: 'แก้เฉพาะประโยคที่ต้องการ' })),
+    h('div', { class: 'toolbar' },
+      h('label', { class: 'small' }, 'ภาพ/โทนฉาก ',
+        h('select', { id: 'revise-preset' },
+          h('option', { value: '' }, '(ไม่เปลี่ยน)'),
+          h('option', { value: 'dark' }, 'dark'),
+          h('option', { value: 'warm' }, 'warm'),
+          h('option', { value: 'cool' }, 'cool'),
+          h('option', { value: 'light' }, 'light'))),
+      h('label', { class: 'small' }, ' ความยาวฉาก (วินาที) ',
+        h('input', { type: 'number', id: 'revise-duration', min: '1.5', max: '12', step: '0.5' })),
+    ),
+    h('button', {
+      type: 'button', class: 'btn btn-primary', disabled: ui.busy || locked,
+      on: {
+        click: () => {
+          let payload = null;
+          try {
+            payload = collectRevisionPayload();
+          } catch (err) {
+            ui.error = { message: err.message };
+            render();
+            return;
+          }
+          run(() => applyRevision(project, payload), 'แก้เฉพาะจุดแล้ว — เรนเดอร์ใหม่เฉพาะฉากที่แก้');
+        },
+      },
+    }, 'Revise (แก้ไขเฉพาะจุด)'),
+    h('p', { class: 'note' }, 'ระบบจะเขียนทับเฉพาะเลเยอร์ที่เลือก ฉากอื่นยังใช้เสียงและภาพเดิม '
+      + 'และบังคับให้ finalize ใหม่เพราะการอนุมัติผูกกับ checksum ของสคริปต์'),
+  );
+
+  const last = ui.lastRevision && ui.lastRevision.project && ui.lastRevision.project.content_id === project.content_id
+    ? ui.lastRevision
+    : null;
+  let resultBlock = null;
+  if (last) {
+    const clip = last.clip && last.clip.file
+      ? h('div', null,
+        h('p', { class: 'note', text: `เรนเดอร์ใหม่: ${last.clip.scene_ids.join(', ')} · `
+          + `${Number(last.clip.duration_s || 0).toFixed(1)}s · ${last.clip.width}x${last.clip.height} · v${last.clip.script_version}` }),
+        h('a', {
+          class: 'btn btn-primary',
+          href: `/api/mvp/content/${project.content_id}/revise/file?name=${encodeURIComponent(last.clip.file_name || '')}`,
+          target: '_blank', rel: 'noreferrer',
+        }, 'เปิดวิดีโอที่เรนเดอร์ใหม่ (เต็มจอ)'))
+      : h('p', { class: 'note', text: `เรนเดอร์ใหม่ไม่สำเร็จ: ${(last.clip && last.clip.error) || 'unknown error'}` });
+    const voiceNote = !last.voice
+      ? null
+      : last.voice.error
+        ? h('p', { class: 'note', text: `เสียง: ${last.voice.error}` })
+        : h('p', { class: 'note', text: `เสียงที่สังเคราะห์ใหม่: ${(last.voice.scenes || []).map((scene) => scene.scene_id || scene.id).join(', ') || 'ไม่มี'}` });
+    resultBlock = h('section', { class: 'mvp-card' },
+      h('div', { class: 'card-head' },
+        h('div', null,
+          h('p', { class: 'eyebrow', text: 'Mini Loop · ผลลัพธ์' }),
+          h('h2', { text: `${REVISE_TARGET_LABEL[last.revision.target] || last.revision.target}${last.revision.scene_id ? ` · ${last.revision.scene_id}` : ''}` }),
+        ),
+        badge(last.revision.reopened_finalize ? 'กลับไป REVIEW' : `v${last.revision.script_version_after}`,
+          last.revision.reopened_finalize ? 'badge-reject' : 'badge-neutral'),
+      ),
+      last.revision.reopened_finalize
+        ? h('p', { class: 'note' }, 'งานนี้เคย finalize แล้ว — การแก้ทำให้ approval เดิมถูกแทนที่ '
+          + 'ต้องตรวจแล้วกด Finalize ใหม่ (ประวัติเดิมยังอยู่ใน revisions)')
+        : null,
+      clip, voiceNote,
+    );
+  }
+
+  const history = (project.revisions || []).slice(-4).reverse();
+  wrap.append(h('section', { class: 'mvp-card' },
+    h('div', { class: 'card-head' },
+      h('div', null,
+        h('p', { class: 'eyebrow', text: 'Mini Loop · Targeted Revision' }),
+        h('h2', { text: 'แก้เฉพาะจุด แล้วเรนเดอร์เฉพาะซีนที่แก้' }),
+      ),
+      h('div', { class: 'head-meta' },
+        badge(`${(project.revisions || []).length} revisions`, 'badge-neutral'),
+        badge(`script v${project.script_version}`, 'badge-neutral'),
+      ),
+    ),
+    locked
+      ? h('p', { class: 'note' }, 'คอนเทนต์นี้ถูกจัดคิว/เผยแพร่แล้ว — Revision ปิด เพื่อไม่ให้ artifact ที่เผยแพร่แล้วเพี้ยน')
+      : null,
+    locked ? null : h('div', { class: 'stack' }, form, fields),
+    history.length === 0
+      ? h('p', { class: 'note' }, 'ยังไม่มี Revision — ทุกอย่างยังเป็นเวอร์ชันแรก')
+      : h('ul', { class: 'list' }, history.map((revision) => h('li', { class: 'cell' },
+        h('div', null,
+          h('p', { class: 'cell-title', text: `${REVISE_TARGET_LABEL[revision.target] || revision.target}${revision.scene_id ? ` · ${revision.scene_id}` : ''}` }),
+          h('p', { class: 'cell-sub', text: `${new Date(revision.at).toLocaleString('th-TH')} · v${revision.script_version_before}→v${revision.script_version_after}`
+            + (revision.reopened_finalize ? ' · ต้อง finalize ใหม่' : '') }),
+        ),
+      ))),
+  ));
+  if (resultBlock) wrap.append(resultBlock);
+  return wrap;
+}
+
+const PUBLISH_STATUS_TEXT = {
+  SCHEDULED: 'ตั้งเวลาไว้',
+  QUEUED: 'อยู่ใน Publish Queue',
+  PUBLISHED: 'เผยแพร่แล้ว',
+  CANCELLED: 'ยกเลิก',
+};
+
+async function schedulePublish(contentId) {
+  const at = document.getElementById('publish-at');
+  const channel = (document.getElementById('publish-channel') || {}).value || 'SHOPEE';
+  if (!at || !at.value) throw new Error('เลือกวันและเวลาที่จะเผยแพร่ก่อน');
+  const res = await api(`/api/mvp/content/${contentId}/schedule`, 'POST', {
+    channel,
+    scheduled_at: new Date(at.value).toISOString(),
+  });
+  applyState(res.state);
+  return res;
+}
+
+async function approvePublish(contentId) {
+  const by = String(((document.getElementById('publish-approver') || {}).value || 'Owner')).trim();
+  const res = await api(`/api/mvp/content/${contentId}/schedule/approve`, 'POST', { approved_by: by });
+  applyState(res.state);
+  return res;
+}
+
+async function publishNow(contentId, force) {
+  const res = await api(`/api/mvp/content/${contentId}/publish`, 'POST', force ? { force: true } : {});
+  applyState(res.state);
+  return res;
+}
+
+async function cancelPublishSchedule(contentId) {
+  const res = await api(`/api/mvp/content/${contentId}/schedule/cancel`, 'POST', {});
+  applyState(res.state);
+  return res;
+}
+
+function renderPublishPanel(project) {
+  const schedule = project.publish_schedule || null;
+  const ready = project.status === 'READY_TO_PUBLISH';
+  const wrap = h('div', { class: 'stack' });
+
+  const controls = h('div', { class: 'toolbar' });
+  if (!schedule) {
+    controls.append(
+      h('label', { class: 'small' }, 'ช่องทาง ',
+        h('select', { id: 'publish-channel' },
+          h('option', { value: 'SHOPEE' }, 'Shopee'))),
+      h('label', { class: 'small' }, ' เวลา ',
+        h('input', { type: 'datetime-local', id: 'publish-at' })),
+      h('button', {
+        type: 'button', class: 'btn btn-primary', disabled: ui.busy || !ready,
+        on: { click: () => run(() => schedulePublish(project.content_id), 'ตั้งเวลาเผยแพร่แล้ว') },
+      }, 'ตั้งเวลเผยแพร่'),
+    );
+  } else {
+    controls.append(
+      h('label', { class: 'small' }, 'ผู้อนุมัติ ',
+        h('input', { type: 'text', id: 'publish-approver', value: schedule.approved_by || 'Owner', size: 10 })),
+      h('button', {
+        type: 'button', class: 'btn btn-primary', disabled: ui.busy || schedule.status === 'PUBLISHED' || schedule.status === 'CANCELLED',
+        on: { click: () => run(() => approvePublish(project.content_id), 'อนุมัติเผยแพร่แล้ว') },
+      }, schedule.approved ? 'อนุมัติซ้ำ (อัปเดตชื่อ)' : 'อนุมัติเผยแพร่'),
+      h('button', {
+        type: 'button', class: 'btn btn-ghost', disabled: ui.busy || schedule.status === 'PUBLISHED' || schedule.status === 'CANCELLED',
+        on: { click: () => run(() => publishNow(project.content_id, false), 'เผยแพร่แล้ว (จำลอง) — Library อัปเดตแล้ว') },
+      }, 'ยืนยันเผยแพร่ตอนนี้ (จำลอง)'),
+      h('button', {
+        type: 'button', class: 'btn btn-ghost', disabled: ui.busy || schedule.status === 'PUBLISHED' || schedule.status === 'CANCELLED',
+        on: { click: () => run(() => cancelPublishSchedule(project.content_id), 'ยกเลิกกำหนดการแล้ว') },
+      }, 'ยกเลิกกำหนดการ'),
+    );
+  }
+
+  const summary = schedule
+    ? h('p', { class: 'note' },
+      `${PUBLISH_STATUS_TEXT[schedule.status] || schedule.status} · ${schedule.channel} · ${new Date(schedule.scheduled_at).toLocaleString('th-TH')}`
+      + (schedule.approved ? ` · อนุมัติโดย ${schedule.approved_by}` : ' · ยังไม่อนุมัติ')
+      + (schedule.fallback ? ` · เข้าคิวเมื่อ ${new Date(schedule.fallback.at).toLocaleString('th-TH')} (เลยกำหนดโดยยังไม่อนุมัติ)` : '')
+      + (schedule.published_at ? ` · เผยแพร่ ${new Date(schedule.published_at).toLocaleString('th-TH')} โดย ${schedule.published_by}` : ''))
+    : h('p', { class: 'note' }, ready
+      ? 'ยังไม่มีกำหนดการ — เลือกช่องทางและเวลาที่จะเผยแพร่'
+      : 'ต้อง Export วิดีโอและทำ Publish prep ให้ถึง READY_TO_PUBLISH ก่อนจึงจะตั้งเวลาได้');
+
+  wrap.append(h('section', { class: 'mvp-card' },
+    h('div', { class: 'card-head' },
+      h('div', null,
+        h('p', { class: 'eyebrow', text: 'Publish · Queue & Scheduling' }),
+        h('h2', { text: `${project.content_id} · กำหนดการเผยแพร่` }),
+      ),
+      schedule ? badge(schedule.status, schedule.status === 'PUBLISHED' ? 'badge-select' : schedule.status === 'QUEUED' ? 'badge-reject' : 'badge-neutral') : null,
+    ),
+    summary,
+    controls,
+    h('p', { class: 'note' }, 'ถ้าถึงเวลาที่ตั้งไว้แล้วยังไม่มีใครอนุมัติ ระบบจะย้ายรายการเข้า Publish Queue '
+      + 'โดยไม่ทิ้งงาน และยังอนุมัติ/เผยแพร่ย้อนหลังได้'),
+  ));
+
+  const queue = (ui.state && ui.state.contents ? ui.state.contents : [])
+    .filter((item) => item.publish_schedule)
+    .sort((a, b) => String(a.publish_schedule.scheduled_at).localeCompare(String(b.publish_schedule.scheduled_at)));
+  wrap.append(h('section', { class: 'mvp-card' },
+    h('div', { class: 'card-head' },
+      h('div', null,
+        h('p', { class: 'eyebrow', text: 'Publish Queue' }),
+        h('h2', { text: `${queue.length} รายการในคิว` }),
+      ),
+      h('div', { class: 'head-meta' },
+        badge(`${queue.filter((i) => i.publish_schedule.status === 'QUEUED').length} รออนุมัติ`, 'badge-reject'),
+        badge(`${queue.filter((i) => i.publish_schedule.status === 'PUBLISHED').length} เผยแพร่แล้ว`, 'badge-select'),
+      ),
+    ),
+    queue.length === 0
+      ? h('p', { class: 'note' }, 'ยังไม่มีรายการที่ตั้งเวลาไว้')
+      : h('ul', { class: 'list' }, queue.map((item) => h('li', { class: 'cell' },
+        h('div', null,
+          h('p', { class: 'cell-title', text: `${item.content_id} · ${(item.offer_snapshot || {}).product_name || ''}` }),
+          h('p', { class: 'cell-sub', text: `${PUBLISH_STATUS_TEXT[item.publish_schedule.status] || item.publish_schedule.status} · `
+            + `${item.publish_schedule.channel} · ${new Date(item.publish_schedule.scheduled_at).toLocaleString('th-TH')}`
+            + (item.publish_schedule.approved ? ` · อนุมัติ: ${item.publish_schedule.approved_by}` : '') }),
+        ),
+      ))),
+  ));
+  return wrap;
+}
+
+function renderVoiceoverPanel(project) {
+  const scenes = (project.storyboard && project.storyboard.scenes) || [];
+  const voiced = scenes.filter((scene) => scene.audio && scene.audio.asset_ref && project.assets[scene.audio.asset_ref]);
+  const audio = project.audio || {};
+  const statusText = audio.status === 'AUDIO_ATTACHED'
+    ? `มีเสียงครบ ${voiced.length}/${scenes.length} ฉาก`
+    : audio.status === 'AUDIO_DURATION_MISMATCH'
+      ? `เสียงกับความยาวฉากไม่ตรงกัน ${(audio.mismatches || []).length} ฉาก`
+      : `ยังไม่มีเสียงบรรยาย (${voiced.length}/${scenes.length} ฉาก)`;
+  return h('section', { class: 'mvp-card' },
+    h('div', { class: 'card-head' },
+      h('div', null,
+        h('p', { class: 'eyebrow', text: 'Production · Thai voice-over' }),
+        h('h2', { text: 'เสียงบรรยายไทย' }),
+      ),
+      badge(audio.status || 'AUDIO_PENDING', audio.status === 'AUDIO_ATTACHED' ? 'badge-select' : 'badge-neutral'),
+    ),
+    h('p', { class: 'lead' }, 'สร้างเสียงบรรยายจากบทพูดของทุกฉากด้วยเสียงไทย แล้วผูกเข้าไทม์ไลน์ — '
+      + 'ความยาวฉากจะถูกปรับตามเสียงจริงเพื่อให้เสียงไม่ถูกตัด'),
+    h('div', { class: 'toolbar' },
+      h('button', {
+        type: 'button', class: 'btn btn-primary', disabled: ui.busy || project.status !== 'DRAFT',
+        on: { click: () => run(() => synthesizeThaiVoiceover(project.content_id, false), 'เสียงบรรยายพร้อมแล้ว') },
+      }, voiced.length ? 'สร้างเสียงเฉพาะฉากที่ยังไม่มี' : 'สร้างเสียงบรรยายไทย'),
+      h('button', {
+        type: 'button', class: 'btn btn-ghost', disabled: ui.busy || project.status !== 'DRAFT',
+        on: { click: () => run(() => synthesizeThaiVoiceover(project.content_id, true), 'สร้างเสียงบรรยายใหม่ครบทุกฉาก') },
+      }, 'สร้างใหม่ทั้งหมด'),
+    ),
+    h('p', { class: 'note', text: statusText }),
+  );
 }
 
 function renderContentCreate() {
@@ -2619,6 +2599,9 @@ function renderContentCreate() {
           ? h('p', { class: 'cell-sub', text: 'จะเปิดฟอร์มให้กรอกมุมมองเองหลังสร้าง' })
           : h('p', { class: 'cell-sub', text: 'สร้างจากหลักฐานในไฟล์ส่งออก' }),
       ))),
+    h('label', { class: 'small settings-live' },
+      h('input', { id: 'content-use-llm', type: 'checkbox' }),
+      ' ให้ AI ร่างสคริปต์ด้วยคีย์เดียวกัน (ต้องเปิด Live drafting ใน Settings ก่อน)'),
     h('div', { class: 'toolbar' },
       h('button', {
         type: 'button', class: 'btn btn-primary', disabled: ui.busy,
@@ -2626,6 +2609,8 @@ function renderContentCreate() {
           click: () => run(async () => {
             const [kind, id] = ui.contentSource.split(':');
             const body = { approach: ui.contentApproach };
+            const llmNode = document.getElementById('content-use-llm');
+            if (llmNode && llmNode.checked) body.useLlm = true;
             if (kind === 'plan') body.planId = id;
             else body.candidateId = id;
             const res = await api('/api/mvp/content/draft', 'POST', body);
@@ -2657,8 +2642,8 @@ function renderContent() {
   const wrap = h('div', { class: 'stack' });
   if (!state || !state.import) {
     wrap.append(h('section', { class: 'notice' },
-      h('div', { class: 'notice-head' }, h('h2', { text: 'Import and generate candidates first' })),
-      h('p', null, h('button', { type: 'button', class: 'link-btn', on: { click: () => go('import') } }, 'Go to import →')),
+      h('div', { class: 'notice-head' }, h('h2', { text: 'ยังไม่มีแคนดิเดตในพูล' })),
+      h('p', null, h('button', { type: 'button', class: 'link-btn', on: { click: () => go('research') } }, 'ไปที่ Research →')),
     ));
     return wrap;
   }
@@ -2693,7 +2678,7 @@ async function loadLibrary() {
   if (ui.library.loading) return;
   ui.library.loading = true;
   ui.library.error = null;
-  if (ui.section === 'library') render();
+  if (ui.section === 'schedule') render();
   try {
     const res = await api('/api/mvp/library');
     ui.library.items = res.items || [];
@@ -2704,7 +2689,7 @@ async function loadLibrary() {
     ui.library.items = [];
   } finally {
     ui.library.loading = false;
-    if (ui.section === 'library') render();
+    if (ui.section === 'schedule') render();
   }
 }
 
@@ -2750,7 +2735,7 @@ function renderLibraryItem(item) {
             ui.contentId = entry.id;
             ui.contentNew = false;
             ui.contentTab = 'export';
-            go('content');
+            go('production');
           },
         },
       }, 'เปิดใน Content') : h('span', { class: 'mono small', text: 'project ไม่ได้อยู่ใน state ปัจจุบัน' }),
@@ -2806,7 +2791,7 @@ function renderLibrary() {
       h('div', { class: 'notice-head' }, h('h2', { text: 'ยังไม่มีไฟล์ใน Content Library' })),
       h('p', null, 'export วิดีโอจากแท็บ Export ของ Content project แล้วรายการจะปรากฏที่นี่'),
       h('p', null, h('button', {
-        type: 'button', class: 'link-btn', on: { click: () => go('content') },
+        type: 'button', class: 'link-btn', on: { click: () => go('production') },
       }, 'ไปที่ Content →')),
     ));
     return wrap;
@@ -2815,18 +2800,604 @@ function renderLibrary() {
   return wrap;
 }
 
+/* ---------- Pipeline views (Profile / Research pool / Publish) ---------- */
+
+// Which content tab belongs to which pipeline step.
+const SECTION_CONTENT_TAB = { production: 'storyboard', schedule: 'publish' };
+const SECTION_CONTENT_TABS = {
+  // Production owns the edit, the Thai voice and the whole QC/finalize/export
+  // run; scheduling sees only the publish payload it is allowed to act on.
+  production: ['storyboard', 'preview', 'qa', 'finalize', 'export'],
+  schedule: ['publish'],
+};
+
+async function loadAiStatus() {
+  ui.ai = ui.ai || {};
+  if (ui.ai.loading) return;
+  ui.ai.loading = true;
+  try {
+    ui.ai.status = await api('/api/mvp/ai/status');
+    ui.ai.error = null;
+  } catch (err) {
+    ui.ai.error = err.message;
+  } finally {
+    ui.ai.loading = false;
+    if (ui.section === 'profile' || ui.section === 'research') render();
+  }
+}
+
+async function pingAiConnection() {
+  const res = await api('/api/mvp/ai/ping', 'POST', {});
+  ui.ai = ui.ai || {};
+  ui.ai.ping = res.ping;
+  if (res.ai) ui.ai.status = { ai: res.ai };
+  return res.ping;
+}
+
+async function runAiResearch() {
+  const res = await api('/api/mvp/ai/research', 'POST', {});
+  ui.aiResearch = res;
+  if (res.ai) ui.ai = { ...(ui.ai || {}), status: { ai: res.ai } };
+  applyState(res.state);
+}
+
+async function createContentFromAiPick(candidateId) {
+  const res = await api('/api/mvp/content/draft', 'POST', { candidateId });
+  ui.contentId = res.project.content_id;
+  ui.contentNew = false;
+  ui.section = 'production';
+  ui.contentTab = 'storyboard';
+  applyState(res.state);
+}
+
+function aiStatusBadge(configured) {
+  return badge(configured ? 'เชื่อมต่อแล้ว' : 'ยังไม่ตั้งค่า', configured ? 'badge-fact' : 'badge-reject');
+}
+
+/* ---------- Settings · OpenRouter key & model ---------- */
+
+async function applyAiSettings(payload) {
+  const res = await api('/api/mvp/settings/ai', 'POST', payload);
+  ui.ai = { ...(ui.ai || {}), status: { ai: res.ai, settings: res.settings, env: res.env }, error: null, ping: null };
+  return res;
+}
+
+async function clearAiKey() {
+  return applyAiSettings({ clear_key: true });
+}
+
+async function resetAiSettings() {
+  return applyAiSettings({ reset: true });
+}
+
+const AI_KEY_SOURCE_TEXT = {
+  runtime: 'ตั้งค่าในหน้านี้ (ใช้ทันที)',
+  'env-file': 'อ่านจาก .env',
+  process: 'มาจาก environment',
+  missing: 'ยังไม่พบคีย์',
+};
+
+function renderAiStatusCard() {
+  const payload = ui.ai && ui.ai.status;
+  const ai = payload ? payload.ai : null;
+  const settings = payload ? payload.settings : null;
+  const envNote = payload ? payload.env : null;
+  const ping = ui.ai && ui.ai.ping;
+  return h('section', { class: 'mvp-card' },
+    h('div', { class: 'card-head' },
+      h('div', null,
+        h('p', { class: 'eyebrow', text: 'Back office · Settings' }),
+        h('h2', { text: 'API Key & Model (ใช้ร่วมทั้ง pipeline)' }),
+      ),
+      ai ? aiStatusBadge(ai.configured) : badge('loading', 'badge-neutral'),
+    ),
+    ui.ai && ui.ai.error ? h('p', { class: 'note', text: `อ่านสถานะไม่ได้: ${ui.ai.error}` }) : null,
+    ai && settings
+      ? h('div', { class: 'table-scroll' },
+        h('table', { class: 'mvp-table compact' },
+          h('tbody', null,
+            h('tr', null, h('th', { text: 'Endpoint' }), h('td', { class: 'mono', text: ai.endpoint })),
+            h('tr', null, h('th', { text: 'คีย์ที่ใช้อยู่' }), h('td', { text: `${settings.key_hint || '—'} · ${settings.key_var} · ${AI_KEY_SOURCE_TEXT[settings.key_source] || settings.key_source}` })),
+            h('tr', null, h('th', { text: 'โมเดล' }), h('td', { class: 'mono', text: `${settings.model} (${settings.model_source})` })),
+            h('tr', null, h('th', { text: 'AI ร่างสคริปต์ (Live drafting)' }), h('td', { text: settings.live_drafting ? 'เปิด — สร้างสคริปต์ผ่าน OpenRouter ได้' : 'ปิด — บทพูดยังสร้างจากแม่แบบเดิม' })),
+            h('tr', null, h('th', { text: 'เพดานคำตอบ' }), h('td', { text: `${ai.max_output_tokens} tokens` })),
+            h('tr', null, h('th', { text: 'เก็บค่าไว้ที่' }), h('td', { text: 'หน่วยความจำเซิร์ฟเวอร์เท่านั้น (ไม่เขียนดิสก์ ไม่เก็บในเบราว์เซอร์)' })),
+            settings.updated_at ? h('tr', null, h('th', { text: 'แก้ไขล่าสุด' }), h('td', { text: fmtDate(settings.updated_at) })) : null,
+            envNote ? h('tr', null, h('th', { text: '.env' }), h('td', { text: envNote })) : null,
+          ),
+        ),
+      )
+      : h('p', { class: 'note', text: 'กำลังอ่านสถานะ…' }),
+    h('div', { class: 'settings-form' },
+      h('p', { class: 'sub-head', text: 'ตั้งค่า / สลับคีย์และโมเดล' }),
+      h('div', { class: 'field inline' },
+        h('label', { class: 'field' },
+          h('span', { class: 'field-label', text: 'OpenRouter API Key ใหม่' }),
+          h('input', {
+            id: 'settings-key', type: 'password', autocomplete: 'off', spellcheck: 'false',
+            placeholder: 'เว้นว่าง = ใช้คีย์เดิม (ค่าที่กรอกจะไม่ถูกเก็บถาวร)',
+          }),
+        ),
+        h('label', { class: 'field' },
+          h('span', { class: 'field-label', text: 'Model' }),
+          h('input', {
+            id: 'settings-model', type: 'text',
+            value: settings ? settings.model : '',
+            placeholder: 'vendor/model',
+          }),
+        ),
+      ),
+      h('label', { class: 'small settings-live' },
+        h('input', {
+          id: 'settings-live', type: 'checkbox',
+          checked: Boolean(settings && settings.live_drafting),
+        }),
+        ' อนุญาตให้ AI ร่างสคริปต์/คอนเทนต์ด้วยคีย์นี้ (Live drafting) — เปิดแล้วทุกครั้งที่สร้างคอนเทนต์ระบบจะเรียกโมเดลจริง',
+      ),
+      h('div', { class: 'toolbar' },
+        h('button', {
+          type: 'button', class: 'btn btn-primary', disabled: ui.busy,
+          on: {
+            click: () => {
+              const keyNode = document.getElementById('settings-key');
+              const modelNode = document.getElementById('settings-model');
+              const liveNode = document.getElementById('settings-live');
+              const payload = { live_drafting: Boolean(liveNode && liveNode.checked) };
+              const key = keyNode ? keyNode.value.trim() : '';
+              const model = modelNode ? modelNode.value.trim() : '';
+              if (key) payload.api_key = key;
+              if (model) payload.model = model;
+              run(async () => { await applyAiSettings(payload); }, 'บันทึกแล้ว — ใช้ค่าทันทีโดยไม่ต้องรีสตาร์ท');
+            },
+          },
+        }, 'บันทึก & ใช้ทันที'),
+        h('button', {
+          type: 'button', class: 'btn btn-ghost', disabled: ui.busy,
+          on: { click: () => run(clearAiKey, 'ล้างคีย์ในหน่วยความจำแล้ว — กลับไปใช้ .env') },
+        }, 'ล้างคีย์ (กลับไปใช้ .env)'),
+        h('button', {
+          type: 'button', class: 'btn btn-ghost', disabled: ui.busy,
+          on: { click: () => run(resetAiSettings, 'รีเซ็ตการตั้งค่าทั้งหมดแล้ว') },
+        }, 'รีเซ็ตทั้งหมด'),
+        h('button', {
+          type: 'button', class: 'btn btn-ghost', disabled: ui.busy || !(ai && ai.configured),
+          on: { click: () => run(() => pingAiConnection(), 'ทดสอบการเชื่อมต่อแล้ว') },
+        }, 'ทดสอบการเชื่อมต่อ'),
+      ),
+      ping
+        ? h('p', { class: 'note', text: ping.ok
+          ? `เชื่อมต่อสำเร็จ · ${ping.model} · ${ping.latency_ms} ms`
+          : `เชื่อมต่อไม่สำเร็จ · ${ping.status}${ping.message ? ` · ${ping.message}` : ''}` })
+        : null,
+    ),
+    h('p', { class: 'note' }, 'ลำดับความสำคัญของค่า: ตั้งค่าในหน้านี้ → .env (โหลดตอนเปิดเซิร์ฟเวอร์) → ค่าเริ่มต้น · '
+      + 'คีย์เดียวกันถูกใช้ทั้ง Research & Candidate, การร่างสคริปต์/คอนเทนต์ และการทดสอบการเชื่อมต่อ · '
+      + 'ค่าในหน่วยความจำหายเมื่อรีสตาร์ทเซิร์ฟเวอร์ และไม่มี background call ใด ๆ'),
+  );
+}
+
+function renderAiPanel() {
+  const analysis = (ui.aiResearch && ui.aiResearch.result && ui.aiResearch.result.analysis)
+    || (ui.state && ui.state.ai_research && ui.state.ai_research.analysis)
+    || null;
+  const result = ui.aiResearch && ui.aiResearch.result;
+  const ai = (ui.ai && ui.ai.status && ui.ai.status.ai) || null;
+  const meta = ui.state && ui.state.ai_research;
+  return h('section', { class: 'mvp-card' },
+    h('div', { class: 'card-head' },
+      h('div', null,
+        h('p', { class: 'eyebrow', text: 'AI Research · OpenRouter' }),
+        h('h2', { text: analysis ? `คัด ${analysis.picks.length} รายการ + Hook/สคริปต์แล้ว` : 'วิเคราะห์และคัด 5 รายการด้วย AI' }),
+      ),
+      ai ? aiStatusBadge(ai.configured) : null,
+    ),
+    h('p', { class: 'note' }, 'โมเดลอ่านข้อมูลสินค้าที่นำเข้าแล้วเสนอ 5 รายการพร้อมเหตุผล ความเสี่ยง Hook และสคริปต์ย่อ · '
+      + 'ระบบไม่แก้ลำดับหรือ claim ให้เอง — คนยังเป็นผู้เลือก'),
+    h('div', { class: 'toolbar' },
+      h('button', {
+        type: 'button', class: 'btn btn-primary', disabled: ui.busy || !(ai && ai.configured),
+        on: { click: () => run(() => runAiResearch(), 'AI วิเคราะห์เสร็จแล้ว') },
+      }, 'วิเคราะห์ด้วย AI (5 รายการ)'),
+      !(ai && ai.configured)
+        ? h('button', { type: 'button', class: 'btn btn-ghost', on: { click: () => go('profile') } }, 'ไปตั้งค่าการเชื่อมต่อ →')
+        : null,
+    ),
+    result && !result.ok
+      ? h('p', { class: 'note', text: `เรียกไม่สำเร็จ · ${result.status}${result.message ? ` · ${result.message}` : ''}` })
+      : null,
+    meta && !result ? h('p', { class: 'note', text: `ผลล่าสุด ${fmtDate(meta.ran_at)} · ${meta.model}` }) : null,
+    analysis
+      ? h('div', { class: 'stack' },
+        analysis.summary ? h('p', { class: 'lead', text: analysis.summary }) : null,
+        h('ul', { class: 'list' }, analysis.picks.map((pick) => h('li', { class: 'cell' },
+          h('div', null,
+            h('p', { class: 'cell-title', text: `${pick.candidate_id} · ${pick.title}${pick.fit_score === null ? '' : ` · ${pick.fit_score}/100`}` }),
+            pick.why ? h('p', { class: 'cell-sub', text: `ทำไม: ${pick.why}` }) : null,
+            pick.risks ? h('p', { class: 'cell-sub', text: `ความเสี่ยง: ${pick.risks}` }) : null,
+            pick.hook ? h('p', { class: 'cell-title', text: `Hook: ${pick.hook}` }) : null,
+            pick.script.length ? h('ol', { class: 'plain-list tight' }, pick.script.map((line) => h('li', { text: line }))) : null,
+            h('button', {
+              type: 'button', class: 'btn btn-ghost', disabled: ui.busy,
+              on: { click: () => run(() => createContentFromAiPick(pick.candidate_id), `สร้างคอนเทนต์ ${pick.candidate_id} แล้ว — ไปต่อที่ Production`) },
+            }, 'สร้างคอนเทนต์จากรายการนี้ →'),
+          ),
+        ))),
+        analysis.notes && analysis.notes.length
+          ? h('ul', { class: 'plain-list tight' }, analysis.notes.map((note) => h('li', { text: note })))
+          : null,
+      )
+      : h('p', { class: 'note' }, 'ยังไม่มีผลวิเคราะห์ — กด "วิเคราะห์ด้วย AI" เพื่อเริ่ม'),
+  );
+}
+
+/* ---------- End-to-End Traceability View ---------- */
+
+const TRACE_STATUS = {
+  DONE: ['ผ่านแล้ว', 'badge-fact'],
+  ACTIVE: ['กำลังทำ', 'badge-defer'],
+  PENDING: ['ยังไม่เริ่ม', 'badge-neutral'],
+  BLOCKED: ['ติดปัญหา', 'badge-reject'],
+  STALE: ['ต้องทำใหม่', 'badge-reject'],
+};
+
+function traceStatusBadge(status) {
+  const entry = TRACE_STATUS[status] || [status || 'ไม่ทราบ', 'badge-neutral'];
+  return badge(entry[0], entry[1]);
+}
+
+function renderTraceFacts(facts) {
+  const list = (facts || []).filter(Boolean);
+  if (!list.length) return null;
+  return h('dl', { class: 'kv compact' }, list.map((item) => h('div', null,
+    h('dt', { text: item.label }),
+    h('dd', { class: item.mono ? 'mono small' : '', text: item.value }),
+  )));
+}
+
+function renderTraceChecks(checks) {
+  const list = (checks || []).filter(Boolean);
+  if (!list.length) return null;
+  return h('ul', { class: 'trace-checks' }, list.map((item) => h('li', { class: `trace-check${item.ok ? ' is-ok' : ' is-bad'}` },
+    h('span', { class: 'trace-mark', 'aria-hidden': 'true', text: item.ok ? '✓' : '✕' }),
+    h('div', { class: 'trace-check-body' },
+      h('p', { class: 'trace-check-label', text: item.label }),
+      item.detail ? h('p', { class: 'cell-sub', text: item.detail }) : null,
+    ),
+  )));
+}
+
+function renderTraceScenes(step) {
+  if (!step.scenes || !step.scenes.length) return null;
+  return h('div', { class: 'table-scroll' },
+    h('table', { class: 'mvp-table compact' },
+      h('thead', null, h('tr', null,
+        h('th', { text: 'ฉาก' }),
+        h('th', { text: 'บทพูดไทย' }),
+        h('th', { text: 'เสียงที่ผูก' }),
+        h('th', { text: 'หลักฐาน' }),
+      )),
+      h('tbody', null, step.scenes.map((scene) => h('tr', null,
+        h('td', null,
+          h('p', { class: 'cell-title', text: `${scene.id}${scene.role ? ` · ${scene.role}` : ''}` }),
+          h('p', { class: 'cell-sub', text: `${scene.duration_s === null ? '—' : scene.duration_s}s` }),
+        ),
+        h('td', null,
+          h('p', { class: 'cell-sub', text: scene.headline || '—' }),
+          h('p', { class: 'small', text: scene.voiceover || '—' }),
+        ),
+        h('td', null, scene.audio
+          ? h('div', null,
+            h('p', { class: 'mono small', text: `${scene.audio.asset_id} · ${scene.audio.duration_s === null ? '—' : scene.audio.duration_s}s` }),
+            h('p', { class: 'cell-sub', text: scene.audio.provider || '—' }),
+            h('p', { class: 'cell-sub mono small', text: scene.audio.file || '' }),
+          )
+          : h('span', { class: 'warn', text: 'ยังไม่มีไฟล์เสียง' })),
+        h('td', null, h('p', { class: 'mono small', text: (scene.evidence_ids || []).join(' · ') || '—' })),
+      ))),
+    ),
+  );
+}
+
+function renderTraceStep(step, number) {
+  const body = h('div', { class: 'trace-step-body' });
+  body.append(h('div', { class: 'trace-step-head' },
+    h('div', null,
+      h('p', { class: 'eyebrow', text: `Step ${number}` }),
+      h('h3', { class: 'trace-step-title', text: step.label }),
+    ),
+    traceStatusBadge(step.status),
+  ));
+  mount(body, step.at ? h('p', { class: 'trace-time mono small', text: fmtDate(step.at) }) : null);
+  mount(body, step.summary ? h('p', { class: 'lead', text: step.summary }) : null);
+  mount(body, renderTraceFacts(step.facts));
+  mount(body, renderTraceChecks(step.checks));
+  if (step.notes && step.notes.length) {
+    body.append(h('ul', { class: 'limits' }, step.notes.map((note) => h('li', { text: note }))));
+  }
+  mount(body, renderTraceScenes(step));
+  const pick = step.payload && step.payload.ai_pick;
+  if (pick) {
+    body.append(h('div', { class: 'trace-ai' },
+      h('p', { class: 'eyebrow', text: 'AI shortlist evidence' }),
+      pick.fit_score === null ? null : h('p', { class: 'cell-sub', text: `Fit score ${pick.fit_score}/100${pick.model ? ` · ${pick.model}` : ''}` }),
+      pick.why ? h('p', { class: 'cell-sub', text: `ทำไม: ${pick.why}` }) : null,
+      pick.hook ? h('p', { class: 'cell-title', text: `Hook: ${pick.hook}` }) : null,
+      pick.script && pick.script.length
+        ? h('ol', { class: 'plain-list tight' }, pick.script.map((line) => h('li', { text: line })))
+        : null,
+    ));
+  }
+  if (step.payload && step.payload.reasons && step.payload.reasons.length) {
+    body.append(h('details', { class: 'trace-raw-block' },
+      h('summary', { text: 'เหตุผลการคัดเลือก (raw)' }),
+      h('ul', { class: 'plain-list' }, step.payload.reasons.map((text) => h('li', { text }))),
+    ));
+  }
+  return h('article', { class: `trace-step is-${String(step.status || 'pending').toLowerCase()}` },
+    h('div', { class: 'trace-step-rail' },
+      h('span', { class: 'trace-step-num', text: String(number) }),
+      h('span', { class: 'trace-dot', 'aria-hidden': 'true' }),
+    ),
+    body,
+  );
+}
+
+function renderTraceMedia(run) {
+  const media = run.media || {};
+  if (!media.video_url) {
+    return h('p', { class: 'note', text: 'ยังไม่มีไฟล์ MP4 ให้พรีวิว — ขั้น Export ยังไม่เกิดขึ้น' });
+  }
+  return h('div', { class: 'trace-media' },
+    h('div', { class: 'trace-video-wrap' },
+      h('video', {
+        class: 'trace-video', controls: true, playsinline: true, preload: 'metadata', src: media.video_url,
+      }, 'เบราว์เซอร์นี้เล่นวิดีโอไม่ได้'),
+    ),
+    h('div', { class: 'trace-media-side' },
+      h('div', { class: 'head-meta' },
+        badge(media.integrity || 'UNKNOWN', media.integrity === 'VERIFIED' ? 'badge-fact' : 'badge-reject'),
+        media.width && media.height ? badge(`${media.width}×${media.height}`, 'badge-neutral') : null,
+        media.duration_s === null || media.duration_s === undefined ? null : badge(`${media.duration_s}s`, 'badge-neutral'),
+      ),
+      h('p', { class: 'cell-sub', text: 'พรีวิวไฟล์ MP4 9:16 ตัวจริงจาก Content Library — sha256 ถูกตรวจกับไฟล์บนดิสก์แล้ว' }),
+      run.payload && run.payload.caption ? h('pre', { class: 'trace-caption', text: run.payload.caption }) : null,
+      run.payload && run.payload.hashtags && run.payload.hashtags.length
+        ? h('p', { class: 'small', text: run.payload.hashtags.join(' ') })
+        : null,
+      run.payload && run.payload.affiliate_link
+        ? (/^https?:\/\//i.test(run.payload.affiliate_link)
+          ? h('p', { class: 'mono small' }, h('a', { href: run.payload.affiliate_link, target: '_blank', rel: 'noopener' }, run.payload.affiliate_link))
+          : h('p', { class: 'mono small', text: run.payload.affiliate_link }))
+        : null,
+      h('div', { class: 'toolbar' },
+        h('a', { class: 'btn btn-ghost', href: media.video_url, target: '_blank', rel: 'noopener' }, 'เปิดวิดีโอเต็มจอ'),
+        media.download_url ? h('a', { class: 'btn btn-primary', href: media.download_url, download: true }, 'ดาวน์โหลด MP4') : null,
+      ),
+    ),
+  );
+}
+
+function renderTraceRun(run, index) {
+  return h('section', { class: 'mvp-card trace-run' },
+    h('div', { class: 'card-head' },
+      h('div', null,
+        h('p', { class: 'eyebrow', text: index === 0 ? 'Production run' : `Production run ${index + 1}` }),
+        h('h2', { text: `${run.content_id} · ${run.status}` }),
+      ),
+      h('div', { class: 'head-meta' },
+        badge(`${run.done_steps}/${run.total_steps} ขั้นผ่าน`, run.done_steps === run.total_steps ? 'badge-fact' : 'badge-neutral'),
+        badge(run.approach || '—', 'badge-neutral'),
+        h('button', {
+          type: 'button', class: 'btn btn-ghost', disabled: ui.busy,
+          on: {
+            click: () => {
+              ui.contentId = run.content_id;
+              ui.contentNew = false;
+              ui.contentTab = 'storyboard';
+              go('production');
+            },
+          },
+        }, 'เปิดใน Production'),
+      ),
+    ),
+    renderTraceMedia(run),
+    h('div', { class: 'trace-timeline' }, run.steps.map((step, stepIndex) => renderTraceStep(step, stepIndex + 2))),
+    h('details', { class: 'trace-raw-block' },
+      h('summary', { text: `ข้อมูลดิบของ ${run.content_id} (JSON)` }),
+      h('pre', { class: 'trace-pre', text: JSON.stringify(run.raw, null, 2) }),
+    ),
+  );
+}
+
+async function openTrace(candidateId) {
+  ui.trace = { candidateId, data: null, loading: true, error: null };
+  render();
+  try {
+    const data = await api(`/api/mvp/candidates/${encodeURIComponent(candidateId)}/trace`);
+    if (ui.trace.candidateId !== candidateId) return;
+    ui.trace.data = data;
+  } catch (err) {
+    if (ui.trace.candidateId !== candidateId) return;
+    ui.trace.error = err.message;
+  } finally {
+    if (ui.trace.candidateId === candidateId) {
+      ui.trace.loading = false;
+      render();
+    }
+  }
+}
+
+function closeTrace() {
+  ui.trace = { candidateId: null, data: null, loading: false, error: null };
+  render();
+}
+
+function renderTraceView() {
+  const view = ui.trace;
+  const trace = view.data;
+  const wrap = h('div', { class: 'stack' });
+  wrap.append(h('section', { class: 'mvp-card' },
+    h('div', { class: 'card-head' },
+      h('div', null,
+        h('p', { class: 'eyebrow', text: 'End-to-End Traceability · read-only' }),
+        h('h2', { text: trace ? `ไทม์ไลน์: ${trace.title}` : `ไทม์ไลน์: ${view.candidateId}` }),
+        h('p', { class: 'cell-sub mono', text: view.candidateId }),
+      ),
+      h('div', { class: 'toolbar' },
+        h('button', { type: 'button', class: 'btn btn-ghost', on: { click: closeTrace } }, '← กลับไปที่ Candidate Pool'),
+      ),
+    ),
+    trace
+      ? h('p', { class: 'note', text: `ประกอบจาก state และ Content Library เท่านั้น · สร้างเมื่อ ${fmtDate(trace.generated_at)} · ไม่มีการเขียนข้อมูลหรือเรียกบริการภายนอก` })
+      : null,
+  ));
+
+  if (view.error) {
+    wrap.append(h('section', { class: 'notice notice-error' },
+      h('div', { class: 'notice-head' }, h('h2', { text: 'อ่านไทม์ไลน์ไม่ได้' })),
+      h('p', { class: 'error-text', text: view.error }),
+    ));
+    return wrap;
+  }
+  if (view.loading || !trace) {
+    wrap.append(h('section', { class: 'notice' },
+      h('div', { class: 'notice-head' }, h('h2', { text: 'กำลังประกอบไทม์ไลน์…' })),
+      h('p', { text: 'ตรวจไฟล์ export และ sha256 บนดิสก์ก่อนแสดงผล' }),
+    ));
+    return wrap;
+  }
+
+  wrap.append(renderTraceStep(trace.steps[0], 1));
+
+  if (trace.has_runs) {
+    trace.runs.forEach((run, index) => wrap.append(renderTraceRun(run, index)));
+  } else {
+    const status = trace.raw && trace.raw.candidate ? trace.raw.candidate.status : null;
+    const canCreate = status === 'SAVED' || status === 'QUEUED';
+    wrap.append(h('section', { class: 'mvp-card' },
+      h('div', { class: 'card-head' },
+        h('div', null,
+          h('p', { class: 'eyebrow', text: 'No production run' }),
+          h('h2', { text: 'ยังไม่มีคอนเทนต์ที่ผลิตจากรายการนี้' }),
+        ),
+      ),
+      h('p', { class: 'note' }, 'ไทม์ไลน์จะเริ่มมีข้อมูล Production / Finalize / Export หลังจากสร้างคอนเทนต์จาก candidate รายการนี้'),
+      h('div', { class: 'toolbar' },
+        canCreate
+          ? h('button', {
+            type: 'button', class: 'btn btn-primary', disabled: ui.busy,
+            on: {
+              click: () => run(async () => {
+                await createContentFromAiPick(trace.candidate_id);
+                closeTrace();
+              }, 'สร้างคอนเทนต์แล้ว — ไปต่อที่ Production'),
+            },
+          }, 'สร้างคอนเทนต์จากรายการนี้ →')
+          : h('p', { class: 'note', text: 'ต้อง Save หรือ Add to queue รายการนี้ก่อน จึงจะสร้างคอนเทนต์ได้' }),
+        h('button', { type: 'button', class: 'btn btn-ghost', on: { click: closeTrace } }, '← กลับไปที่ Candidate Pool'),
+      ),
+    ));
+    wrap.append(h('section', { class: 'mvp-card' },
+      h('div', { class: 'trace-timeline' }, trace.steps.slice(1).map((step, index) => renderTraceStep(step, index + 2))),
+    ));
+  }
+
+  wrap.append(h('section', { class: 'mvp-card' },
+    h('details', { class: 'trace-raw-block' },
+      h('summary', { text: 'ข้อมูลดิบของ candidate (JSON)' }),
+      h('pre', { class: 'trace-pre', text: JSON.stringify(trace.raw, null, 2) }),
+    ),
+  ));
+  return wrap;
+}
+
+function renderProfileSchedule() {
+  const state = ui.state;
+  const wrap = h('div', { class: 'stack' });
+  const offers = state && state.offers ? Object.values(state.offers) : [];
+  const shops = [...new Set(offers.map((offer) => offer.shop_name).filter(Boolean))];
+  const importInfo = state ? state.import : null;
+  wrap.append(h('section', { class: 'mvp-card' },
+    h('div', { class: 'card-head' },
+      h('div', null,
+        h('p', { class: 'eyebrow', text: 'Profile' }),
+        h('h2', { text: 'ช่องทางและข้อมูลต้นทาง' }),
+      ),
+      badge(state && state.synthetic ? 'SYNTHETIC' : 'STAGED', state && state.synthetic ? 'badge-neutral' : 'badge-fact'),
+    ),
+    h('div', { class: 'table-scroll' },
+      h('table', { class: 'mvp-table compact' },
+        h('tbody', null,
+          h('tr', null, h('th', { text: 'ช่องทางเผยแพร่' }), h('td', { text: 'Shopee Affiliate' })),
+          h('tr', null, h('th', { text: 'ชุดข้อมูล' }), h('td', { text: importInfo ? importInfo.id : 'ยังไม่มีข้อมูล' })),
+          h('tr', null, h('th', { text: 'ร้านค้าในพูล' }), h('td', { text: shops.length ? `${shops.length} ร้าน · ${shops.slice(0, 3).join(', ')}` : '—' })),
+          h('tr', null, h('th', { text: 'สินค้า / ข้อเสนอ' }), h('td', { text: state ? `${state.summary.products} / ${state.summary.offers}` : '—' })),
+        ),
+      ),
+    ),
+    h('p', { class: 'note' }, 'ข้อมูลพูลมาจากชุดข้อมูลที่โหลดไว้ในระบบแล้ว (fixture) — หน้านี้แสดงโปรไฟล์และตารางเผยแพร่เท่านั้น'),
+  ));
+
+  const contents = (state && state.contents) || [];
+  const scheduled = contents.filter((c) => c.publish_schedule)
+    .sort((a, b) => String(a.publish_schedule.scheduled_at).localeCompare(String(b.publish_schedule.scheduled_at)));
+  wrap.append(h('section', { class: 'mvp-card' },
+    h('div', { class: 'card-head' },
+      h('div', null,
+        h('p', { class: 'eyebrow', text: 'Schedule' }),
+        h('h2', { text: 'ตารางเผยแพร่' }),
+      ),
+      h('div', { class: 'head-meta' },
+        badge(`${scheduled.filter((c) => c.publish_schedule.status === 'SCHEDULED').length} ตั้งเวลาไว้`, 'badge-neutral'),
+        badge(`${scheduled.filter((c) => c.publish_schedule.status === 'QUEUED').length} รออนุมัติ`, 'badge-reject'),
+        badge(`${scheduled.filter((c) => c.publish_schedule.status === 'PUBLISHED').length} เผยแพร่แล้ว`, 'badge-select'),
+      ),
+    ),
+    scheduled.length
+      ? h('ul', { class: 'list' }, scheduled.map((item) => h('li', { class: 'cell' },
+        h('div', null,
+          h('p', { class: 'cell-title', text: `${item.content_id} · ${(item.offer_snapshot || {}).product_name || ''}` }),
+          h('p', { class: 'cell-sub', text: `${PUBLISH_STATUS_TEXT[item.publish_schedule.status] || item.publish_schedule.status} · `
+            + `${item.publish_schedule.channel} · ${fmtDate(item.publish_schedule.scheduled_at)}` }),
+        ),
+      )))
+      : h('p', { class: 'note' }, 'ยังไม่มีกำหนดการ — ไปที่ Publish Queue เพื่อตั้งเวลาให้คอนเทนต์ที่พร้อมแล้ว'),
+    h('div', { class: 'toolbar' },
+      h('button', { type: 'button', class: 'btn btn-ghost', on: { click: () => go('schedule') } }, 'ไปที่ Publish Queue →'),
+    ),
+  ));
+  wrap.append(renderAiStatusCard());
+  return wrap;
+}
+
+function renderResearchPool() {
+  const wrap = h('div', { class: 'stack' });
+  if (ui.trace.candidateId) {
+    wrap.append(renderTraceView());
+    return wrap;
+  }
+  wrap.append(renderAiPanel());
+  wrap.append(renderResearch());
+  wrap.append(renderCandidates());
+  return wrap;
+}
+
+function renderPublishSection() {
+  const wrap = h('div', { class: 'stack' });
+  wrap.append(renderContent());
+  wrap.append(renderLibrary());
+  return wrap;
+}
+
 /* ---------- Render ---------- */
 
 function renderDataChip() {
   if (!els.dataChip) return;
   const state = ui.state;
-  const staged = ui.staging || [];
   const synthetic = state ? state.synthetic !== false : true;
   let text;
   if (!state || !state.import) {
-    text = staged.length
-      ? `${staged.length} STAGED FILE${staged.length === 1 ? '' : 'S'} — not yet in Research`
-      : 'SYNTHETIC FIXTURE — not Shopee data';
+    text = 'SYNTHETIC FIXTURE — not Shopee data';
   } else if (synthetic) {
     text = 'SYNTHETIC FIXTURE — not Shopee data';
   } else {
@@ -2839,16 +3410,15 @@ function renderDataChip() {
 function render() {
   renderNav();
   renderDataChip();
-  els.eyebrow.textContent = ui.section === 'import'
-    ? 'MVP slice · export staging'
-    : `MVP slice · ${SECTIONS.find((s) => s.key === ui.section).label}`;
+  const currentSection = SECTIONS.find((s) => s.key === ui.section) || SECTIONS[0];
+  els.eyebrow.textContent = `MVP slice · ${currentSection.label}`;
   els.title.textContent = {
-    import: 'Import the affiliate export',
-    research: 'Research records and evidence',
-    candidates: 'Candidate workspace',
-    plan: 'Plan and impact preview',
-    content: 'Content creation and export',
-    library: 'Content Library',
+    profile: 'Profile & Channels',
+    research: 'Research & Candidate Pool',
+    plan: 'Plan & AI Video Generation',
+    production: 'Production & Finalize',
+    schedule: 'Schedule & Task',
+    analytics: 'Analytics Dashboard',
   }[ui.section];
   els.save.textContent = ui.busy
     ? 'Working…'
@@ -2857,13 +3427,46 @@ function render() {
       : 'Loading…';
   clear(els.body);
   const section = ui.section;
-  if (section === 'import') els.body.append(renderImport());
-  else if (section === 'research') els.body.append(renderResearch());
-  else if (section === 'candidates') els.body.append(renderCandidates());
-  else if (section === 'content') els.body.append(renderContent());
-  else if (section === 'library') els.body.append(renderLibrary());
-  else els.body.append(renderPlan());
+  if (section === 'profile') els.body.append(renderProfileChannels());
+  else if (section === 'research') els.body.append(renderResearchPool());
+  else if (section === 'plan') els.body.append(renderPlanStage());
+  else if (section === 'production') els.body.append(renderProductionStage());
+  else if (section === 'schedule') els.body.append(renderScheduleStage());
+  else if (section === 'analytics') els.body.append(renderAnalyticsStage());
+  else els.body.append(renderProfileChannels());
 }
+
+/* ---------- Shell actions (static sidebar) ---------- */
+
+function bindShellActions() {
+  const quick = document.getElementById('quick-start');
+  if (quick) {
+    quick.addEventListener('click', () => run(async () => {
+      if (!ui.state || !ui.state.import) {
+        throw new Error('ยังไม่มีข้อมูลพูลสินค้าในระบบ');
+      }
+      if (!ui.state.summary || !ui.state.summary.candidates) {
+        await generateFromResearch(false);
+      } else {
+        ui.section = 'research';
+      }
+      ui.error = null;
+    }, 'Candidate Pool พร้อมแล้ว — เลือก 1 รายการเพื่อไปต่อ'));
+  }
+
+  const offers = document.getElementById('open-offers');
+  if (offers) {
+    offers.addEventListener('click', () => {
+      if (!ui.state || !ui.state.import) {
+        toast('ยังไม่มีข้อมูลนำเข้า — กด "สร้าง Candidate Pool 5 รายการ" ก่อน แล้วจึงเพิ่มข้อเสนอได้', true);
+        return;
+      }
+      openSelectModal('add', null);
+    });
+  }
+}
+
+bindShellActions();
 
 /* ---------- Boot ---------- */
 
@@ -2872,11 +3475,9 @@ function render() {
     const [meta, state] = await Promise.all([api('/api/mvp/meta'), api('/api/mvp/state')]);
     ui.meta = meta;
     applyState(state);
-    await refreshStaging().catch(() => { ui.staging = []; });
-    ui.section = state.import
-      ? (state.summary.candidates ? 'candidates' : 'research')
-      : 'import';
+    ui.section = 'profile';
     render();
+    loadAiStatus();
   } catch (err) {
     ui.error = { message: err.message, details: null };
     render();

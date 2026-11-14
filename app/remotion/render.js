@@ -165,7 +165,8 @@ function buildFilterGraph(scenes, assFile, fontDir) {
   const inputs = [];
   const chains = [];
   const audioSegments = [];
-  let index = 0;
+  let index = 0;      // ffmpeg input index (video and audio inputs share the list)
+  let segment = 0;    // scene segment ordinal, which is what the concat addresses
 
   for (const scene of scenes) {
     const duration = Math.max(0.5, Number(scene.duration_s) || 3);
@@ -183,18 +184,20 @@ function buildFilterGraph(scenes, assFile, fontDir) {
         `drawbox=x=0:y=0:w=${CANVAS.width}:h=${CANVAS.height}:color=black@0.42:t=fill,` +
         `drawbox=x=0:y=0:w=14:h=${CANVAS.height}:color=${accent}@1:t=fill,` +
         `drawbox=x=0:y=${CANVAS.height - 300}:w=${CANVAS.width}:h=300:color=${accent}@0.92:t=fill` +
-        `[sc${index}]`
+        `[sc${segment}]`
       );
       index += 1;
+      segment += 1;
     } else {
       inputs.push('-f', 'lavfi', '-t', String(duration), '-i', `color=c=${base}:s=${CANVAS.width}x${CANVAS.height}:r=${CANVAS.fps}`);
       chains.push(
         `[${index}:v]` +
         `drawbox=x=0:y=0:w=14:h=${CANVAS.height}:color=${accent}@1:t=fill,` +
         `drawbox=x=0:y=${CANVAS.height - 300}:w=${CANVAS.width}:h=300:color=${accent}@0.92:t=fill` +
-        `[sc${index}]`
+        `[sc${segment}]`
       );
       index += 1;
+      segment += 1;
     }
 
     // A scene that carries a narration file contributes one extra audio
@@ -277,7 +280,9 @@ function buildAudioGraph(audioSegments) {
     } else {
       chains.push(
         `[${segment.inputIndex}:a]aresample=48000,aformat=sample_fmts=fltp:channel_layouts=stereo,` +
-        `apad=whole_dur=${segment.duration},atrim=0:${segment.duration},asetpts=PTS-STARTPTS[a${scene}]`
+        // apad has no whole_dur option before FFmpeg 4.2, and the repo-local
+        // build is 4.1.5: pad unbounded, then trim to the scene length.
+        `apad,atrim=0:${segment.duration},asetpts=PTS-STARTPTS[a${scene}]`
       );
     }
   }

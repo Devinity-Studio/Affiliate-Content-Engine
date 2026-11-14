@@ -83,7 +83,15 @@ async function auditLibrary() {
       // id vocabulary is project-specific; only flag clearly bogus values
       bad += 1; check(`${id} id format`, false, `unexpected id vocabulary`); continue;
     }
-    const file = path.join(REPO_DIR, 'app', 'exports', entry.id, entry.filename);
+    // The MVP exporter writes under data/mvp/exports; older records used
+    // app/exports. Accept a stored absolute path too, so the audit keeps
+    // reporting the real file instead of the first convention it knew.
+    const candidates = [
+      entry.file ? path.resolve(REPO_DIR, entry.file) : null,
+      path.join(REPO_DIR, 'data', 'mvp', 'exports', entry.id, entry.filename),
+      path.join(REPO_DIR, 'app', 'exports', entry.id, entry.filename),
+    ].filter(Boolean);
+    const file = candidates.find((candidate) => fs.existsSync(candidate)) || candidates[1];
     if (!fs.existsSync(file)) { bad += 1; check(`${id} file exists`, false, `missing ${file}`); continue; }
     const actual = sha256File(file);
     if (actual !== entry.sha256) { bad += 1; check(`${id} sha256`, false, `stored ${entry.sha256} actual ${actual}`); continue; }

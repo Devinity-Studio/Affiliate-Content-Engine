@@ -50,8 +50,8 @@ const AUDIO_TYPES = {
   '.wav': 'audio/wav',
 };
 const MAX_AUDIO_BYTES = 20 * 1024 * 1024;
-const AUDIO_PROVIDERS = ['SPEAKTOR_MANUAL', 'GOOGLE_TTS', 'AZURE_SPEECH', 'OTHER'];
-const AUDIO_SOURCES = ['SPEAKTOR_MANUAL'];
+const AUDIO_PROVIDERS = ['SPEAKTOR_MANUAL', 'GOOGLE_TTS', 'AZURE_SPEECH', 'EDGE_TTS', 'OTHER'];
+const AUDIO_SOURCES = ['SPEAKTOR_MANUAL', 'EDGE_TTS'];
 const AUDIO_STATUSES = ['AUDIO_PENDING', 'AUDIO_ATTACHED', 'AUDIO_DURATION_MISMATCH', 'AUDIO_APPROVED'];
 const AUDIO_DURATION_TOLERANCE_S = 1.0;
 
@@ -1103,6 +1103,106 @@ async function addAudioAsset(project, assetsDir, payload) {
 }
 
 /**
+ * Production step: speak every scene's Thai voice-over line and bind the audio.
+ *
+ * The synthesizer is injected so this module never talks to a TTS engine
+ * directly (the service owns that adapter). Scene durations are extended to the
+ * spoken length, otherwise refreshAudioStatus would flag every scene as a
+ * duration mismatch and the export would cut the narration off.
+ */
+async function synthesizeVoiceover(project, assetsDir, synthesizer, options = {}) {
+  const force = options.force === true;
+  const only = Array.isArray(options.scene_ids) && options.scene_ids.length
+    ? new Set(options.scene_ids)
+    : null;
+  const scenes = (project.storyboard && project.storyboard.scenes) || [];
+  const inScope = (scene) => !only || only.has(scene.id);
+  const spoken = (scene) => scene.audio && String(scene.audio.voiceover || '').trim();
+  const alreadyVoiced = (scene) => Boolean(
+    scene.audio && scene.audio.asset_ref && project.assets[scene.audio.asset_ref]
+    && Number(project.assets[scene.audio.asset_ref].duration_s) > 0,
+  );
+  const targets = scenes.filter((scene) => inScope(scene) && spoken(scene) && (force || !alreadyVoiced(scene)));
+  const skipped = scenes
+    .filter((scene) => inScope(scene) && spoken(scene) && !force && alreadyVoiced(scene))
+    .map((scene) => scene.id);
+  if (targets.length === 0) {
+    throw httpError(400, skipped.length
+      ? 'every scene already has a voice-over — send { "force": true } to regenerate'
+      : 'no scene has a Thai voice-over line to speak — write the script first');
+  }
+  await fsp.mkdir(assetsDir, { recursive: true });
+  const produced = [];
+  // One video, one voice: the first engine answer decides the rest of the run.
+  let lockedVoice = null;
+  const failures = [];
+  for (const scene of targets) {
+    const previousRef = scene.audio && scene.audio.asset_ref ? scene.audio.asset_ref : null;
+    const text = String(scene.audio.voiceover).trim();
+    const tempFile = path.join(assetsDir, `tts-${scene.id}-${Date.now()}.mp3`);
+    let info;
+    try {
+      info = await synthesizer(text, tempFile, { voice: lockedVoice });
+    } catch (err) {
+      // One scene failing must not throw away the narration already produced for
+      // the others: record it, persist what worked, and let a retry fill the rest.
+      failures.push({ scene_id: scene.id, message: err.message });
+      continue;
+    }
+    const buffer = await fsp.readFile(tempFile);
+    await fsp.unlink(tempFile).catch(() => {});
+    if (info && info.voice && !lockedVoice) lockedVoice = info.voice;
+    const asset = await addAudioAsset(project, assetsDir, {
+      filename: `voice-${scene.id}.mp3`,
+      content_base64: buffer.toString('base64'),
+      provider: 'EDGE_TTS',
+      source: 'EDGE_TTS',
+    });
+    scene.audio.asset_ref = asset.id;
+    void previousRef;
+    const spokenSeconds = Number(asset.duration_s) || 0;
+    scene.duration_s = Math.max(0.5, Math.round((spokenSeconds + 0.3) * 10) / 10);
+    produced.push({
+      scene_id: scene.id,
+      asset_id: asset.id,
+      voice_text: text,
+      duration_s: spokenSeconds,
+      scene_duration_s: scene.duration_s,
+      voice: info.voice || null,
+    });
+  }
+  // Prune replaced voice files only after every scene is bound: removing an
+  // asset mid-loop shrinks asset_order and the next id would collide with it.
+  project.asset_order = [...new Set(project.asset_order)];
+  const referenced = new Set(scenes.map((scene) => scene.audio && scene.audio.asset_ref).filter(Boolean));
+  for (const id of [...project.asset_order]) {
+    if (referenced.has(id)) continue;
+    const asset = project.assets[id];
+    if (!asset || asset.source !== 'EDGE_TTS') continue;
+    try { removeAsset(project, id); } catch { /* leave it if it is still referenced */ }
+  }
+  refreshAudioStatus(project);
+  project.audio.approved = false;
+  project.storyboard.version += 1;
+  project.updated_at = nowIso();
+  project.edit_log.push({
+    at: project.updated_at,
+    track: 'audio',
+    scene_id: null,
+    change: `สร้างเสียงบรรยายไทย ${produced.length} ฉาก`,
+  });
+  if (produced.length === 0 && failures.length > 0) {
+    throw httpError(502, `voice-over failed for ${failures.length} scene(s): ${failures[0].message}`);
+  }
+  return {
+    scenes: produced,
+    skipped,
+    failures,
+    total_duration_s: scenes.reduce((sum, scene) => sum + (Number(scene.duration_s) || 0), 0),
+  };
+}
+
+/**
  * Removes an asset record. Assets already bound to any scene (visual or audio
  * track) must be unbound first, so an export never references a missing file.
  */
@@ -1983,6 +2083,320 @@ async function getLibraryItem(id) {
   return library.items.find((item) => item && item.id === id) || null;
 }
 
+/* ------------------------------------------------------------------ */
+/* Mini loop: targeted revision                                        */
+/* ------------------------------------------------------------------ */
+
+const REVISION_TARGETS = ['HOOK', 'SCENE_TEXT', 'SCENE_VISUAL'];
+
+/**
+ * Applies one targeted change and says which layers it touched.
+ *
+ * Only the named layer is written: a hook edit rewrites the first scene's
+ * headline (and its spoken line), a text edit touches one scene's overlay or
+ * voice-over, a visual edit touches preset/background/duration. Nothing else in
+ * the storyboard, the other scenes' audio, or the previous script versions is
+ * rewritten, and every change is recorded in revisions[] for lineage.
+ */
+function reviseContent(project, payload = {}) {
+  const target = String(payload.target || '').toUpperCase();
+  if (!REVISION_TARGETS.includes(target)) {
+    throw httpError(400, `target must be one of ${REVISION_TARGETS.join(', ')}`);
+  }
+  // A published artifact is out of reach: editing it in place would silently
+  // desynchronise the library from the video. Anything earlier can still be
+  // revised; an existing export is marked stale below so it must be re-finalised
+  // and re-exported instead of being quietly overwritten.
+  if (project.publish_schedule && project.publish_schedule.status === 'PUBLISHED') {
+    throw httpError(409, 'this content was already published — create a new version instead of revising it');
+  }
+  if (project.status === 'READY_TO_PUBLISH') {
+    throw httpError(409, 'this content is already queued for publishing — create a new version instead');
+  }
+  const scenes = project.storyboard.scenes || [];
+  const sceneId = payload.scene_id || (target === 'HOOK' && scenes[0] ? scenes[0].id : null);
+  const scene = sceneId ? findScene(project, sceneId) : null;
+  if (target !== 'HOOK' && !scene) throw httpError(400, 'scene_id is required for this target');
+
+  const scriptBefore = project.script_version;
+  const statusBefore = project.status;
+  const changed = {};
+  let voiceChanged = false;
+  let textChanged = false;
+
+  if (target === 'HOOK') {
+    const text = clampText(payload.text || '', 200).trim();
+    if (!text) throw httpError(400, 'text is required for a hook revision');
+    changed.headline = { from: scene.overlay.headline || '', to: text };
+    scene.overlay.headline = text;
+    if (payload.speak !== false) {
+      changed.voiceover = { from: scene.audio.voiceover || '', to: text };
+      scene.audio.voiceover = text;
+      voiceChanged = true;
+    }
+    textChanged = true;
+  } else if (target === 'SCENE_TEXT') {
+    const overlay = {};
+    for (const field of ['badge', 'headline', 'subhead', 'fact', 'cta']) {
+      if (payload[field] === undefined) continue;
+      overlay[field] = { from: scene.overlay[field] || '', to: String(payload[field]) };
+    }
+    if (Object.keys(overlay).length) {
+      applyTextEdit(project, { sceneId: scene.id, overlay: Object.fromEntries(Object.entries(overlay).map(([k, v]) => [k, v.to])) });
+      changed.overlay = overlay;
+      textChanged = true;
+    }
+    if (payload.voiceover !== undefined) {
+      const text = clampText(payload.voiceover, 600).trim();
+      changed.voiceover = { from: scene.audio.voiceover || '', to: text };
+      applyAudioEdit(project, { sceneId: scene.id, audio: { voiceover: text } });
+      voiceChanged = true;
+    }
+    if (!textChanged && !voiceChanged) throw httpError(400, 'nothing to revise — send a text field or a voiceover');
+  } else {
+    const visual = {};
+    if (payload.preset !== undefined) visual.preset = { from: scene.visual.preset, to: payload.preset };
+    if (payload.asset_ref !== undefined) visual.asset_ref = { from: scene.visual.asset_ref, to: payload.asset_ref };
+    const beforeDuration = Number(scene.duration_s);
+    if (payload.duration_s !== undefined) visual.duration_s = { from: beforeDuration, to: Number(payload.duration_s) };
+    applyVisualEdit(project, { sceneId: scene.id, visual: payload.visual || {}, ...(payload.duration_s !== undefined ? { duration_s: payload.duration_s } : {}) });
+    if (payload.preset !== undefined) scene.visual.preset = payload.preset;
+    if (!Object.keys(visual).length) throw httpError(400, 'nothing to revise — send preset, asset_ref or duration_s');
+    changed.visual = visual;
+  }
+
+  project.revisions = project.revisions || [];
+  const revision = {
+    at: nowIso(),
+    target,
+    scene_id: scene ? scene.id : null,
+    changed,
+    voice_changed: voiceChanged,
+    script_version_before: scriptBefore,
+    script_version_after: project.script_version,
+    status_before: statusBefore,
+  };
+  project.revisions.push(revision);
+
+  // A finalize approval is bound to one script checksum; an edit supersedes it
+  // rather than deleting it, so the lineage of what was once approved survives.
+  let reopened = false;
+  if (project.status === 'FINALIZED' || project.status === 'EXPORTED') {
+    project.status = 'REVIEW';
+    reopened = true;
+  }
+  if (project.finalize) {
+    project.finalize.superseded_at = nowIso();
+    project.finalize.superseded_by_revision = revision.at;
+  }
+  if (project.export) {
+    // Keep the old mp4 for lineage but never let it pass as current.
+    project.export.superseded_at = nowIso();
+    project.export.superseded_by_revision = revision.at;
+    project.export.stale = true;
+  }
+  project.preview = buildPreview(project);
+  project.updated_at = nowIso();
+  project.edit_log.push({
+    at: project.updated_at,
+    track: target === 'SCENE_VISUAL' ? 'visual' : 'text',
+    scene_id: scene ? scene.id : null,
+    change: `Mini loop: แก้เฉพาะ ${target}${scene ? ` (${scene.id})` : ''}${reopened ? ' → กลับไป REVIEW' : ''}`,
+  });
+  revision.reopened_finalize = reopened;
+  return { revision, affected_scene_ids: scene ? [scene.id] : [], voice_changed: voiceChanged };
+}
+
+/**
+ * Renders the affected layer again without touching the library or the stored
+ * export: one scene when the revision was scene-scoped, the whole storyboard
+ * when a script-wide field changed.
+ */
+async function renderRevisionClip(project, exportsDir, options = {}) {
+  const sceneIds = Array.isArray(options.sceneIds) && options.sceneIds.length ? options.sceneIds : null;
+  const allScenes = (project.storyboard && project.storyboard.scenes) || [];
+  const chosen = sceneIds ? allScenes.filter((scene) => sceneIds.includes(scene.id)) : allScenes;
+  if (chosen.length === 0) throw httpError(400, 'no scene to render for this revision');
+
+  const assets = {};
+  for (const assetId of project.asset_order || []) {
+    const asset = project.assets[assetId];
+    if (asset && asset.file) assets[assetId] = asset.file;
+  }
+  const scenes = chosen.map((scene) => ({
+    ...scene,
+    visual: { ...scene.visual, asset_file: assets[scene.visual.asset_ref] || null },
+    audio_asset_file: scene.audio && scene.audio.asset_ref ? (assets[scene.audio.asset_ref] || null) : null,
+  }));
+
+  const outDir = path.resolve(exportsDir, project.content_id, 'revise');
+  await fsp.mkdir(outDir, { recursive: true });
+  const tag = sceneIds ? sceneIds.join('-') : 'full';
+  const outFile = path.join(outDir, `${project.content_id}-${tag}-v${project.script_version}.mp4`);
+  const rendered = renderer.renderVideo({ scenes, outFile, workDir: path.join(outDir, 'work'), assets });
+  return {
+    file: rendered.file || outFile,
+    file_name: path.basename(outFile),
+    scene_ids: chosen.map((scene) => scene.id),
+    script_version: project.script_version,
+    bytes: rendered.bytes,
+    duration_s: rendered.duration_s,
+    width: rendered.width,
+    height: rendered.height,
+  };
+}
+
+/* ------------------------------------------------------------------ */
+/* Publish queue & scheduling                                          */
+/* ------------------------------------------------------------------ */
+
+// One schedule shape for every platform the profile layer knows about; the
+// profile decides which channel a content item is actually scheduled into.
+const PUBLISH_CHANNELS = ['SHOPEE', 'LAZADA', 'TIKTOK', 'YOUTUBE'];
+const PUBLISH_STATUSES = ['SCHEDULED', 'QUEUED', 'PUBLISHED', 'CANCELLED'];
+// A schedule may be set slightly in the past so a queue can be exercised
+// without waiting; anything older than this is treated as a typo.
+const SCHEDULE_PAST_GRACE_MS = 10 * 60 * 1000;
+
+function publishScheduleOf(project) {
+  return (project && project.publish_schedule) || null;
+}
+
+function requireSchedule(project) {
+  const schedule = publishScheduleOf(project);
+  if (!schedule) throw httpError(409, 'this content has no publish schedule yet');
+  return schedule;
+}
+
+function setPublishSchedule(project, payload = {}) {
+  if (!project || project.status !== 'READY_TO_PUBLISH') {
+    throw httpError(409, `publish scheduling needs READY_TO_PUBLISH (current ${project && project.status})`);
+  }
+  const channel = String(payload.channel || 'SHOPEE').trim().toUpperCase();
+  if (!PUBLISH_CHANNELS.includes(channel)) {
+    throw httpError(400, `channel must be one of ${PUBLISH_CHANNELS.join(', ')}`);
+  }
+  const when = new Date(payload.scheduled_at);
+  if (Number.isNaN(when.getTime())) throw httpError(400, 'scheduled_at must be a valid ISO date-time');
+  if (when.getTime() < Date.now() - SCHEDULE_PAST_GRACE_MS) {
+    throw httpError(400, 'scheduled_at must not be more than 10 minutes in the past');
+  }
+  project.publish_schedule = {
+    channel,
+    scheduled_at: when.toISOString(),
+    status: 'SCHEDULED',
+    approved: false,
+    approved_by: null,
+    approved_at: null,
+    fallback: null,
+    published_at: null,
+    note: payload.note ? clampText(payload.note, 200) : null,
+    created_at: nowIso(),
+  };
+  project.updated_at = nowIso();
+  project.edit_log.push({
+    at: project.updated_at,
+    track: null,
+    scene_id: null,
+    change: `ตั้งเวลาเผยแพร่ ${channel} · ${project.publish_schedule.scheduled_at}`,
+  });
+  return project.publish_schedule;
+}
+
+function approvePublish(project, payload = {}) {
+  const schedule = requireSchedule(project);
+  if (schedule.status === 'PUBLISHED') throw httpError(409, 'this content is already published');
+  if (schedule.status === 'CANCELLED') throw httpError(409, 'this schedule was cancelled');
+  const approvedBy = String(payload.approved_by || '').trim();
+  if (!approvedBy) throw httpError(400, 'approved_by is required — a human must sign the approval');
+  schedule.approved = true;
+  schedule.approved_by = approvedBy;
+  schedule.approved_at = nowIso();
+  project.updated_at = nowIso();
+  project.edit_log.push({
+    at: project.updated_at,
+    track: null,
+    scene_id: null,
+    change: `อนุมัติเผยแพร่โดย ${approvedBy}`,
+  });
+  return schedule;
+}
+
+function cancelPublish(project) {
+  const schedule = requireSchedule(project);
+  if (schedule.status === 'PUBLISHED') throw httpError(409, 'published content cannot be cancelled');
+  schedule.status = 'CANCELLED';
+  schedule.cancelled_at = nowIso();
+  project.updated_at = nowIso();
+  project.edit_log.push({ at: project.updated_at, track: null, scene_id: null, change: 'ยกเลิกกำหนดการเผยแพร่' });
+  return schedule;
+}
+
+/**
+ * Fallback queue.
+ *
+ * There is no background worker in this app, so the rule is applied lazily on
+ * every state read: a schedule whose time has passed without a human approval
+ * becomes QUEUED instead of silently disappearing. Queued items keep their slot
+ * and can still be approved and published later.
+ */
+function sweepPublishQueues(state) {
+  if (!state || !state.contents) return [];
+  const now = Date.now();
+  const moved = [];
+  for (const project of Object.values(state.contents)) {
+    const schedule = project && project.publish_schedule;
+    if (!schedule || schedule.status !== 'SCHEDULED') continue;
+    const due = Date.parse(schedule.scheduled_at);
+    if (Number.isNaN(due) || due > now) continue;
+    if (schedule.approved) continue;
+    schedule.status = 'QUEUED';
+    schedule.fallback = { at: nowIso(), reason: 'MISSED_APPROVAL', scheduled_at: schedule.scheduled_at };
+    project.updated_at = nowIso();
+    project.edit_log.push({
+      at: project.updated_at,
+      track: null,
+      scene_id: null,
+      change: 'เลยกำหนดเผยแพร่โดยยังไม่ได้รับอนุมัติ → เข้า Publish Queue',
+    });
+    moved.push(project.content_id);
+  }
+  return moved;
+}
+
+function markPublished(project, payload = {}) {
+  const schedule = requireSchedule(project);
+  if (schedule.status === 'PUBLISHED') throw httpError(409, 'this content is already published');
+  if (schedule.status === 'CANCELLED') throw httpError(409, 'this schedule was cancelled');
+  const alreadyQueued = schedule.status === 'QUEUED';
+  schedule.status = 'PUBLISHED';
+  schedule.published_at = nowIso();
+  schedule.published_by = String(payload.published_by || schedule.approved_by || 'Owner').trim();
+  schedule.simulated = payload.simulated !== false;
+  schedule.published_via_queue = alreadyQueued;
+  project.updated_at = nowIso();
+  project.edit_log.push({
+    at: project.updated_at,
+    track: null,
+    scene_id: null,
+    change: `เผยแพร่ ${schedule.channel} โดย ${schedule.published_by}${schedule.simulated ? ' (จำลอง)' : ''}`,
+  });
+  return schedule;
+}
+
+/** Writes publication facts back onto the Content Library entry. */
+async function updateLibraryPublication(id, patch) {
+  const libraryPath = contentLibraryFile();
+  const library = await readContentLibrary();
+  const index = library.items.findIndex((item) => item && item.id === id);
+  if (index < 0) throw httpError(409, `the Content Library holds no entry for ${id} — export it first`);
+  const entry = library.items[index];
+  entry.publication = { ...(entry.publication || {}), ...patch };
+  await fsp.writeFile(libraryPath, `${JSON.stringify({ items: library.items }, null, 2)}
+`, 'utf8');
+  return entry;
+}
+
 module.exports = {
   STATUSES,
   TRACKS,
@@ -2014,12 +2428,25 @@ module.exports = {
   finalizeProject,
   addAsset,
   addAudioAsset,
+  synthesizeVoiceover,
   removeAsset,
   refreshAudioStatus,
+  REVISION_TARGETS,
+  reviseContent,
+  renderRevisionClip,
+  PUBLISH_CHANNELS,
+  PUBLISH_STATUSES,
+  setPublishSchedule,
+  approvePublish,
+  cancelPublish,
+  sweepPublishQueues,
+  markPublished,
+  publishScheduleOf,
   exportProject,
   exportKindOf,
   contentLibraryFile,
   readContentLibrary,
   getLibraryItem,
+  updateLibraryPublication,
   assertTransition,
 };

@@ -241,6 +241,15 @@ async function generateScriptDraft(options = {}) {
     return fail('invalid_configuration', { model });
   }
 
+  // A caller may bring its own system prompt (the research module asks for a
+  // JSON shortlist instead of a script). It is length-bounded like the prompt
+  // and never assembled from response data.
+  const systemPrompt = typeof options.systemPrompt === 'string'
+    && options.systemPrompt.trim() !== ''
+    && options.systemPrompt.length <= MAX_PROMPT_CHARS
+    ? options.systemPrompt
+    : SYSTEM_PROMPT;
+
   const reasoningDisabled = options.disableReasoning !== false;
 
   const { present, key } = readApiKey(env);
@@ -272,7 +281,7 @@ async function generateScriptDraft(options = {}) {
   const body = {
     model,
     messages: [
-      { role: 'system', content: SYSTEM_PROMPT },
+      { role: 'system', content: systemPrompt },
       { role: 'user', content: options.prompt },
     ],
     max_tokens: maxOutputTokens,
