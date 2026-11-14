@@ -261,8 +261,20 @@ async function e2e() {
 
     // 2) Real workflow to FINALIZED, then the real export path.
     await step('run Thai QA', await httpCall(base, 'POST', `/api/mvp/content/${prospect.contentId}/qa`));
-    await step('review', await httpCall(base, 'POST', `/api/mvp/content/${prospect.contentId}/review`));
-    await step('finalize', await httpCall(base, 'POST', `/api/mvp/content/${prospect.contentId}/finalize`));
+    const reviewed = await step('review', await httpCall(base, 'POST', `/api/mvp/content/${prospect.contentId}/review`));
+    // The finalize interlock: the Thai draft must be confirmed against its checksum.
+    const unreviewed = await httpCall(base, 'POST', `/api/mvp/content/${prospect.contentId}/finalize`);
+    check('finalize without a draft review rejected (409 draft_review_required)',
+      unreviewed.status === 409
+      && unreviewed.body.details && unreviewed.body.details.code === 'draft_review_required',
+      `status ${unreviewed.status} code ${unreviewed.body.details && unreviewed.body.details.code}`);
+    await step('finalize', await httpCall(base, 'POST', `/api/mvp/content/${prospect.contentId}/finalize`, {
+      draft_review: {
+        confirmed: true,
+        reviewed_by: 'verification',
+        script_checksum: reviewed.project.script.checksum,
+      },
+    }));
     const exported = await step('export', await httpCall(base, 'POST', `/api/mvp/content/${prospect.contentId}/export`));
     contentId = prospect.contentId;
     const exp = exported.export;
