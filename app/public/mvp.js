@@ -425,6 +425,7 @@ function attachEventListeners() {
   // --- Settings (AI Agent) + AI shortlist panel + "+ ข้อเสนอใหม่" menu ---
   bindSettingsPanel();
   bindNewOfferMenu();
+  bindRightNav();
   var batchBtn = document.getElementById('batch-drafts');
   if (batchBtn) batchBtn.addEventListener('click', generateBatchPostKits);
   var trackBtn = document.getElementById('tracking-csv');
@@ -461,51 +462,373 @@ const POOL_STORAGE_KEY = 'ace.research-pool.v1';
 let poolSaveTimer = null;
 let poolSaveWarned = false;
 
+// ----- Workspace profiles: isolate work per product line (ACE → 8Creator) -----
+// Each profile owns its own data bucket (pool/library/queue/sources + schedule).
+// Actors and Settings stay shared on purpose (connector reuse across profiles).
+
+const PROFILE_STORAGE_KEY = 'ace.profile.v1';
+let workspaceProfiles = [];
+let activeProfileId = null;
+
+function poolKeyFor(profileId) { return POOL_STORAGE_KEY + ':' + profileId; }
+function scheduleKeyFor(profileId) { return RECURRING_KEY + ':' + profileId; }
+
+function loadProfileState() {
+  let data = null;
+  try {
+    const raw = localStorage.getItem(PROFILE_STORAGE_KEY);
+    data = raw ? JSON.parse(raw) : null;
+  } catch (error) {
+    data = null;
+  }
+  if (data && Array.isArray(data.profiles)) {
+    workspaceProfiles = data.profiles.filter(function(p) { return p && p.id && p.name; });
+    if (workspaceProfiles.length) {
+      activeProfileId = workspaceProfiles.some(function(p) { return p.id === data.activeId; })
+        ? data.activeId
+        : workspaceProfiles[0].id;
+      let modeChanged = false;
+      workspaceProfiles.forEach(function(p) { if (!p.mode) { p.mode = 'easy'; modeChanged = true; } });
+      if (modeChanged) saveProfileState();
+      return;
+    }
+  }
+  // First run: one default profile owns everything that exists today.
+  const def = { id: 'profile-' + Date.now().toString(36), name: 'Shopee Affiliate', createdAt: new Date().toISOString(), mode: 'easy' };
+  workspaceProfiles = [def];
+  activeProfileId = def.id;
+  // Migrate: copy the legacy single-bucket data to this profile's bucket.
+  // Legacy keys stay untouched as backups.
+  try {
+    const legacyPool = localStorage.getItem(POOL_STORAGE_KEY);
+    if (legacyPool && !localStorage.getItem(poolKeyFor(def.id))) localStorage.setItem(poolKeyFor(def.id), legacyPool);
+    const legacySchedule = localStorage.getItem(RECURRING_KEY);
+    if (legacySchedule && !localStorage.getItem(scheduleKeyFor(def.id))) localStorage.setItem(scheduleKeyFor(def.id), legacySchedule);
+  } catch (error) { /* storage full — buckets just start empty */ }
+  saveProfileState();
+}
+
+function saveProfileState() {
+  try {
+    localStorage.setItem(PROFILE_STORAGE_KEY, JSON.stringify({ profiles: workspaceProfiles, activeId: activeProfileId }));
+  } catch (error) {
+    showToast('บันทึกโปรไฟล์ไม่สำเร็จ (พื้นที่เต็ม?)', 'warning');
+  }
+}
+
+function activeProfile() {
+  return workspaceProfiles.find(function(p) { return p.id === activeProfileId; }) || workspaceProfiles[0] || null;
+}
+
+function writePoolStateNow() {
+  try {
+    localStorage.setItem(poolKeyFor(activeProfileId), JSON.stringify({
+      saved_at: new Date().toISOString(),
+      pool: candidatePool,
+      library: contentLibrary,
+      queue: publishQueue,
+      sources: sourceItems,
+    }));
+  } catch (error) {
+    if (!poolSaveWarned) {
+      poolSaveWarned = true;
+      showToast('บันทึกลง localStorage ไม่สำเร็จ (พื้นที่เต็ม?) — ข้อมูลอาจหายเมื่อ refresh', 'warning');
+    }
+  }
+}
+
+function flushPoolStateForSwitch() {
+  if (poolSaveTimer) {
+    window.clearTimeout(poolSaveTimer);
+    poolSaveTimer = null;
+  }
+  writePoolStateNow();
+}
+
+function profileCounts() {
+  const counts = {};
+  workspaceProfiles.forEach(function(p) { counts[p.id] = 0; });
+  try {
+    workspaceProfiles.forEach(function(p) {
+      let n = 0;
+      const poolRaw = localStorage.getItem(poolKeyFor(p.id));
+      if (poolRaw) {
+        const d = JSON.parse(poolRaw);
+        if (d && typeof d === 'object') {
+          ['pool', 'library', 'queue', 'sources'].forEach(function(k) {
+            if (Array.isArray(d[k])) n += d[k].length;
+          });
+        }
+      }
+      const sRaw = localStorage.getItem(scheduleKeyFor(p.id));
+      if (sRaw) {
+        const s = JSON.parse(sRaw);
+        if (Array.isArray(s)) n += s.length;
+      }
+      counts[p.id] = n;
+    });
+  } catch (error) { /* keep zeros on parse errors */ }
+  return counts;
+}
+
+function updateProfileUi() {
+  const profile = activeProfile();
+  const name = profile ? profile.name : '';
+  const pillName = document.getElementById('profile-switch-name');
+  if (pillName) pillName.textContent = name;
+  const cardName = document.getElementById('profile-name');
+  if (cardName) cardName.textContent = name;
+  const pill = document.getElementById('profile-switch');
+  if (pill) pill.setAttribute('aria-expanded', 'false');
+  const menu = document.getElementById('profile-menu');
+  if (menu) menu.classList.add('hidden');
+}
+
+function renderProfileMenu() {
+  const menu = document.getElementById('profile-menu');
+  if (!menu) return;
+  writePoolStateNow();
+  const counts = profileCounts();
+  const items = workspaceProfiles.map(function(p) {
+    return '<button type="button" class="profile-menu-item' + (p.id === activeProfileId ? ' is-active' : '') +
+      '" data-profile-id="' + p.id + '" role="menuitem">' +
+      '<span class="profile-menu-name">' + escapeHtml(p.name) + '</span>' +
+      '<span class="profile-menu-count">' + counts[p.id] + '</span>' +
+      '</button>';
+  }).join('');
+  menu.innerHTML = items +
+    '<div class="profile-menu-new">' +
+    '<input type="text" id="profile-new-name" maxlength="60" placeholder="ชื่อโปรไฟล์ใหม่ เช่น Anfield Insight — YouTube">' +
+    '<button type="button" id="profile-create" class="chip-btn">สร้าง</button>' +
+    '</div>' +
+    '<div class="profile-menu-tools">' +
+    '<button type="button" id="profile-rename" class="btn btn-ghost btn-sm">เปลี่ยนชื่อโปรไฟล์นี้</button>' +
+    '<button type="button" id="profile-delete" class="btn btn-ghost btn-sm">ลบโปรไฟล์นี้</button>' +
+    '</div>' +
+    '<p class="muted small profile-menu-note">Actor และ Settings ใช้ร่วมทุกโปรไฟล์ · ลบได้เฉพาะโปรไฟล์ว่าง</p>';
+  menu.querySelectorAll('.profile-menu-item').forEach(function(btn) {
+    btn.addEventListener('click', function() { switchProfile(btn.dataset.profileId); });
+  });
+  const createBtn = document.getElementById('profile-create');
+  const nameInput = document.getElementById('profile-new-name');
+  if (createBtn && nameInput) {
+    createBtn.addEventListener('click', function() {
+      const name = nameInput.value.trim();
+      if (!name) { showToast('ตั้งชื่อโปรไฟล์ก่อน', 'warning'); nameInput.focus(); return; }
+      if (workspaceProfiles.some(function(p) { return p.name === name; })) { showToast('มีโปรไฟล์ชื่อนี้อยู่แล้ว', 'warning'); return; }
+      const profile = { id: 'profile-' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6), name: name.slice(0, 60), createdAt: new Date().toISOString(), mode: 'easy' };
+      workspaceProfiles.push(profile);
+      saveProfileState();
+      switchProfile(profile.id);
+      showToast('สร้างโปรไฟล์ “' + profile.name + '” แล้ว — เริ่มจากคลังว่าง', 'success');
+    });
+    nameInput.addEventListener('keydown', function(e) { if (e.key === 'Enter') createBtn.click(); });
+  }
+  const renameBtn = document.getElementById('profile-rename');
+  if (renameBtn && nameInput) {
+    renameBtn.addEventListener('click', function() {
+      const profile = activeProfile();
+      if (!profile) return;
+      const value = nameInput.value.trim();
+      if (!value) { showToast('พิมพ์ชื่อใหม่ในช่องด้านบน แล้วกดเปลี่ยนชื่อ', 'warning'); nameInput.focus(); return; }
+      if (workspaceProfiles.some(function(p) { return p.id !== profile.id && p.name === value; })) { showToast('มีโปรไฟล์ชื่อนี้อยู่แล้ว', 'warning'); return; }
+      profile.name = value.slice(0, 60);
+      saveProfileState();
+      renderProfileMenu();
+      updateProfileUi();
+      showToast('เปลี่ยนชื่อโปรไฟล์เป็น “' + profile.name + '” แล้ว', 'success');
+    });
+  }
+  const deleteBtn = document.getElementById('profile-delete');
+  if (deleteBtn) {
+    deleteBtn.addEventListener('click', function() {
+      const profile = activeProfile();
+      if (!profile) return;
+      if (workspaceProfiles.length <= 1) { showToast('ต้องมีอย่างน้อย 1 โปรไฟล์', 'warning'); return; }
+      writePoolStateNow();
+      if ((profileCounts()[profile.id] || 0) > 0) {
+        showToast('โปรไฟล์นี้ยังมีงานอยู่ — ลบได้เฉพาะโปรไฟล์ว่าง', 'warning');
+        return;
+      }
+      if (!window.confirm('ลบโปรไฟล์ “' + profile.name + '”?')) return;
+      try {
+        localStorage.removeItem(poolKeyFor(profile.id));
+        localStorage.removeItem(scheduleKeyFor(profile.id));
+      } catch (error) { /* nothing stored */ }
+      workspaceProfiles = workspaceProfiles.filter(function(p) { return p.id !== profile.id; });
+      activeProfileId = workspaceProfiles[0].id;
+      saveProfileState();
+      loadPoolState();
+      renderAfterProfileChange();
+      showToast('ลบโปรไฟล์แล้ว — สลับไป “' + activeProfile().name + '”', 'info');
+    });
+  }
+}
+
+function switchProfile(id) {
+  if (!workspaceProfiles.some(function(p) { return p.id === id; })) return;
+  if (id === activeProfileId) return;
+  flushPoolStateForSwitch();
+  saveRecurringTasks(loadRecurringTasks());
+  activeProfileId = id;
+  saveProfileState();
+  loadPoolState();
+  applyModeUi(true);
+  renderAfterProfileChange();
+  showToast('สลับไปโปรไฟล์ “' + activeProfile().name + '” แล้ว', 'info');
+}
+
+function renderAfterProfileChange() {
+  selectedCandidateId = null;
+  lastDraft = null;
+  if (dom.contentDraftPanel) dom.contentDraftPanel.classList.add('hidden');
+  const search = document.getElementById('studio-search');
+  if (search) search.value = '';
+  renderCandidatePool();
+  renderContentLibrary();
+  renderDashboard();
+  renderPublishQueue();
+  renderSourceLibrary();
+  renderScheduleTasks();
+  renderProfileMenu();
+  updateProfileUi();
+}
+
+function bindProfileSwitcher() {
+  const pill = document.getElementById('profile-switch');
+  const menu = document.getElementById('profile-menu');
+  if (!pill || !menu || pill.dataset.bound === '1') return;
+  pill.dataset.bound = '1';
+  pill.addEventListener('click', function(e) {
+    e.stopPropagation();
+    const hidden = menu.classList.toggle('hidden');
+    pill.setAttribute('aria-expanded', hidden ? 'false' : 'true');
+    if (!hidden) renderProfileMenu();
+  });
+  document.addEventListener('click', function(e) {
+    if (!menu.classList.contains('hidden') && !menu.contains(e.target) && !pill.contains(e.target)) {
+      menu.classList.add('hidden');
+      pill.setAttribute('aria-expanded', 'false');
+    }
+  });
+}
+
+// ----- Easy / Advance mode (per profile) -----
+
+function currentMode() {
+  const p = activeProfile();
+  return p && p.mode === 'advance' ? 'advance' : 'easy';
+}
+
+function stageKeysForMode(mode) {
+  return mode === 'easy' ? ['research', 'plan', 'storyboard', 'production', 'finalize', 'schedule', 'dashboard'] : STUDIO_STAGES.slice();
+}
+
+function updateModeToggle() {
+  const btn = document.getElementById('mode-toggle');
+  if (!btn) return;
+  const mode = currentMode();
+  btn.textContent = mode === 'easy' ? '⚡ Easy' : '🛠 Advance';
+  btn.classList.toggle('is-advance', mode === 'advance');
+  btn.title = mode === 'easy'
+    ? 'Easy Mode — สายรายได้: เลือกสินค้า → ผลิตเลย → เช็ค/อนุมัติ (กดเพื่อไป Advance)'
+    : 'Advance Mode — ครบทุกขั้นของ Workflow (กดเพื่อกลับ Easy)';
+}
+
+function applyModeUi(skipStageReset) {
+  updateModeToggle();
+  renderStageNav();
+  const keys = stageKeysForMode(currentMode());
+  const current = document.body.dataset.stage;
+  if (skipStageReset) {
+    updateStudioStage(current && keys.indexOf(current) !== -1 ? current : keys[0]);
+    return;
+  }
+  if (keys.indexOf(current) === -1) switchStage(keys[0]);
+  else updateStudioStage(current);
+}
+
+function setMode(mode) {
+  const p = activeProfile();
+  if (!p || p.mode === mode) return;
+  p.mode = mode;
+  saveProfileState();
+  applyModeUi();
+  showToast(mode === 'easy'
+    ? '⚡ Easy Mode — สายรายได้: เลือกสินค้า → ผลิตเลย → เช็ค/อนุมัติ'
+    : '🛠 Advance Mode — ครบทุกขั้น: Plan / Storyboard / Production / Actor', 'info');
+}
+
+async function easyProduce() {
+  const candidate = currentCandidate();
+  if (!candidate) {
+    showToast('กดเลือกการ์ดสินค้าก่อน แล้วกด ⚡ ผลิตเลย', 'warning');
+    return;
+  }
+  const btn = document.getElementById('hero-easy-produce');
+  if (btn) { btn.disabled = true; btn.textContent = '⚡ กำลังผลิต…'; }
+  try {
+    candidate.preset = candidate.preset || 'product-hero';
+    showToast('⚡ ผลิตเลย (1/2): AI เขียนคอนเทนต์…', 'info');
+    await openContentDraft(candidate.id);
+    if (!lastDraft) {
+      showToast('ผลิตไม่สำเร็จ — ตรวจ API Key/Provider ใน Settings แล้วลองใหม่', 'error');
+      return;
+    }
+    showToast('⚡ ผลิตเลย (2/2): เรนเดอร์ MP4 + เสียงพากย์ไทย…', 'info');
+    await renderPreviewClip();
+    const item = contentLibrary.find(function(it) { return it.libraryId === 'lib-' + candidate.id; });
+    const idx = contentLibrary.indexOf(item);
+    showToast('⚡ ผลิตเสร็จ — เปิดจอตรวจ Full Screen ให้เลย', 'success');
+    if (idx >= 0) openQcOverlay(idx);
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = '⚡ ผลิตเลย'; }
+  }
+}
+
 function savePoolState() {
   // Debounced: renders fire often, and stringify can be heavy with images.
   if (poolSaveTimer) return;
   poolSaveTimer = window.setTimeout(function() {
     poolSaveTimer = null;
-    try {
-      localStorage.setItem(POOL_STORAGE_KEY, JSON.stringify({
-        saved_at: new Date().toISOString(),
-        pool: candidatePool,
-        library: contentLibrary,
-        queue: publishQueue,
-        sources: sourceItems,
-      }));
-    } catch (error) {
-      if (!poolSaveWarned) {
-        poolSaveWarned = true;
-        showToast('บันทึกลง localStorage ไม่สำเร็จ (พื้นที่เต็ม?) — ข้อมูลอาจหายเมื่อ refresh', 'warning');
-      }
-    }
+    writePoolStateNow();
   }, 400);
 }
 
 function loadPoolState() {
+  let data = null;
   try {
-    const raw = localStorage.getItem(POOL_STORAGE_KEY);
-    if (!raw) return false;
-    const data = JSON.parse(raw);
-    if (!data || typeof data !== 'object') return false;
+    const raw = localStorage.getItem(poolKeyFor(activeProfileId));
+    data = raw ? JSON.parse(raw) : null;
+  } catch (error) {
+    data = null;
+  }
+  if (data && typeof data === 'object') {
     const pool = Array.isArray(data.pool) ? data.pool.filter(function(c) { return c && c.name; }) : [];
     const library = Array.isArray(data.library) ? data.library : [];
     const queue = Array.isArray(data.queue) ? data.queue : [];
     const sources = Array.isArray(data.sources) ? data.sources : [];
-    if (!pool.length && !library.length && !queue.length && !sources.length) return false;
-    candidatePool = pool;
-    contentLibrary = library;
-    publishQueue = queue;
-    sourceItems = sources;
-    return true;
-  } catch (error) {
-    return false;
+    if (pool.length || library.length || queue.length || sources.length) {
+      candidatePool = pool;
+      contentLibrary = library;
+      publishQueue = queue;
+      sourceItems = sources;
+      return true;
+    }
   }
+  // Empty or missing bucket: this profile starts clean.
+  candidatePool = [];
+  contentLibrary = [];
+  publishQueue = [];
+  sourceItems = [];
+  return false;
 }
 
 function clearPoolState() {
-  try { localStorage.removeItem(POOL_STORAGE_KEY); } catch (error) { /* nothing to clear */ }
+  try {
+    localStorage.removeItem(poolKeyFor(activeProfileId));
+    localStorage.removeItem(scheduleKeyFor(activeProfileId));
+  } catch (error) { /* nothing to clear */ }
 }
 
 function loadFixtures() {
@@ -618,6 +941,14 @@ function bindNewOfferMenu() {
       } else if (mode === 'top1') {
         runAiShortlist({ maxPicks: 1, mode: 'add' });
       }
+    });
+  });
+  menu.querySelectorAll('[data-tool]').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      closeNewOfferMenu();
+      const target = document.getElementById(btn.dataset.tool);
+      if (target) target.click();
+      else showToast('ไม่พบเครื่องมือ: ' + btn.dataset.tool, 'warning');
     });
   });
   const fetchBtn = document.getElementById('new-offer-link-fetch');
@@ -1129,7 +1460,11 @@ function bindSettingsPanel() {
   document.querySelectorAll('[aria-label="ตั้งค่า"]').forEach(function(btn) {
     if (btn.dataset.settingsBound === '1') return;
     btn.dataset.settingsBound = '1';
-    btn.addEventListener('click', openSettingsPanel);
+    btn.addEventListener('click', function() {
+      const overlay = document.getElementById('settings-overlay');
+      if (overlay && !overlay.classList.contains('hidden')) closeSettingsPanel();
+      else openSettingsPanel();
+    });
   });
   const close = document.getElementById('settings-close');
   if (close) close.addEventListener('click', closeSettingsPanel);
@@ -1799,17 +2134,19 @@ async function generateBatchPostKits() {
 }
 
 function buildTrackingCsv() {
-  const header = ['วันที่โพสต์', 'สินค้า', 'แพลตฟอร์ม', 'Sub_id', 'Views', 'Clicks', 'Orders', 'คอมมิชชัน_THB', 'หมายเหตุ'];
+  const header = ['วันที่โพสต์', 'สินค้า', 'แพลตฟอร์ม', 'Sub_id', 'Views', 'Clicks', 'Orders', 'คอมมิชชัน_THB', 'คลิกที่ผิด', 'ลูกค้าใหม่', 'หมายเหตุ'];
   const rows = [header.join(',')];
   candidatePool.slice(0, 10).forEach(function(c) {
     const escaped = function(v) { return '"' + String(v == null ? '' : v).replace(/"/g, '""') + '"'; };
+    const libItem = contentLibrary.find(function(it) { return it.libraryId === 'lib-' + c.id && it.publishRecord; });
     rows.push([
-      '',
+      libItem && libItem.publishRecord && libItem.publishRecord.publishedAt ? new Date(libItem.publishRecord.publishedAt).toISOString().slice(0, 10) : '',
       escaped(c.name),
       escaped((c.channels || ['Shopee Video']).join(' / ')),
-      escaped(''),
+      escaped(libItem && libItem.publishRecord ? [libItem.publishRecord.subId1, libItem.publishRecord.subId2].filter(Boolean).join('/') : ''),
       '', '', '',
       c.commission ? String(c.commission) : '',
+      '', '',
       escaped(c.affiliateLink || ''),
     ].join(','));
   });
@@ -1911,7 +2248,11 @@ async function renderPreviewClip() {
       host.innerHTML = '<video controls autoplay playsinline style="width:100%;max-height:520px;border-radius:12px;background:#000" src="' + data.url + '"></video>' +
         '<p class="muted small"><a href="' + data.url + '" download target="_blank" rel="noopener">ดาวน์โหลด MP4</a> — ตรวจลำดับภาพ/ข้อความ/CTA ก่อนนำไปตัดต่อหรือโพสต์</p>';
     }
-    showToast('สร้างคลิปพรีวิวสำเร็จ — ดูได้ในแผง Content Draft', 'success');
+    var lineageItem = attachRenderToLineage(candidate, data);
+    if (lineageItem) renderContentLibrary();
+    showToast(lineageItem
+      ? 'สร้างคลิปสำเร็จ — ผูกเป็น lineage v' + lineageItem.lineage.version + ' ใน Content Library แล้ว (กด "ตรวจ Full Screen" เพื่อตรวจใหญ่)'
+      : 'สร้างคลิปพรีวิวสำเร็จ — ดูได้ในแผง Content Draft', 'success');
   } catch (error) {
     if (status) status.textContent = 'เชื่อมต่อเซิร์ฟเวอร์ไม่ได้: ' + error.message;
   }
@@ -1942,6 +2283,9 @@ function resultsFromCsv(text) {
     clicks: findCol(['clicks']),
     orders: findCol(['orders']),
     commission: findCol(['คอมมิชชัน_thb', 'คอมมิชชัน', 'commission']),
+    estimated: findCol(['ประมาณ', 'estimated']),
+    invalid: findCol(['คลิกที่ผิด', 'invalid']),
+    newCust: findCol(['ลูกค้าใหม่', 'new_customers', 'new customer']),
     note: findCol(['หมายเหตุ', 'note']),
     postedAt: findCol(['วันที่โพสต์', 'date']),
   };
@@ -1962,6 +2306,9 @@ function resultsFromCsv(text) {
       clicks: Number(pick('clicks')) || 0,
       orders: Number(pick('orders')) || 0,
       commission_thb: Number(String(pick('commission')).replace(/[^0-9.]/g, '')) || 0,
+      commission_estimated_thb: Number(String(pick('estimated')).replace(/[^0-9.]/g, '')) || 0,
+      invalid_clicks: Number(pick('invalid')) || 0,
+      new_customers: Number(pick('newCust')) || 0,
       note: pick('note'),
       posted_at: pick('postedAt'),
     });
@@ -1979,42 +2326,271 @@ function handleResultsCsvFile(file) {
         showToast('อ่านไฟล์ผลลัพธ์ไม่ได้ — ต้องมีหัวคอลัมน์ "สินค้า"', 'error');
         return;
       }
-      let matched = 0;
-      let orders = 0;
-      let commission = 0;
-      rows.forEach(function(row) {
-        const name = row.name.trim();
-        let candidate = candidatePool.find(function(c) { return String(c.name || '').trim() === name; });
-        if (!candidate) {
-          const lower = name.toLowerCase();
-          candidate = candidatePool.find(function(c) {
-            const cn = String(c.name || '').toLowerCase();
-            return cn && (cn.indexOf(lower) !== -1 || lower.indexOf(cn) !== -1);
-          });
-        }
-        if (!candidate) return;
-        candidate.perf = {
-          posted_at: row.posted_at || null,
-          platform: row.platform || null,
-          sub_id: row.sub_id || null,
-          views: row.views,
-          clicks: row.clicks,
-          orders: row.orders,
-          commission_thb: row.commission_thb,
-          note: row.note || null,
-          imported_at: new Date().toISOString(),
-        };
-        matched += 1;
-        orders += row.orders;
-        commission += row.commission_thb;
-      });
+      const result = applyPerfRows(rows, file.name);
       renderCandidatePool();
-      showToast('นำเข้าผลลัพธ์ ' + rows.length + ' แถว — จับคู่ได้ ' + matched + ' สินค้า · Orders รวม ' + orders + ' · ค่าคอม ฿' + commission.toLocaleString('th-TH', { maximumFractionDigits: 2 }), matched ? 'success' : 'warning');
+      renderContentLibrary();
+      renderDashboard();
+      showToast('นำเข้าหลักฐาน ' + rows.length + ' แถว — จับคู่ได้ ' + result.matched + ' (ไม่จับคู่ ' + result.unmatched + ') · Orders ' + result.orders + ' · ค่าคอม ฿' + result.commission.toLocaleString('th-TH', { maximumFractionDigits: 2 }) + (result.invalid ? ' · คลิกที่ผิด ' + result.invalid : ''), result.matched ? 'success' : 'warning');
     } catch (error) {
       showToast('อ่านไฟล์ไม่สำเร็จ: ' + error.message, 'error');
     }
   };
   reader.readAsText(file, 'utf-8');
+}
+
+// Apply verified performance rows to candidates AND library items, with provenance stamps.
+function applyPerfRows(rows, sourceFileName) {
+  const result = { matched: 0, unmatched: 0, orders: 0, commission: 0, invalid: 0, newCustomers: 0 };
+  const importedAt = new Date().toISOString();
+  rows.forEach(function(row) {
+    const name = String(row.name || '').trim();
+    if (!name) return;
+    let candidate = candidatePool.find(function(c) { return String(c.name || '').trim() === name; });
+    if (!candidate) {
+      const lower = name.toLowerCase();
+      candidate = candidatePool.find(function(c) {
+        const cn = String(c.name || '').toLowerCase();
+        return cn && (cn.indexOf(lower) !== -1 || lower.indexOf(cn) !== -1);
+      });
+    }
+    const targets = [];
+    if (candidate) targets.push(candidate);
+    const libItem = contentLibrary.find(function(it) {
+      return (candidate && it.libraryId === 'lib-' + candidate.id) || String(it.name || '').trim() === name;
+    });
+    if (libItem) targets.push(libItem);
+    if (!targets.length) { result.unmatched += 1; return; }
+    targets.forEach(function(t) {
+      const entry = {
+        date: row.posted_at || importedAt.slice(0, 10),
+        platform: row.platform || null,
+        sub_id: row.sub_id || null,
+        views: row.views,
+        clicks: row.clicks,
+        orders: row.orders,
+        commission_thb: row.commission_thb,
+        commission_estimated_thb: row.commission_estimated_thb || 0,
+        invalid_clicks: row.invalid_clicks || 0,
+        new_customers: row.new_customers || 0,
+        note: row.note || null,
+        imported_at: importedAt,
+        source_file: sourceFileName || null,
+      };
+      t.perf = entry;
+      // Revenue history: every dated evidence entry feeds the day/week/month metrics.
+      // Same date+platform+sub_id replaces the old entry (re-import = updated evidence).
+      if (!Array.isArray(t.perfHistory)) t.perfHistory = [];
+      const key = entry.date + '|' + (entry.platform || '') + '|' + (entry.sub_id || '');
+      const idx = t.perfHistory.findIndex(function(h) { return (h.date || '') + '|' + (h.platform || '') + '|' + (h.sub_id || '') === key; });
+      if (idx >= 0) t.perfHistory[idx] = entry; else t.perfHistory.push(entry);
+    });
+    result.matched += 1;
+    result.orders += row.orders || 0;
+    result.commission += row.commission_thb || 0;
+    result.invalid += row.invalid_clicks || 0;
+    result.newCustomers += row.new_customers || 0;
+  });
+  savePoolState();
+  return result;
+}
+
+// ----- Right nav: panel drawers + recurring schedule -----
+
+const RECURRING_KEY = 'ace.publish-schedule.v1';
+
+function loadRecurringTasks() {
+  try {
+    const raw = localStorage.getItem(scheduleKeyFor(activeProfileId));
+    const list = raw ? JSON.parse(raw) : [];
+    return Array.isArray(list) ? list : [];
+  } catch (error) {
+    return [];
+  }
+}
+
+function saveRecurringTasks(list) {
+  try {
+    localStorage.setItem(scheduleKeyFor(activeProfileId), JSON.stringify(list));
+  } catch (error) {
+    showToast('บันทึกกำหนดการไม่ได้ (พื้นที่เต็ม)', 'warning');
+  }
+}
+
+function normalizeScheduleTask(task) {
+  if (task && Array.isArray(task.slots) && task.slots.length) return task;
+  const legacyTime = (task && task.time) || '11:00';
+  return Object.assign({}, task, { slots: [{ time: legacyTime, per: 1 }] });
+}
+
+function nextRunFor(task, fromDate) {
+  const now = fromDate || new Date();
+  const slots = normalizeScheduleTask(task).slots
+    .map(function(s) { return String(s.time || '09:00'); })
+    .sort();
+  for (let offset = 0; offset < 8; offset++) {
+    const dow = new Date(now.getFullYear(), now.getMonth(), now.getDate() + offset).getDay();
+    if (task.days === 'weekdays' && (dow === 0 || dow === 6)) continue;
+    if (task.days === 'weekend' && dow !== 0 && dow !== 6) continue;
+    for (const hm of slots) {
+      const parts = hm.split(':');
+      const d = new Date(now.getFullYear(), now.getMonth(), now.getDate() + offset, Number(parts[0]) || 0, Number(parts[1]) || 0, 0, 0);
+      if (d > now) return d;
+    }
+  }
+  return null;
+}
+
+function readSlotInputs() {
+  const rows = Array.from(document.querySelectorAll('#slot-list .slot-row'));
+  const seen = {};
+  return rows.map(function(row) {
+    const input = row.querySelector('.slot-time');
+    return { time: (input && input.value) || '09:00', per: 1 };
+  }).filter(function(s) {
+    if (!/^\d{2}:\d{2}$/.test(s.time) || seen[s.time]) return false;
+    seen[s.time] = true;
+    return true;
+  }).sort(function(a, b) { return a.time.localeCompare(b.time); });
+}
+
+function renderSlotInputs(slots) {
+  const host = document.getElementById('slot-list');
+  if (!host) return;
+  const list = slots && slots.length ? slots : [{ time: '09:00', per: 1 }];
+  host.innerHTML = list.map(function(s) {
+    return '<div class="slot-row">' +
+      '<input type="time" class="slot-time" value="' + escapeHtml(s.time || '09:00') + '">' +
+      '<span class="muted small">1 คอนเทนต์</span>' +
+      '<button type="button" class="slot-remove" aria-label="ลบรอบเวลานี้" title="ลบรอบเวลานี้">×</button>' +
+      '</div>';
+  }).join('');
+  host.querySelectorAll('.slot-remove').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      if (host.querySelectorAll('.slot-row').length > 1) btn.closest('.slot-row').remove();
+      else showToast('ต้องมีอย่างน้อย 1 รอบเวลา', 'warning');
+    });
+  });
+}
+
+function renderScheduleTasks() {
+  const host = document.getElementById('recurring-list');
+  if (!host) return;
+  const list = loadRecurringTasks().map(normalizeScheduleTask);
+  if (!list.length) {
+    host.innerHTML = '<p class="muted small">ยังไม่มีโปรไฟล์ Schedule — เพิ่มด้านบน</p>';
+    return;
+  }
+  const daysLabel = { daily: 'ทุกวัน', weekdays: 'จันทร์–ศุกร์', weekend: 'เสาร์–อาทิตย์' };
+  host.innerHTML = list.map(function(task, index) {
+    const next = nextRunFor(task);
+    const slotsText = task.slots.map(function(s) { return '@' + s.time; }).join(' · ');
+    return '<div class="recurring-row">' +
+      '<div><b>' + escapeHtml(task.title) + '</b>' +
+      '<div class="muted small">' + escapeHtml(daysLabel[task.days] || task.days) + ' · ' + task.slots.length + ' รอบ/วัน (รอบละ 1 คอนเทนต์)</div>' +
+      '<div class="muted small">' + escapeHtml(slotsText) + '</div>' +
+      (next ? '<div class="muted small">ครั้งถัดไป: ' + escapeHtml(next.toLocaleString('th-TH', { weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })) + '</div>' : '') +
+      '</div>' +
+      '<button type="button" class="btn btn-ghost btn-sm recurring-remove" data-index="' + index + '">ลบ</button>' +
+      '</div>';
+  }).join('');
+  host.querySelectorAll('.recurring-remove').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      const current = loadRecurringTasks();
+      const removed = current.splice(Number(btn.dataset.index), 1)[0];
+      saveRecurringTasks(current);
+      renderScheduleTasks();
+      showToast('ลบโปรไฟล์ “' + ((removed && removed.title) || '') + '” แล้ว', 'info');
+    });
+  });
+}
+
+function addRecurringTask() {
+  const titleEl = document.getElementById('recurring-title');
+  const daysEl = document.getElementById('recurring-days');
+  const title = titleEl ? titleEl.value.trim() : '';
+  if (!title) {
+    showToast('ใส่ชื่อโปรไฟล์ช่องก่อนเพิ่ม Schedule', 'warning');
+    if (titleEl) titleEl.focus();
+    return;
+  }
+  const slots = readSlotInputs();
+  if (!slots.length) {
+    showToast('ตั้งรอบเวลาอย่างน้อย 1 รอบก่อนเพิ่ม Schedule', 'warning');
+    return;
+  }
+  const list = loadRecurringTasks();
+  list.push({
+    title: title.slice(0, 80),
+    slots: slots,
+    days: (daysEl && daysEl.value) || 'daily',
+    created_at: new Date().toISOString(),
+  });
+  saveRecurringTasks(list);
+  if (titleEl) titleEl.value = '';
+  renderSlotInputs(null);
+  renderScheduleTasks();
+  const next = nextRunFor(list[list.length - 1]);
+  showToast('เพิ่มโปรไฟล์ Schedule แล้ว (' + slots.length + ' รอบ/วัน)' + (next ? ' — ครั้งถัดไป ' + next.toLocaleString('th-TH', { weekday: 'short', hour: '2-digit', minute: '2-digit' }) : ''), 'success');
+}
+
+function bindRightNav() {
+  const rail = document.querySelector('.studio-rail');
+  if (!rail || rail.dataset.navBound === '1') return;
+  rail.dataset.navBound = '1';
+  const ids = {
+    'schedule': 'drawer-schedule',
+    'queue': 'drawer-queue',
+    'content-library': 'detail-library',
+    'source-library': 'drawer-source-library',
+  };
+  rail.querySelectorAll('[data-drawer]').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      const targetId = ids[btn.dataset.drawer];
+      const panel = targetId ? document.getElementById(targetId) : null;
+      if (!panel) return;
+      const wasHidden = panel.classList.contains('hidden');
+      Object.keys(ids).forEach(function(key) {
+        const p = document.getElementById(ids[key]);
+        if (p) p.classList.add('hidden');
+      });
+      rail.querySelectorAll('[data-drawer]').forEach(function(b) { b.classList.remove('is-active'); });
+      if (wasHidden) {
+        panel.classList.remove('hidden');
+        btn.classList.add('is-active');
+        if (btn.dataset.drawer === 'schedule') { renderSlotInputs(null); renderScheduleTasks(); }
+        if (btn.dataset.drawer === 'content-library' && typeof renderContentLibrary === 'function') renderContentLibrary();
+        if (btn.dataset.drawer === 'source-library' && typeof renderSourceLibrary === 'function') renderSourceLibrary();
+      }
+    });
+  });
+  rail.querySelectorAll('[data-action="actors"]').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      const overlay = document.getElementById('actor-overlay');
+      if (!overlay) return;
+      if (overlay.classList.contains('hidden')) openActorStudio();
+      else closeActorStudio();
+    });
+  });
+  const addBtn = document.getElementById('recurring-add');
+  if (addBtn) addBtn.addEventListener('click', addRecurringTask);
+  const slotAdd = document.getElementById('slot-add');
+  if (slotAdd) slotAdd.addEventListener('click', function() {
+    const host = document.getElementById('slot-list');
+    if (!host) return;
+    const current = readSlotInputs();
+    if (current.length >= 8) {
+      showToast('สูงสุด 8 รอบต่อวัน', 'warning');
+      return;
+    }
+    current.push({ time: '12:00', per: 1 });
+    current.sort(function(a, b) { return a.time.localeCompare(b.time); });
+    renderSlotInputs(current);
+  });
+  const queuePanel = document.getElementById('drawer-queue');
+  if (queuePanel) queuePanel.classList.remove('hidden');
+  const queueBtn = rail.querySelector('[data-drawer="queue"]');
+  if (queueBtn) queueBtn.classList.add('is-active');
+  renderScheduleTasks();
 }
 
 function copyContentDraft() {
@@ -2078,17 +2654,27 @@ function renderContentLibraryStart() {
     var statusClass = 'status-' + item.status.toLowerCase();
     var qualityClass = 'quality-' + (item.qualityScore || 'medium').toLowerCase();
     var btnDisabled = item.status === 'EXPORTED' ? 'disabled' : '';
+    var hasFile = item.lineage && item.lineage.fileUrl;
+    var qcBtn = hasFile ? `<button class="btn btn-ghost btn-sm qc-row" data-index="${i}" ${btnDisabled}>ตรวจ Full Screen</button>` : '';
 
-    // Determine action buttons based on status
+    // Daily Loop: ร่าง → Active Lineage (ตรวจ Full Screen) → อนุมัติ (freeze ไฟล์) → Publish Queue
     var actionHtml = '';
     if (item.status === 'PENDING') {
       actionHtml = `
-        <button class="btn btn-ghost btn-sm approve-row" data-index="${i}" ${btnDisabled}>อนุมัติ</button>
+        ${qcBtn}
+        <button class="btn btn-primary btn-sm set-active-row" data-index="${i}" ${btnDisabled}>ตั้งเป็น Active Lineage</button>
         <button class="btn btn-ghost btn-sm reject-row" data-index="${i}" ${btnDisabled}>ปฏิเสธ</button>
+      `;
+    } else if (item.status === 'ACTIVE') {
+      actionHtml = `
+        ${qcBtn}
+        <button class="btn btn-primary btn-sm approve-row" data-index="${i}" ${btnDisabled}>อนุมัติ</button>
+        <button class="btn btn-ghost btn-sm request-changes-row" data-index="${i}" ${btnDisabled}>สั่งแก้ไข</button>
       `;
     } else if (item.status === 'APPROVE') {
       actionHtml = `
-        <button class="btn btn-primary btn-sm set-active-row" data-index="${i}" ${btnDisabled}>ตั้งเป็น Active Lineage</button>
+        ${qcBtn}
+        <button class="btn btn-primary btn-sm set-active-row" data-index="${i}" ${btnDisabled}>ส่งเข้า Publish Queue</button>
         <button class="btn btn-ghost btn-sm reject-row" data-index="${i}" ${btnDisabled}>ยกเลิกการอนุมัติ</button>
       `;
     } else if (item.status === 'REJECT') {
@@ -2097,7 +2683,7 @@ function renderContentLibraryStart() {
         <button class="btn btn-ghost btn-sm" data-index="${i}" ${btnDisabled}>ลบรายการ</button>
       `;
     } else if (item.status === 'EXPORTED') {
-      actionHtml = '<span class="muted">Exporting</span>';
+      actionHtml = qcBtn + '<span class="muted">เผยแพร่แล้ว</span>';
     }
 
     return `
@@ -2106,6 +2692,7 @@ function renderContentLibraryStart() {
         <td>${item.libraryId || '--'}</td>
         <td>
           <div class="ellipsis" title="${item.name || ''}">${item.name || '--'}</div>
+          ${item.lineage ? `<div class="muted small lineage-line">v${item.lineage.version || 1}${item.lineage.renderedAt ? ' · ' + new Date(item.lineage.renderedAt).toLocaleDateString('th-TH') : ''} · ${Math.round((item.lineage.bytes || 0) / 1024)} KB${item.lineage.sha256 ? ' · ' + String(item.lineage.sha256).slice(0, 8) + '…' : ''}</div>` : ''}
         </td>
         <td>${item.platform || '--'}</td>
         <td><span class="status-badge ${statusClass}">${item.status}</span></td>
@@ -2532,7 +3119,7 @@ function itemStatusMatches(index, filterStatus) {
   if (!filterStatus) return true;
   if (filterStatus === '') return true;
   if (filterStatus === 'DRAFT') return item.status === 'PENDING' || item.status === 'APPROVE';
-  if (filterStatus === 'REVIEW') return item.status === 'PENDING' || item.status === 'REJECT';
+  if (filterStatus === 'REVIEW') return item.status === 'PENDING' || item.status === 'ACTIVE' || item.status === 'REJECT';
   if (filterStatus === 'FINALIZED') return item.status === 'APPROVE' || item.status === 'EXPORTED';
   if (filterStatus === 'EXPORTED') return item.status === 'EXPORTED';
   return item.status === filterStatus;
@@ -2557,11 +3144,164 @@ function renderPublishQueue() {
 
 // ----- Dashboard -----
 
+function itemPerfHistory(holder) {
+  if (!holder) return [];
+  if (Array.isArray(holder.perfHistory) && holder.perfHistory.length) return holder.perfHistory;
+  return holder.perf ? [holder.perf] : [];
+}
+
+function collectPerfEntries() {
+  const entries = [];
+  const pushFrom = function(name, holder) {
+    itemPerfHistory(holder).forEach(function(h) {
+      const date = h.date || (h.imported_at || '').slice(0, 10);
+      if (!date) return;
+      entries.push({ name: name, platform: h.platform || holder.platform || 'ไม่ระบุ', date: date, commission: h.commission_thb || 0 });
+    });
+  };
+  contentLibrary.forEach(function(item) { pushFrom(item.name, item); });
+  candidatePool.forEach(function(c) {
+    const hasLib = contentLibrary.some(function(it) { return it.libraryId === 'lib-' + c.id && (it.perfHistory || it.perf); });
+    if (!hasLib) pushFrom(c.name, c);
+  });
+  return entries;
+}
+
+function computeRevenueWindows(entries) {
+  const now = new Date();
+  const fmt = function(d) { return d.toISOString().slice(0, 10); };
+  const starts = { day: fmt(now), week: fmt(new Date(now.getTime() - 6 * 86400000)), month: fmt(new Date(now.getTime() - 29 * 86400000)) };
+  const win = { day: { revenue: 0, contents: {}, channels: {} }, week: { revenue: 0, contents: {}, channels: {} }, month: { revenue: 0, contents: {}, channels: {} } };
+  entries.forEach(function(e) {
+    ['day', 'week', 'month'].forEach(function(k) {
+      if (e.date < starts[k]) return;
+      const w = win[k];
+      w.revenue += e.commission;
+      w.contents[e.name] = true;
+      w.channels[e.platform] = (w.channels[e.platform] || 0) + e.commission;
+    });
+  });
+  ['day', 'week', 'month'].forEach(function(k) {
+    const w = win[k];
+    w.contentCount = Object.keys(w.contents).length;
+    w.channelCount = Object.keys(w.channels).length;
+    w.avgPerContent = w.contentCount ? w.revenue / w.contentCount : 0;
+    w.avgPerChannel = w.channelCount ? w.revenue / w.channelCount : 0;
+  });
+  return win;
+}
+
+function renderRevenueWindows(entries) {
+  const win = computeRevenueWindows(entries);
+  const titles = { day: 'วันนี้', week: '7 วันล่าสุด', month: '30 วันล่าสุด' };
+  const thb = function(v) { return '฿' + v.toLocaleString('th-TH', { maximumFractionDigits: 2 }); };
+  ['day', 'week', 'month'].forEach(function(k) {
+    const w = win[k];
+    const host = document.getElementById('rev-' + k);
+    if (!host) return;
+    host.innerHTML = '<div class="rev-window-title">' + titles[k] + '</div>' +
+      '<div class="rev-big">' + thb(w.revenue) + '</div>' +
+      '<div class="rev-line">เฉลี่ย / 1 คอนเทนต์: ' + thb(w.avgPerContent) + ' (' + w.contentCount + ' ชิ้น)</div>' +
+      '<div class="rev-line">เฉลี่ย / ช่องทาง: ' + thb(w.avgPerChannel) + ' (' + w.channelCount + ' ช่องทาง)</div>';
+  });
+  const table = document.getElementById('channel-rev-tbody');
+  if (table) {
+    const channels = {};
+    ['day', 'week', 'month'].forEach(function(k) { Object.keys(win[k].channels).forEach(function(c) { channels[c] = true; }); });
+    const names = Object.keys(channels).sort();
+    table.innerHTML = names.length
+      ? names.map(function(c) {
+          return '<tr><td>' + escapeHtml(c) + '</td>' +
+            '<td class="perf-num">' + thb(win.day.channels[c] || 0) + '</td>' +
+            '<td class="perf-num">' + thb(win.week.channels[c] || 0) + '</td>' +
+            '<td class="perf-num">' + thb(win.month.channels[c] || 0) + '</td></tr>';
+        }).join('')
+      : '<tr><td colspan="4" class="muted">ยังไม่มีรายได้ตามช่องทาง — นำเข้าหลักฐานหลายวันเพื่อดูแนวโน้ม</td></tr>';
+  }
+}
+
 function renderDashboard() {
-  if (dom.totalSales) dom.totalSales.textContent = dashboardData.totalSales.toLocaleString('th-TH');
-  if (dom.totalClicks) dom.totalClicks.textContent = dashboardData.totalClicks.toLocaleString('th-TH');
-  if (dom.totalCommission) dom.totalCommission.textContent = dashboardData.totalCommission.toLocaleString('th-TH') + ' THB';
+  const rows = collectPerfRows();
+  const entries = collectPerfEntries();
+  const stats = rows.reduce(function(acc, r) {
+    acc.clicks += r.perf.clicks || 0;
+    acc.orders += r.perf.orders || 0;
+    acc.commission += r.perf.commission_thb || 0;
+    acc.estimated += r.perf.commission_estimated_thb || 0;
+    acc.invalid += r.perf.invalid_clicks || 0;
+    acc.newCustomers += r.perf.new_customers || 0;
+    return acc;
+  }, { clicks: 0, orders: 0, commission: 0, estimated: 0, invalid: 0, newCustomers: 0 });
+  dashboardData.totalSales = stats.orders;
+  dashboardData.totalClicks = stats.clicks;
+  dashboardData.totalCommission = stats.commission;
+  const setNum = function(id, v, suffix) {
+    const el = document.getElementById(id);
+    if (el) el.textContent = v.toLocaleString('th-TH') + (suffix || '');
+  };
+  setNum('total-clicks', stats.clicks);
+  setNum('total-orders', stats.orders);
+  setNum('total-commission', stats.commission, ' THB');
+  setNum('est-commission', stats.estimated, ' THB');
+  setNum('invalid-clicks', stats.invalid);
+  setNum('new-customers', stats.newCustomers);
+  const tbody = document.getElementById('content-perf-tbody');
+  if (tbody) {
+    if (!rows.length) {
+      tbody.innerHTML = '<tr><td colspan="10" class="muted">ยังไม่มีหลักฐานนำเข้า — โพสต์คลิปแล้วกรอกไฟล์ติดตามผลจากรายงาน Shopee แล้วนำเข้าที่นี่</td></tr>';
+    } else {
+      tbody.innerHTML = rows.map(function(r) {
+        const p = r.perf;
+        return '<tr>' +
+          '<td>' + escapeHtml(r.name || '') + '</td>' +
+          '<td>' + escapeHtml(p.platform || '—') + '</td>' +
+          '<td class="perf-num">' + escapeHtml(p.sub_id || '—') + '</td>' +
+          '<td class="perf-num">' + (p.views || 0).toLocaleString('th-TH') + '</td>' +
+          '<td class="perf-num">' + (p.clicks || 0).toLocaleString('th-TH') + '</td>' +
+          '<td class="perf-num">' + (p.orders || 0).toLocaleString('th-TH') + '</td>' +
+          '<td class="perf-num">฿' + (p.commission_thb || 0).toLocaleString('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + '</td>' +
+          '<td class="perf-num">฿' + (r.revenueTotal || 0).toLocaleString('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + '</td>' +
+          '<td>' + (r.version ? 'v' + r.version : '—') + '</td>' +
+          '<td class="perf-evidence">' + escapeHtml(p.imported_at ? new Date(p.imported_at).toLocaleString('th-TH', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) + (p.source_file ? ' · ' + p.source_file : '') : '—') + '</td>' +
+          '</tr>';
+      }).join('');
+    }
+  }
+  const top5 = document.getElementById('dashboard-top5');
+  if (top5) {
+    const ranked = rows.slice().sort(function(a, b) { return (b.revenueTotal || 0) - (a.revenueTotal || 0); }).slice(0, 5);
+    top5.innerHTML = ranked.length
+      ? ranked.map(function(r, i) {
+          return '<div class="top5-row"><span class="top5-rank">' + (i + 1) + '</span>' +
+            '<span class="top5-name">' + escapeHtml(r.name || '') + '</span>' +
+            '<span class="top5-value">฿' + (r.revenueTotal || 0).toLocaleString('th-TH', { maximumFractionDigits: 2 }) + '</span></div>';
+        }).join('')
+      : '<p class="muted small">ยังไม่มีข้อมูลนำเข้า</p>';
+  }
+  renderRevenueWindows(entries);
   drawTrendChart();
+}
+
+// Per-content rows for the evidence table: latest perf + revenue total from history.
+function collectPerfRows() {
+  const rows = [];
+  contentLibrary.forEach(function(item) {
+    if (!item.perf) return;
+    const hist = itemPerfHistory(item);
+    const revenueTotal = hist.reduce(function(s, h) { return s + (h.commission_thb || 0); }, 0);
+    rows.push({ name: item.name, libraryId: item.libraryId, version: item.lineage ? item.lineage.version : null, perf: item.perf, revenueTotal: revenueTotal });
+  });
+  candidatePool.forEach(function(c) {
+    if (!c.perf) return;
+    const libId = 'lib-' + c.id;
+    const hasLib = contentLibrary.some(function(it) { return it.libraryId === libId && (it.perfHistory || it.perf); });
+    if (!hasLib) {
+      const hist = itemPerfHistory(c);
+      const revenueTotal = hist.reduce(function(s, h) { return s + (h.commission_thb || 0); }, 0);
+      rows.push({ name: c.name, libraryId: null, version: null, perf: c.perf, revenueTotal: revenueTotal });
+    }
+  });
+  return rows;
 }
 
 function drawTrendChart() {
@@ -2602,11 +3342,8 @@ function drawTrendChart() {
 }
 
 function refreshDashboard() {
-  dashboardData.totalSales = candidatePool.reduce(function(sum, c) { return sum + (c.estimatedSale || 0); }, 0);
-  dashboardData.totalClicks = candidatePool.reduce(function(sum, c) { return sum + (c.clicks || 0); }, 0);
-  dashboardData.totalCommission = candidatePool.reduce(function(sum, c) { return sum + (c.commission || 0); }, 0);
   renderDashboard();
-  showToast('รีเฟรช Dashboard เรียบร้อย', 'info');
+  showToast('รีเฟรช Dashboard จากหลักฐานนำเข้าเรียบร้อย', 'info');
 }
 
 function importCSVHandler() {
@@ -2664,7 +3401,7 @@ const STAGE_SECTIONS = [
   'detail-quickstart',
   'detail-library',
   'detail-schedule',
-  'research-layout',
+
   'snap-workflow',
   'actor-studio',
   'content-library',
@@ -2707,7 +3444,7 @@ const stageMap = {
     activate: function() {
       hideAllSections();
       // quick start + market research panel (holds the add-source buttons) + Source Library
-      showSections(['detail-quickstart', 'candidate-hero', 'affiliate-panel', 'detail-content-tabs', 'research-layout'], true);
+      showSections(['detail-quickstart', 'candidate-hero', 'affiliate-panel', 'detail-content-tabs'], true);
       renderSourceLibrary();
       showToast('เข้าสู่โหมด Research — สร้าง Candidate Pool ใหม่', 'info');
     }
@@ -2801,14 +3538,13 @@ function initStage() {
 }
 
 function attachLibraryHandlers() {
-  // Approve row
+  // Approve row (ACTIVE → APPROVE, freeze the reviewed file)
   document.querySelectorAll('.approve-row').forEach(function(btn) {
     btn.addEventListener('click', function() {
       var index = parseInt(this.dataset.index, 10);
       if (index >= 0 && index < contentLibrary.length) {
-        contentLibrary[index].status = 'APPROVE';
+        approveLineage(contentLibrary[index]);
         renderContentLibrary();
-        showToast('อนุมัติรายการสำเร็จ', 'success');
       }
     });
   });
@@ -2825,37 +3561,79 @@ function attachLibraryHandlers() {
     });
   });
 
-  // Set as Active Lineage
+  // Set as Active Lineage (PENDING → ACTIVE) / Send to Publish Queue (APPROVE → EXPORTED)
   document.querySelectorAll('.set-active-row').forEach(function(btn) {
     btn.addEventListener('click', function() {
       var index = parseInt(this.dataset.index, 10);
       if (index >= 0 && index < contentLibrary.length) {
-        // Check if item is APPROVE status
-        if (contentLibrary[index].status !== 'APPROVE') {
-          showToast('รายการต้องผ่านการอนุมัติ (อนุมัติ) ก่อนจึงจะส่งไป Publish Queue ได้', 'warning');
+        var item = contentLibrary[index];
+        if (item.status === 'PENDING') {
+          item.status = 'ACTIVE';
+          if (!item.lineage) item.lineage = { version: 0, history: [] };
+          item.lineage.status = 'ACTIVE';
+          pushLineageEvent(item, 'ตั้งเป็น Active Lineage — ตรวจละเอียดผ่านจอ QC ได้จากแถวนี้');
+          savePoolState();
+          renderContentLibrary();
+          showToast('ตั้งเป็น Active Lineage แล้ว — กด "ตรวจ Full Screen" เพื่อตรวจละเอียด', 'success');
           return;
         }
-        
-        // Call the new setActiveLineage function which has mandatory notes prompt
-        // We need to trigger it manually since it's a standalone function
-        var selected = [contentLibrary[index]];
-        
-        // Prompt for notes before exporting (MANDATORY - no auto-publish)
+        if (item.status !== 'APPROVE') {
+          showToast('รายการต้องอนุมัติก่อนจึงจะส่งเข้า Publish Queue ได้', 'warning');
+          return;
+        }
+        // Sub_id scheme (owner): 1 = ช่องทาง, 2 = ชื่อคอนเทนต์ — บันทึกไว้เชื่อมผลจริงจากรายงาน Shopee
+        var subId1 = prompt('Sub_id 1 — ช่องทาง (เช่น youtube / tiktok / shopee-video):', (item.publishRecord && item.publishRecord.subId1) || '');
+        if (subId1 === null) { showToast('การส่งออกถูกยกเลิก', 'info'); return; }
+        var subId2 = prompt('Sub_id 2 — ชื่อคอนเทนต์ (เช่น anfield-1115):', (item.publishRecord && item.publishRecord.subId2) || (item.name || '').slice(0, 30));
+        if (subId2 === null) { showToast('การส่งออกถูกยกเลิก', 'info'); return; }
+        // Mandatory notes before publishing (no auto-publish)
         var notes = prompt('กรุณาใส่หมายเหตุสำหรับการส่งออก (จำเป็น):', '');
         if (notes === null) {
-          // User cancelled - do not proceed with publishing
           showToast('การส่งออกถูกยกเลิก', 'info');
           return;
         }
-        
-        // Add notes to the item and send to publish queue
-        contentLibrary[index].status = 'EXPORTED';
-        contentLibrary[index].exportNotes = notes;
-        publishQueue.push(contentLibrary[index]);
+        item.status = 'EXPORTED';
+        item.exportNotes = notes;
+        item.publishRecord = {
+          subId1: subId1.trim(),
+          subId2: subId2.trim(),
+          notes: notes,
+          publishedAt: new Date().toISOString(),
+          approvedSha256: item.lineage ? (item.lineage.approvedSha256 || null) : null,
+          version: item.lineage ? (item.lineage.version || null) : null,
+        };
+        if (item.lineage) {
+          item.lineage.status = 'PUBLISHED';
+          item.lineage.publishedAt = item.publishRecord.publishedAt;
+          pushLineageEvent(item, 'เข้า Publish Queue (เผยแพร่ด้วยไฟล์อนุมัติ v' + (item.lineage.version || 1) + ')', { notes: notes, subId: [subId1, subId2].filter(Boolean).join(' / ') });
+        }
+        publishQueue.push(item);
         renderContentLibrary();
         renderPublishQueue();
-        showToast('ส่ง 1 รายการไป Publish Queue เรียบร้อย (หมายเหตุ: ' + notes + ')', 'success');
+        showToast('ส่ง 1 รายการไป Publish Queue เรียบร้อย (Sub_id: ' + [subId1, subId2].filter(Boolean).join(' / ') + ')', 'success');
       }
+    });
+  });
+
+  // Request changes (ACTIVE → PENDING with note)
+  document.querySelectorAll('.request-changes-row').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      var index = parseInt(this.dataset.index, 10);
+      if (index >= 0 && index < contentLibrary.length) {
+        var item = contentLibrary[index];
+        var note = prompt('โน้ตสั่งแก้ไข (บอกจุดที่ต้องแก้):', (item.lineage && item.lineage.editNote) || '');
+        if (note === null) return;
+        requestLineageChanges(item, note || '');
+        renderContentLibrary();
+      }
+    });
+  });
+
+  // QC Full Screen
+  document.querySelectorAll('.qc-row').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      var index = parseInt(this.dataset.index, 10);
+      if (index >= 0 && index < contentLibrary.length) openQcOverlay(index);
     });
   });
 
@@ -2871,9 +3649,255 @@ function attachLibraryHandlers() {
   });
 }
 
+// ----- Daily Loop: lineage + Full-Screen Quality Check + Mini Loop -----
+
+function ensureLibraryItemForCandidate(candidate) {
+  if (!candidate) return null;
+  var libId = 'lib-' + candidate.id;
+  var item = contentLibrary.find(function(it) { return it.libraryId === libId; });
+  if (!item) {
+    item = Object.assign({}, candidate, {
+      libraryId: libId,
+      status: 'PENDING',
+      qualityScore: candidate.quality || 'medium',
+    });
+    contentLibrary.push(item);
+  }
+  return item;
+}
+
+function pushLineageEvent(item, event, extra) {
+  if (!item.lineage) item.lineage = { version: 0, history: [] };
+  if (!Array.isArray(item.lineage.history)) item.lineage.history = [];
+  item.lineage.history.push(Object.assign({ at: new Date().toISOString(), version: item.lineage.version || 0, event: event }, extra || {}));
+}
+
+function attachRenderToLineage(candidate, data) {
+  var item = ensureLibraryItemForCandidate(candidate);
+  if (!item) return null;
+  if (!item.lineage) item.lineage = { version: 0, history: [] };
+  var wasApproved = item.lineage.status === 'APPROVED';
+  item.lineage.version = (item.lineage.version || 0) + 1;
+  item.lineage.fileUrl = data.url;
+  item.lineage.sha256 = data.sha256 || null;
+  item.lineage.bytes = data.bytes || 0;
+  item.lineage.duration_s = data.duration_s || null;
+  item.lineage.width = data.width || null;
+  item.lineage.height = data.height || null;
+  item.lineage.renderedAt = new Date().toISOString();
+  item.lineage.narrationOk = Boolean(data.narration && data.narration.ok);
+  item.lineage.narrationInfo = data.narration
+    ? (data.narration.ok ? ((data.narration.voice || '') + ' (' + data.narration.lines + '/' + data.narration.total + ' บรรทัด)') : ('ไม่มีเสียง — ' + String(data.narration.error || '').slice(0, 40)))
+    : null;
+  item.lineage.status = 'RENDERED';
+  if (wasApproved || item.status === 'APPROVE') {
+    // A new version invalidates the frozen approval — honest reset.
+    item.status = 'PENDING';
+    pushLineageEvent(item, 'เรนเดอร์ v' + item.lineage.version + ' หลังอนุมัติ — อนุมัติเดิมถูกยกเลิก ต้องตรวจซ้ำ');
+  } else {
+    pushLineageEvent(item, 'เรนเดอร์ v' + item.lineage.version, { sha256: item.lineage.sha256 });
+  }
+  savePoolState();
+  return item;
+}
+
+function approveLineage(item) {
+  if (!item) return;
+  if (!item.lineage || !item.lineage.fileUrl) {
+    item.status = 'APPROVE';
+    savePoolState();
+    showToast('อนุมัติรายการสำเร็จ (ยังไม่มีไฟล์เรนเดอร์ — เผยแพร่ต้องมีไฟล์อนุมัติก่อน)', 'warning');
+    return;
+  }
+  item.status = 'APPROVE';
+  item.lineage.status = 'APPROVED';
+  item.lineage.approvedAt = new Date().toISOString();
+  item.lineage.approvedSha256 = item.lineage.sha256 || null;
+  pushLineageEvent(item, 'อนุมัติ — freeze ไฟล์เวอร์ชันนี้สำหรับเผยแพร่', { sha256: item.lineage.approvedSha256 });
+  savePoolState();
+  showToast('อนุมัติแล้ว — เผยแพร่ด้วยไฟล์ v' + (item.lineage.version || 1) + ' เท่านั้น', 'success');
+}
+
+function requestLineageChanges(item, note) {
+  if (!item) return;
+  item.status = 'PENDING';
+  if (!item.lineage) item.lineage = { version: 0, history: [] };
+  item.lineage.status = 'PENDING';
+  item.lineage.editNote = note;
+  item.lineage.requestedAt = new Date().toISOString();
+  pushLineageEvent(item, 'สั่งแก้ไข', { note: note });
+  savePoolState();
+  showToast('ส่งกลับไปแก้ไขแล้ว — เรนเดอร์ใหม่จะเป็นเวอร์ชันถัดไป', 'info');
+}
+
+let qcCurrentIndex = -1;
+
+function openQcOverlay(index) {
+  var item = contentLibrary[index];
+  if (!item || !item.lineage || !item.lineage.fileUrl) {
+    showToast('รายการนี้ยังไม่มีไฟล์เรนเดอร์ — กด "สร้างคลิปพรีวิว" ในแผง Content Draft ก่อน', 'warning');
+    return;
+  }
+  qcCurrentIndex = index;
+  var overlay = document.getElementById('qc-overlay');
+  var video = document.getElementById('qc-video');
+  if (!overlay || !video) return;
+  video.src = item.lineage.fileUrl;
+  var statusLabel = { PENDING: 'ร่าง', ACTIVE: 'Active Lineage', APPROVE: 'อนุมัติแล้ว (freeze)', REJECT: 'ปฏิเสธ', EXPORTED: 'เผยแพร่แล้ว' }[item.status] || item.status;
+  var sub = document.getElementById('qc-sub');
+  if (sub) sub.textContent = statusLabel + ' · v' + (item.lineage.version || 1) + ' — สิ่งที่เห็นคือสิ่งที่จะเผยแพร่ (ไฟล์เดียวกันทุกไบต์)';
+  renderQcMeta(item);
+  renderQcHistory(item);
+  var approveBtn = document.getElementById('qc-approve');
+  if (approveBtn) approveBtn.disabled = item.status === 'APPROVE' || item.status === 'EXPORTED';
+  var note = document.getElementById('qc-note-input');
+  if (note) note.value = item.lineage.editNote || '';
+  overlay.classList.remove('hidden');
+  document.body.classList.add('qc-open');
+}
+
+function renderQcMeta(item) {
+  var host = document.getElementById('qc-meta');
+  if (!host) return;
+  var ln = item.lineage || {};
+  var rows = [
+    ['รหัสโปรเจกต์', item.libraryId || '--'],
+    ['สถานะ', { PENDING: 'ร่าง', ACTIVE: 'Active Lineage', APPROVE: 'อนุมัติแล้ว', REJECT: 'ปฏิเสธ', EXPORTED: 'เผยแพร่แล้ว' }[item.status] || item.status],
+    ['เวอร์ชัน', 'v' + (ln.version || 1) + (ln.approvedSha256 ? ' (อนุมัติ freeze)' : '')],
+    ['ไฟล์', Math.round((ln.bytes || 0) / 1024) + ' KB · ' + (ln.duration_s || '?') + 's · ' + (ln.width || '?') + '×' + (ln.height || '?')],
+    ['sha256 (เรนเดอร์)', ln.sha256 ? String(ln.sha256).slice(0, 16) + '…' : '—'],
+    ['sha256 (อนุมัติ)', ln.approvedSha256 ? String(ln.approvedSha256).slice(0, 16) + '…' : 'ยังไม่ freeze'],
+    ['เสียงพากย์', ln.narrationOk ? (ln.narrationInfo || 'มี') : (ln.narrationInfo || 'ไม่มี')],
+    ['โน้ตสั่งแก้ล่าสุด', ln.editNote || '—'],
+  ];
+  host.innerHTML = rows.map(function(r) {
+    return '<div class="qc-meta-row"><span>' + escapeHtml(r[0]) + '</span><b>' + escapeHtml(String(r[1])) + '</b></div>';
+  }).join('');
+}
+
+function renderQcHistory(item) {
+  var host = document.getElementById('qc-history');
+  if (!host) return;
+  var history = (item.lineage && item.lineage.history) || [];
+  if (!history.length) {
+    host.innerHTML = '<p class="muted small">ยังไม่มีเหตุการณ์</p>';
+    return;
+  }
+  host.innerHTML = history.slice().reverse().map(function(h) {
+    var when = h.at ? new Date(h.at).toLocaleString('th-TH', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : '';
+    return '<div class="qc-history-row"><span class="qc-history-when">' + escapeHtml(when) + '</span>' +
+      '<span>' + escapeHtml(h.event || '') + (h.note ? ' — “' + escapeHtml(h.note) + '”' : '') + '</span></div>';
+  }).join('');
+}
+
+function closeQcOverlay() {
+  var overlay = document.getElementById('qc-overlay');
+  var video = document.getElementById('qc-video');
+  if (video) { video.pause(); video.removeAttribute('src'); video.load(); }
+  if (overlay) overlay.classList.add('hidden');
+  document.body.classList.remove('qc-open');
+  qcCurrentIndex = -1;
+}
+
+function qcApprove() {
+  var item = contentLibrary[qcCurrentIndex];
+  if (!item) return;
+  approveLineage(item);
+  renderContentLibrary();
+  openQcOverlay(qcCurrentIndex);
+}
+
+function qcRequestChanges() {
+  var item = contentLibrary[qcCurrentIndex];
+  if (!item) return;
+  var note = (document.getElementById('qc-note-input') || {}).value || '';
+  if (!note.trim()) {
+    showToast('ใส่โน้ตบอกจุดที่ต้องแก้ก่อนสั่งแก้ไข', 'warning');
+    return;
+  }
+  requestLineageChanges(item, note.trim());
+  renderContentLibrary();
+  closeQcOverlay();
+}
+
+function qcMiniLoop(stageKey) {
+  var item = contentLibrary[qcCurrentIndex];
+  if (!item) return;
+  var candidate = candidatePool.find(function(c) { return String(c.id) === String(item.id); });
+  if (!candidate) {
+    showToast('Mini Loop ต้องมีต้นฉบับสินค้าใน Pool — ต้นฉบับถูกถอนออกแล้ว', 'warning');
+    return;
+  }
+  if (currentMode() === 'easy') setMode('advance');
+  selectedCandidateId = candidate.id;
+  closeQcOverlay();
+  switchStage(stageKey);
+  showToast('แก้ละเอียดขั้น ' + stageKey.toUpperCase() + ' (Advance) — เรนเดอร์ใหม่แล้วกลับมากด "ตรวจ Full Screen" ใน Content Library', 'info');
+}
+
+function bindQcOverlay() {
+  var overlay = document.getElementById('qc-overlay');
+  if (!overlay || overlay.dataset.bound === '1') return;
+  overlay.dataset.bound = '1';
+  var closeBtn = document.getElementById('qc-close');
+  if (closeBtn) closeBtn.addEventListener('click', closeQcOverlay);
+  overlay.addEventListener('click', function(e) { if (e.target === overlay) closeQcOverlay(); });
+  var approveBtn = document.getElementById('qc-approve');
+  if (approveBtn) approveBtn.addEventListener('click', qcApprove);
+  var changeBtn = document.getElementById('qc-request-changes');
+  if (changeBtn) changeBtn.addEventListener('click', qcRequestChanges);
+  var planBtn = document.getElementById('qc-mini-plan');
+  if (planBtn) planBtn.addEventListener('click', function() { qcMiniLoop('plan'); });
+  var storyboardBtn = document.getElementById('qc-mini-storyboard');
+  if (storyboardBtn) storyboardBtn.addEventListener('click', function() { qcMiniLoop('storyboard'); });
+  var prodBtn = document.getElementById('qc-mini-production');
+  if (prodBtn) prodBtn.addEventListener('click', function() { qcMiniLoop('production'); });
+  document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape' && !overlay.classList.contains('hidden')) closeQcOverlay();
+  });
+}
+
 // ----- Studio shell (UX Behavior Guide) -----
 
 const STUDIO_STAGES = ['research', 'plan', 'storyboard', 'production', 'finalize', 'schedule', 'dashboard', 'report'];
+
+// Stage bar labels live here so a future product line (e.g. Research → Journalist)
+// can remap the shell by editing data only — no markup surgery.
+// key = stage key in STUDIO_STAGES / stage registry; label = text shown in the footer bar.
+const ACE_STAGE_NAV = [
+  { key: 'research', label: 'Research' },
+  { key: 'plan', label: 'Plan' },
+  { key: 'storyboard', label: 'Storyboard' },
+  { key: 'production', label: 'Production' },
+  { key: 'finalize', label: 'Finalize' },
+  { key: 'schedule', label: 'Publish' },
+  { key: 'dashboard', label: 'Monitor' },
+  { key: 'report', label: 'Report' },
+];
+
+function renderStageNav() {
+  const keys = stageKeysForMode(currentMode());
+  const steps = ACE_STAGE_NAV.filter(function(s) { return keys.indexOf(s.key) !== -1; });
+  const currentStage = document.body.dataset.stage && keys.indexOf(document.body.dataset.stage) !== -1 ? document.body.dataset.stage : (steps[0] ? steps[0].key : null);
+  const nav = document.querySelector('.footer-nav');
+  if (nav) {
+    nav.innerHTML = steps.map(function(step, i) {
+      const isActive = step.key === currentStage;
+      return (i > 0 ? '<span class="nav-sep" aria-hidden="true">-</span>' : '') +
+        '<button type="button" class="footer-nav-btn stage-' + step.key + (isActive ? ' active' : '') +
+        '" data-stage="' + step.key + '" aria-pressed="' + (isActive ? 'true' : 'false') +
+        '"><span class="nav-label">' + step.label + '</span></button>';
+    }).join('');
+  }
+  const track = document.getElementById('stage-track');
+  if (track) {
+    const activeIndex = steps.findIndex(function(step) { return step.key === currentStage; });
+    track.innerHTML = steps.map(function(step, i) {
+      return '<span class="' + (i <= activeIndex ? 'is-on' : '') + '"></span>';
+    }).join('');
+  }
+}
+
 let selectedCandidateId = null;
 
 function currentCandidate() {
@@ -3016,7 +4040,8 @@ function selectCandidate(id) {
 }
 
 function updateStudioStage(stageKey) {
-  var index = STUDIO_STAGES.indexOf(stageKey);
+  const order = Array.prototype.map.call(document.querySelectorAll('.footer-nav-btn'), function(b) { return b.dataset.stage; });
+  let index = order.indexOf(stageKey);
   if (index === -1) index = 0;
 
   var track = document.getElementById('stage-track');
@@ -3026,7 +4051,7 @@ function updateStudioStage(stageKey) {
     });
   }
   var counter = document.getElementById('stage-counter');
-  if (counter) counter.textContent = (index + 1) + ' of ' + STUDIO_STAGES.length;
+  if (counter) counter.textContent = (index + 1) + ' of ' + order.length;
 
   document.querySelectorAll('.rail-btn').forEach(function(btn) {
     btn.classList.toggle('is-active', btn.dataset.stage === stageKey);
@@ -3034,13 +4059,14 @@ function updateStudioStage(stageKey) {
 }
 
 function studioGoStage(delta) {
-  var current = 0;
+  const order = Array.prototype.map.call(document.querySelectorAll('.footer-nav-btn'), function(b) { return b.dataset.stage; });
+  let current = 0;
   document.querySelectorAll('.footer-nav-btn').forEach(function(btn) {
-    if (btn.classList.contains('active')) current = STUDIO_STAGES.indexOf(btn.dataset.stage);
+    if (btn.classList.contains('active')) current = order.indexOf(btn.dataset.stage);
   });
   if (current < 0) current = 0;
-  var next = Math.min(STUDIO_STAGES.length - 1, Math.max(0, current + delta));
-  switchStage(STUDIO_STAGES[next]);
+  const next = Math.min(order.length - 1, Math.max(0, current + delta));
+  switchStage(order[next]);
 }
 
 function bindStudioShell() {
@@ -3833,7 +4859,8 @@ function renderActorStudio() {
         const active = Number(actor.id) === Number(actorSelectedId);
         const avatar = actor.image
           ? '<img class="actor-avatar" src="' + actor.image + '" alt="">'
-          : '<span class="actor-avatar actor-avatar-text">' + escapeHtml(actorInitials(actor.name)) + '</span>';
+          : '<span class="actor-avatar actor-avatar-text" title="ยังไม่มีรูปโปรไฟล์ — แก้ไขนักแสดงเพื่ออัปโหลด">' +
+            escapeHtml(actorInitials(actor.name)) + '</span>';
         return '<button type="button" class="actor-row' + (active ? ' is-active' : '') + '" data-actor="' + actor.id + '">' +
           avatar +
           '<span class="actor-row-body"><span class="actor-row-name">' + escapeHtml(actor.name) + '</span>' +
@@ -4761,11 +5788,19 @@ function connectCaptureBridge() {
 function boot() {
   initDomElements();
   attachEventListeners();
+  loadProfileState();
+  applyModeUi(true);
+  bindProfileSwitcher();
+  bindQcOverlay();
+  const easyProduceBtn = document.getElementById('hero-easy-produce');
+  if (easyProduceBtn) easyProduceBtn.addEventListener('click', easyProduce);
+  const modeToggleBtn = document.getElementById('mode-toggle');
+  if (modeToggleBtn) modeToggleBtn.addEventListener('click', function() { setMode(currentMode() === 'easy' ? 'advance' : 'easy'); });
 
-  document.querySelectorAll('.footer-nav-btn').forEach(function(btn) {
-    btn.addEventListener('click', function() {
-      switchStage(btn.dataset.stage);
-    });
+  const footerNav = document.querySelector('.footer-nav');
+  if (footerNav) footerNav.addEventListener('click', function(e) {
+    const btn = e.target.closest('.footer-nav-btn');
+    if (btn) switchStage(btn.dataset.stage);
   });
 
   loadFixtures();
@@ -4780,6 +5815,7 @@ function boot() {
   bindAffiliatePanel();
   renderPublishQueue();
   initStage();
+  updateProfileUi();
 }
 
 if (document.readyState === 'loading') {

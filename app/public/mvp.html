@@ -3487,6 +3487,22 @@ textarea {
   gap: 8px;
 }
 
+.recurring-list {
+  display: grid;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.recurring-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  align-items: center;
+  border: 1px dashed var(--line-soft, rgba(255, 255, 255, 0.16));
+  border-radius: 8px;
+  padding: 6px 8px;
+}
+
 /* ---------- Candidate card: sample image + offer details ---------- */
 
 .candidate-card-image.is-placeholder {
@@ -6756,12 +6772,23 @@ textarea::placeholder {
   <div class="studio-shell">
     <header class="studio-topbar">
       <div class="studio-logo">
-        <span class="studio-logo-mark" aria-hidden="true">🎬</span>
+        <span class="studio-logo-mark" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M20.2 6 3 11l-.9-2.4c-.3-1.1.3-2.2 1.3-2.5l13.5-4c1-.3 2.1.3 2.4 1.4Z"/><path d="m6.2 5.3 3.1 3.9"/><path d="M12.4 3.4l3.1 4"/><path d="M3 11h18v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2Z"/></svg></span>
         <div>
           <p class="studio-logo-title">AFFILIATE</p>
           <p class="studio-logo-sub">Content Engine</p>
         </div>
       </div>
+
+      <div class="profile-switcher">
+        <button type="button" id="profile-switch" class="profile-pill" aria-haspopup="true" aria-expanded="false" aria-label="เลือกโปรไฟล์งาน">
+          <span class="profile-pill-dot" aria-hidden="true"></span>
+          <span id="profile-switch-name">Shopee Affiliate</span>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+        </button>
+        <div id="profile-menu" class="profile-menu hidden" role="menu" aria-label="โปรไฟล์งาน"></div>
+      </div>
+
+      <button type="button" id="mode-toggle" class="mode-pill" aria-label="สลับโหมดการทำงาน">⚡ Easy</button>
 
       <div class="studio-stage-progress">
         <div class="stage-track" id="stage-track" aria-hidden="true">
@@ -6772,15 +6799,15 @@ textarea::placeholder {
 
       <div class="studio-search">
         <input type="search" id="studio-search" placeholder="ค้นหา" aria-label="ค้นหาสินค้า">
-        <span aria-hidden="true">🔍</span>
+        <span aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><circle cx="11" cy="11" r="6.5"/><path d="m20 20-3.8-3.8"/></svg></span>
       </div>
 
       <div class="studio-topbar-actions">
         <button type="button" id="refresh-header" class="icon-pill" aria-label="แจ้งเตือน">
-          🔔<span class="dot" id="queue-count">0</span>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M18 9a6 6 0 1 0-12 0c0 5-2 6-2 6h16s-2-1-2-6"/><path d="M10 19.5a2.2 2.2 0 0 0 4 0"/></svg><span class="dot" id="queue-count">0</span>
         </button>
-        <button type="button" class="icon-pill" aria-label="ธีม">☀️</button>
-        <button type="button" class="icon-pill" aria-label="ตั้งค่า">⚙️</button>
+        <button type="button" class="icon-pill" aria-label="ธีม"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><circle cx="12" cy="12" r="4"/><path d="M12 2.5V5M12 19v2.5M4.9 4.9l1.8 1.8M17.3 17.3l1.8 1.8M2.5 12H5M19 12h2.5M4.9 19.1l1.8-1.8M17.3 6.7l1.8-1.8"/></svg></button>
+        <button type="button" class="icon-pill" aria-label="ตั้งค่า"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .34 1.87l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.7 1.7 0 0 0-1.87-.34 1.7 1.7 0 0 0-1 1.55V21a2 2 0 1 1-4 0v-.09A1.7 1.7 0 0 0 9 19.36a1.7 1.7 0 0 0-1.87.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.7 1.7 0 0 0 .34-1.87 1.7 1.7 0 0 0-1.55-1H3a2 2 0 1 1 0-4h.09A1.7 1.7 0 0 0 4.64 9a1.7 1.7 0 0 0-.34-1.87l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.7 1.7 0 0 0 1.87.34H9a1.7 1.7 0 0 0 1-1.55V3a2 2 0 1 1 4 0v.09a1.7 1.7 0 0 0 1 1.55 1.7 1.7 0 0 0 1.87-.34l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.7 1.7 0 0 0-.34 1.87V9a1.7 1.7 0 0 0 1.55 1H21a2 2 0 1 1 0 4h-.09a1.7 1.7 0 0 0-1.51 1z"/></svg></button>
       </div>
     </header>
 
@@ -6805,35 +6832,28 @@ textarea::placeholder {
                   </div>
                   <div id="new-offer-link-preview" class="new-offer-link-preview"></div>
                 </div>
+                <div class="menu-divider"></div>
+                <p class="menu-section-label">เครื่องมือรายได้</p>
+                <button type="button" class="new-offer-item" data-tool="batch-drafts">✨ ชุดโพสต์ทั้งคลัง</button>
+                <button type="button" class="new-offer-item" data-tool="tracking-csv">📊 เทมเพลตติดตามผล</button>
+                <button type="button" class="new-offer-item" data-tool="results-csv">📥 นำเข้าผล (CSV)</button>
                 <p class="muted small new-offer-note">AI คัดจากข้อมูลจริงล่าสุด: ข้อความ Product Offer ที่วางไว้ → รายการพรีวิว → สินค้าในคลัง (รวม Capture) · เชื่อม Shopee API ตรงไม่ได้ยัง จึงใช้ Capture / วางข้อความ / ลิงก์สาธารณะ · ต้องผูก API Key ใน Settings ⚙️</p>
               </div>
             </span>
             <span id="ai-status-chip" class="ai-status-chip is-off"></span>
-            <button type="button" id="batch-drafts" class="chip-btn" title="สร้าง hook/สคริปต์/แคปชันให้ทุกสินค้าในคลัง (AI จริง) แล้วคัดลอก/ดาวน์โหลดเป็นชุดเดียว">✨ ชุดโพสต์ทั้งคลัง</button>
-            <button type="button" id="tracking-csv" class="chip-btn" title="ดาวน์โหลด CSV บันทึกผลจริงรายคลิป (views/clicks/orders/ค่าคอม)">📊 เทมเพลตติดตามผล</button>
-            <button type="button" id="results-csv" class="chip-btn" title="นำเข้า CSV ผลลัพธ์จริงที่กรอกแล้ว — ระบบจะจับคู่สินค้าและแสดงผลจริงบนการ์ด">📥 นำเข้าผล (CSV)</button>
+            <button type="button" id="batch-drafts" class="chip-btn hidden" title="สร้าง hook/สคริปต์/แคปชันให้ทุกสินค้าในคลัง (AI จริง) แล้วคัดลอก/ดาวน์โหลดเป็นชุดเดียว">✨ ชุดโพสต์ทั้งคลัง</button>
+            <button type="button" id="tracking-csv" class="chip-btn hidden" title="ดาวน์โหลด CSV บันทึกผลจริงรายคลิป (views/clicks/orders/ค่าคอม)">📊 เทมเพลตติดตามผล</button>
+            <button type="button" id="results-csv" class="chip-btn hidden" title="นำเข้า CSV ผลลัพธ์จริงที่กรอกแล้ว — ระบบจะจับคู่สินค้าและแสดงผลจริงบนการ์ด">📥 นำเข้าผล (CSV)</button>
             <input type="file" id="results-csv-file" accept=".csv,.tsv,.txt" class="hidden">
           </div>
           <div id="candidate-pool" class="candidate-pool"></div>
           <p id="no-candidates" class="muted small hidden">ไม่มี candidate ใน pool</p>
         </section>
 
-        <section class="studio-panel">
-          <div class="studio-panel-head">
-            <p class="studio-panel-title">คุณภาพสินค้าในพูล</p>
-          </div>
-          <div class="quality-donut" id="quality-donut" aria-hidden="true"></div>
-          <div class="donut-legend">
-            <span class="high">High <b id="donut-high">0</b></span>
-            <span class="medium">Medium <b id="donut-medium">0</b></span>
-            <span class="low">Low <b id="donut-low">0</b></span>
-          </div>
-        </section>
-
         <div class="profile-card">
-          <span class="profile-avatar" aria-hidden="true">👤</span>
+          <span class="profile-avatar" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><circle cx="12" cy="8.5" r="3.5"/><path d="M5 20c.8-3.6 3.5-5.8 7-5.8s6.2 2.2 7 5.8"/></svg></span>
           <div>
-            <p class="profile-name">USER PROFILE</p>
+            <p class="profile-name" id="profile-name">Shopee Affiliate</p>
             <p class="profile-meta" id="profile-meta">0 source · 0 candidate</p>
           </div>
         </div>
@@ -6855,6 +6875,7 @@ textarea::placeholder {
           </div>
           <div class="hero-actions">
             <button type="button" class="btn-send" id="hero-send">SEND TO QUEUE <span aria-hidden="true">→</span></button>
+            <button type="button" class="btn btn-primary btn-sm" id="hero-easy-produce" title="Easy: AI เขียนคอนเทนต์ → เรนเดอร์ MP4 → เข้า Content Library">⚡ ผลิตเลย</button>
             <button type="button" class="btn btn-outline btn-sm" id="hero-draft">สร้าง Content ด้วย AI</button>
           </div>
         </section>
@@ -6955,14 +6976,86 @@ textarea::placeholder {
           </div>
         </section>
 
-        <!-- Snap + link import + evidence: the research tools for this stage -->
-        <section class="studio-panel" id="research-layout">
-          <div class="studio-panel-head">
-            <p class="studio-panel-title">เพิ่มสินค้าเข้า Source Library <small>Snap รูป / ลิงก์ / ข้อความ</small></p>
-            <button type="button" id="import-fixtures" class="chip-btn" title="ล้าง pool / content library / publish queue / แหล่งข้อมูล แล้วเริ่มใหม่ (มีการยืนยันก่อน)">ล้างคลัง (เริ่มใหม่)</button>
-          </div>
+        
+      </div>
 
-          <!-- Shopee Affiliate > Product Offer import (primary source) -->
+      <!-- ---------------- RIGHT: queue + sources ---------------- -->
+      <div class="studio-col studio-col-right">
+        <section class="studio-panel" id="drawer-queue">
+          <div class="studio-panel-head">
+            <p class="studio-panel-title">Queue <small>Research → Production → Export</small></p>
+            <button type="button" id="snap-products" class="chip-btn">Snap</button>
+          </div>
+          <div class="queue-tabs" id="queue-tabs">
+            <button type="button" class="is-active" data-queue="research">Research</button>
+            <button type="button" data-queue="production">Production</button>
+            <button type="button" data-queue="export">Export</button>
+            <button type="button" data-queue="publish">Publish</button>
+          </div>
+          <div id="schedule-queue"></div>
+        </section>
+
+        <section class="studio-panel right-drawer hidden" id="drawer-schedule">
+          <div class="studio-panel-head">
+            <p class="studio-panel-title">Schedule <small>AI Automation (8Creator)</small></p>
+          </div>
+          <p class="muted small">ตั้งโปรไฟล์ช่อง + รอบเวลาที่ต้องการคอนเทนต์ต่อวัน เช่น Anfield Insight YouTube :: ทุกวัน @09:00 · @15:00 · @21:00 (รอบละ 1 ชิ้น)</p>
+          <p class="muted small"><b>โรดแมป 8Creator:</b> หลังผลิตเสร็จ ระบบส่งให้ตรวจผ่าน IM (Line/Telegram) → อนุมัติหรือสั่งแก้ → เผยแพร่ตามช่องทาง/เวลาที่กำหนด — ปัจจุบัน ACE ยังไม่เชื่อม IM และไม่โพสต์อัตโนมัติ (ต้องกดเผยแพร่เองทุกครั้ง)</p>
+          <div class="schedule-form">
+            <div class="form-group">
+              <label for="recurring-title">ชื่อโปรไฟล์ช่อง</label>
+              <input type="text" id="recurring-title" class="form-input" placeholder="เช่น Anfield Insight — YouTube">
+            </div>
+            <div class="form-group">
+              <label>รอบเวลาต่อวัน (รอบละ 1 คอนเทนต์)</label>
+              <div id="slot-list" class="slot-list"></div>
+              <button type="button" id="slot-add" class="chip-btn">+ เพิ่มรอบเวลา</button>
+            </div>
+            <div class="form-group">
+              <label for="recurring-days">ความถี่</label>
+              <select id="recurring-days" class="form-input">
+                <option value="daily">ทุกวัน</option>
+                <option value="weekdays">จันทร์–ศุกร์</option>
+                <option value="weekend">เสาร์–อาทิตย์</option>
+              </select>
+            </div>
+            <button type="button" id="recurring-add" class="btn btn-primary">เพิ่มโปรไฟล์ Schedule</button>
+          </div>
+          <div id="recurring-list" class="recurring-list"></div>
+        </section>
+
+        <section class="studio-panel hidden" id="detail-schedule">
+          <div class="studio-panel-head">
+            <p class="studio-panel-title">ตั้งเวลาเผยแพร่</p>
+          </div>
+          <div class="schedule-form">
+            <div class="form-group">
+              <label for="schedule-name">ชื่องาน</label>
+              <input type="text" id="schedule-name" class="form-input" placeholder="ชื่องานคอนเทนต์">
+            </div>
+            <div class="form-group">
+              <label for="schedule-date">วันที่เผยแพร่</label>
+              <input type="date" id="schedule-date" class="form-input">
+            </div>
+            <div class="form-group">
+              <label>สถานะ</label>
+              <div class="radio-group">
+                <label><input type="radio" name="schedule-status" value="schedule" checked> ตั้งเวลา</label>
+                <label><input type="radio" name="schedule-status" value="publish"> เผยแพร่ทันที</label>
+              </div>
+            </div>
+            <button type="button" id="confirm-schedule" class="btn btn-primary">บันทึกกำหนดเวลา</button>
+          </div>
+          <div id="schedule-result" class="schedule-result hidden"></div>
+        </section>
+
+        <section class="studio-panel right-drawer hidden" id="drawer-source-library">
+          <div class="studio-panel-head">
+            <p class="studio-panel-title">SOURCE LIBRARY <small>ศูนย์รวมแหล่งข้อมูล</small></p>
+            <button type="button" id="import-fixtures" class="chip-btn" title="ล้าง pool / content library / publish queue / แหล่งข้อมูล แล้วเริ่มใหม่ (มีการยืนยันก่อน)">ล้างคลัง (เริ่มใหม่)</button>
+            <button type="button" id="add-manual" class="chip-btn">+ เพิ่มแหล่งข้อมูล</button>
+          </div>
+          <!-- Capture tools moved out of the Research stage (link import also lives in "+ ข้อเสนอใหม่") -->
           <div class="offers-import" id="offers-import">
             <div class="studio-panel-head">
               <p class="studio-panel-title">ข้อเสนอผลิตภัณฑ์ (Product Offer)
@@ -7071,60 +7164,12 @@ textarea::placeholder {
             <button type="button" id="refresh-evidence" class="btn btn-ghost btn-sm">รีเฟรช Evidence</button>
           </div>
           <div id="evidence-log" class="evidence-list"></div>
-        </section>
-      </div>
 
-      <!-- ---------------- RIGHT: queue + sources ---------------- -->
-      <div class="studio-col studio-col-right">
-        <section class="studio-panel">
-          <div class="studio-panel-head">
-            <p class="studio-panel-title">Schedule Task</p>
-            <button type="button" id="snap-products" class="chip-btn">Snap</button>
-          </div>
-          <div class="queue-tabs" id="queue-tabs">
-            <button type="button" class="is-active" data-queue="research">Research</button>
-            <button type="button" data-queue="production">Production</button>
-            <button type="button" data-queue="export">Export</button>
-            <button type="button" data-queue="publish">Publish</button>
-          </div>
-          <div id="schedule-queue"></div>
-        </section>
-
-        <section class="studio-panel" id="detail-schedule">
-          <div class="studio-panel-head">
-            <p class="studio-panel-title">ตั้งเวลาเผยแพร่</p>
-          </div>
-          <div class="schedule-form">
-            <div class="form-group">
-              <label for="schedule-name">ชื่องาน</label>
-              <input type="text" id="schedule-name" class="form-input" placeholder="ชื่องานคอนเทนต์">
-            </div>
-            <div class="form-group">
-              <label for="schedule-date">วันที่เผยแพร่</label>
-              <input type="date" id="schedule-date" class="form-input">
-            </div>
-            <div class="form-group">
-              <label>สถานะ</label>
-              <div class="radio-group">
-                <label><input type="radio" name="schedule-status" value="schedule" checked> ตั้งเวลา</label>
-                <label><input type="radio" name="schedule-status" value="publish"> เผยแพร่ทันที</label>
-              </div>
-            </div>
-            <button type="button" id="confirm-schedule" class="btn btn-primary">บันทึกกำหนดเวลา</button>
-          </div>
-          <div id="schedule-result" class="schedule-result hidden"></div>
-        </section>
-
-        <section class="studio-panel">
-          <div class="studio-panel-head">
-            <p class="studio-panel-title">SOURCE LIBRARY <small>ศูนย์รวมแหล่งข้อมูล</small></p>
-            <button type="button" id="add-manual" class="chip-btn">+ เพิ่มแหล่งข้อมูล</button>
-          </div>
           <div class="shopee-menus" id="shopee-menus"></div>
           <div class="source-library-grid" id="source-library"></div>
         </section>
 
-        <section class="studio-panel" id="detail-library">
+        <section class="studio-panel right-drawer hidden" id="detail-library">
           <div class="library-toolbar">
             <span class="library-title">Content Library</span>
             <div class="library-actions">
@@ -7164,15 +7209,14 @@ textarea::placeholder {
     </main>
   </div>
 
-  <!-- Right icon rail -->
+  <!-- Right nav: panels toggle open/close -->
   <nav class="studio-rail" aria-label="เมนูลัด">
-    <button type="button" class="rail-btn is-active" data-stage="research" aria-label="Research">🔍</button>
-    <button type="button" class="rail-btn" data-stage="plan" aria-label="Plan">📝</button>
-    <button type="button" class="rail-btn" data-stage="storyboard" aria-label="Storyboard">🎞️</button>
-    <button type="button" class="rail-btn" data-stage="schedule" aria-label="Schedule">🕒</button>
-    <button type="button" class="rail-btn" data-stage="production" aria-label="Production">📊</button>
-    <button type="button" class="rail-btn" data-stage="finalize" aria-label="Finalize">📤</button>
-    <button type="button" class="rail-btn" aria-label="ตั้งค่า">⚙️</button>
+    <button type="button" class="rail-btn" data-drawer="schedule" aria-label="Schedule" title="Schedule"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><rect x="3.5" y="5" width="17" height="15.5" rx="3"/><path d="M8 3v4M16 3v4M3.5 10.5h17"/></svg></button>
+    <button type="button" class="rail-btn is-active" data-drawer="queue" aria-label="Queue" title="Queue"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><rect x="4.5" y="4" width="15" height="17" rx="2.5"/><path d="M8.5 9.5h7M8.5 13h7M8.5 16.5h4.5"/></svg></button>
+    <button type="button" class="rail-btn" data-drawer="content-library" aria-label="Content Library" title="Content Library"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M5 19.5A2.5 2.5 0 0 1 7.5 17H19"/><path d="M7.5 2H19v20H7.5A2.5 2.5 0 0 1 5 19.5v-15A2.5 2.5 0 0 1 7.5 2z"/></svg></button>
+    <button type="button" class="rail-btn" data-drawer="source-library" aria-label="Source Library" title="Source Library"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"/></svg></button>
+    <button type="button" class="rail-btn" data-action="actors" aria-label="Actor Studio" title="Actor Studio"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><circle cx="9" cy="8.5" r="3.2"/><path d="M3.5 19.5c.6-3 2.8-5 5.5-5s4.9 2 5.5 5"/><circle cx="16.8" cy="9.5" r="2.5"/><path d="M15.8 14.7c2.2.4 4.1 2 4.7 4.3"/></svg></button>
+    <button type="button" class="rail-btn" aria-label="ตั้งค่า" title="Settings"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .34 1.87l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.7 1.7 0 0 0-1.87-.34 1.7 1.7 0 0 0-1 1.55V21a2 2 0 1 1-4 0v-.09A1.7 1.7 0 0 0 9 19.36a1.7 1.7 0 0 0-1.87.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.7 1.7 0 0 0 .34-1.87 1.7 1.7 0 0 0-1.55-1H3a2 2 0 1 1 0-4h.09A1.7 1.7 0 0 0 4.64 9a1.7 1.7 0 0 0-.34-1.87l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.7 1.7 0 0 0 1.87.34H9a1.7 1.7 0 0 0 1-1.55V3a2 2 0 1 1 4 0v.09a1.7 1.7 0 0 0 1 1.55 1.7 1.7 0 0 0 1.87-.34l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.7 1.7 0 0 0-.34 1.87V9a1.7 1.7 0 0 0 1.55 1H21a2 2 0 1 1 0 4h-.09a1.7 1.7 0 0 0-1.51 1z"/></svg></button>
   </nav>
 
   <!-- ---------------- Off-stage containers ---------------- -->
@@ -7258,27 +7302,66 @@ textarea::placeholder {
         <button type="button" id="refresh-dashboard" class="btn btn-ghost">รีเฟรช</button>
       </div>
     </div>
+    <p class="muted small" style="padding: 0 4px;">ทุกตัวเลขมาจากไฟล์ติดตามผลที่คุณกรอกจากรายงาน Shopee เท่านั้น (จับคู่ด้วย Sub_id/ชื่อคอนเทนต์) — ไม่มีการเดา/สมมุติค่า</p>
     <div class="dashboard-grid">
-      <div class="dashboard-card sales-card">
-        <div class="card-head"><h3>ยอดขายรวม</h3></div>
-        <div class="card-value" id="total-sales">0</div>
-        <div class="card-change positive">+ 12.5% จากสัปดาห์ที่แล้ว</div>
-      </div>
       <div class="dashboard-card clicks-card">
         <div class="card-head"><h3>คลิกทั้งหมด</h3></div>
         <div class="card-value" id="total-clicks">0</div>
-        <div class="card-change positive">+ 8.2% จากสัปดาห์ที่แล้ว</div>
+        <div class="card-change">จากการนำเข้า CSV</div>
+      </div>
+      <div class="dashboard-card orders-card">
+        <div class="card-head"><h3>คำสั่งซื้อ</h3></div>
+        <div class="card-value" id="total-orders">0</div>
+        <div class="card-change">จากการนำเข้า CSV</div>
       </div>
       <div class="dashboard-card commission-card">
-        <div class="card-head"><h3>ค่าคอมมิชชัน</h3></div>
+        <div class="card-head"><h3>ค่าคอมมิชชัน (จริง)</h3></div>
         <div class="card-value" id="total-commission">0 THB</div>
-        <div class="card-change positive">+ 15.0% จากสัปดาห์ที่แล้ว</div>
+        <div class="card-change">จากการนำเข้า CSV</div>
       </div>
+      <div class="dashboard-card commission-card">
+        <div class="card-head"><h3>ค่าคอมมิชชันโดยประมาณ</h3></div>
+        <div class="card-value" id="est-commission">0 THB</div>
+        <div class="card-change">จากการนำเข้า CSV</div>
+      </div>
+      <div class="dashboard-card clicks-card">
+        <div class="card-head"><h3>คลิกที่ผิด</h3></div>
+        <div class="card-value" id="invalid-clicks">0</div>
+        <div class="card-change">จากรายงานคลิกที่ผิด</div>
+      </div>
+      <div class="dashboard-card sales-card">
+        <div class="card-head"><h3>ลูกค้าใหม่</h3></div>
+        <div class="card-value" id="new-customers">0</div>
+        <div class="card-change">จากการนำเข้า CSV</div>
+      </div>
+    </div>
+    <div class="dashboard-trends">
+      <h4>ตัวตัดสิน — รายได้ / 1 คอนเทนต์ / ช่องทาง (3 ระยะ: วัน · สัปดาห์ · เดือน)</h4>
+      <div class="revenue-windows">
+        <div class="rev-window" id="rev-day"></div>
+        <div class="rev-window" id="rev-week"></div>
+        <div class="rev-window" id="rev-month"></div>
+      </div>
+      <table class="perf-table">
+        <thead><tr><th>ช่องทาง</th><th>วันนี้</th><th>7 วันล่าสุด</th><th>30 วันล่าสุด</th></tr></thead>
+        <tbody id="channel-rev-tbody"><tr><td colspan="4" class="muted">ยังไม่มีรายได้ตามช่องทาง — นำเข้าหลักฐานหลายวันเพื่อดูแนวโน้ม</td></tr></tbody>
+      </table>
     </div>
     <div class="dashboard-trends">
       <h4>แนวโน้มผลการทำงาน</h4>
       <div class="trend-chart"><canvas id="trend-canvas" width="400" height="200"></canvas></div>
       <div class="trend-notes"><p>เปรียบเทียบยอดขายและคลิกตามสินค้าในพูล</p></div>
+    </div>
+    <div class="dashboard-trends">
+      <h4>ผลจริงรายคอนเทนต์ — เชื่อมจาก Content Library (lineage อนุมัติ → เผยแพร่ → ผลจริง)</h4>
+      <table class="perf-table">
+        <thead><tr><th>คอนเทนต์</th><th>ช่องทาง</th><th>Sub_id</th><th>Views</th><th>Clicks</th><th>Orders</th><th>คอม (฿)</th><th>รายได้รวม (฿)</th><th>เวอร์ชัน</th><th>พิสูจน์เมื่อ</th></tr></thead>
+        <tbody id="content-perf-tbody"><tr><td colspan="10" class="muted">ยังไม่มีหลักฐานนำเข้า</td></tr></tbody>
+      </table>
+    </div>
+    <div class="dashboard-trends">
+      <h4>5 คอนเทนต์ค่าคอมสูงสุด (จากข้อมูลนำเข้า)</h4>
+      <div id="dashboard-top5"></div>
     </div>
   </div>
 
@@ -7385,6 +7468,46 @@ textarea::placeholder {
     </div>
   </div>
 
+  <div id="qc-overlay" class="qc-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="qc-title">
+    <div class="qc-shell">
+      <header class="qc-head">
+        <div>
+          <p class="qc-title" id="qc-title">FINALIZE — QUALITY CHECK</p>
+          <p class="muted small" id="qc-sub">Active Lineage — สิ่งที่เห็นคือสิ่งที่จะเผยแพร่ (ไฟล์เดียวกันทุกไบต์)</p>
+        </div>
+        <button type="button" id="qc-close" class="btn btn-ghost">ปิด (Esc)</button>
+      </header>
+      <div class="qc-body">
+        <div class="qc-stage">
+          <video id="qc-video" controls playsinline></video>
+          <p class="muted small">ตรวจลำดับภาพ/ข้อความ/เสียง/CTA ให้ครบ — ไฟล์ที่อนุมัติ (freeze sha256) คือไฟล์เดียวที่ใช้เผยแพร่</p>
+        </div>
+        <aside class="qc-side">
+          <p class="studio-panel-title">ข้อมูลการผลิต</p>
+          <div id="qc-meta" class="qc-meta"></div>
+          <p class="studio-panel-title">บันทึกโปรเจกต์</p>
+          <div id="qc-history" class="qc-history"></div>
+          <div class="qc-note">
+            <label class="field-label" for="qc-note-input">โน้ตสั่งแก้ไข (ใช้กับปุ่มสั่งแก้ไข)</label>
+            <textarea id="qc-note-input" rows="2" placeholder="เช่น ตัดเปิด 2 วิแรก / เปลี่ยนประโยค CTA"></textarea>
+          </div>
+          <div class="qc-actions">
+            <button type="button" id="qc-approve" class="btn btn-primary">✓ อนุมัติ (freeze ไฟล์นี้)</button>
+            <button type="button" id="qc-request-changes" class="btn btn-outline">สั่งแก้ไข</button>
+          </div>
+          <div class="qc-mini">
+            <span class="field-label">Mini Loop — แก้เฉพาะขั้น แล้วเรนเดอร์ใหม่กลับมาตรวจ</span>
+            <div class="qc-mini-row">
+              <button type="button" id="qc-mini-plan" class="chip-btn">Plan</button>
+              <button type="button" id="qc-mini-storyboard" class="chip-btn">Storyboard</button>
+              <button type="button" id="qc-mini-production" class="chip-btn">Production</button>
+            </div>
+          </div>
+        </aside>
+      </div>
+    </div>
+  </div>
+
   <div id="mvp-toast" class="toast" role="status" aria-live="polite"></div>
 
   <footer class="mvp-footer">
@@ -7400,7 +7523,6 @@ textarea::placeholder {
         <button class="footer-nav-btn stage-monitor" data-stage="dashboard" aria-pressed="false"><span class="nav-label">Monitor</span></button>
         <button class="footer-nav-btn stage-report" data-stage="report" aria-pressed="false"><span class="nav-label">Report</span></button>
       </div>
-      <div class="footer-info">Video · Caption · Sound</div>
       <button type="button" class="stage-step-btn" id="stage-next" aria-label="สเตปถัดไป">›</button>
     </div>
   </footer>
@@ -7443,6 +7565,860 @@ textarea::placeholder {
   </div>
 
     <!-- Stage views are defined first; mvp.js boots the shell and calls them. -->
+    <style id="ace-theme-8creator">
+    /* =====================================================================
+       ACE theme refinement — baseline: reference/UX Behavior Guide
+       Black + purple glow, 8Creator brand tokens, one radius/spacing system.
+       This layer loads last and overrides earlier CSS generations.
+       Future: re-skin to 8Creator by editing --brand-* only.
+       ===================================================================== */
+    :root {
+      /* brand tokens (8Creator-ready) */
+      --brand-primary: #8b7cff;
+      --brand-primary-deep: #6a4df0;
+      --brand-accent: #ff6b1a;
+      --brand-accent-2: #ff3d7f;
+      --brand-cyan: #35d7e8;
+      --brand-green: #43e08c;
+      /* surfaces */
+      --ace-bg: #05050c;
+      --ace-surface: rgba(19, 15, 42, 0.88);
+      --ace-surface-2: rgba(32, 26, 66, 0.85);
+      --ace-line: rgba(139, 124, 255, 0.22);
+      --ace-line-strong: rgba(139, 124, 255, 0.45);
+      --ace-ink: #f2eeff;
+      --ace-mute: #a89fcf;
+      --ace-radius-panel: 14px;
+      --ace-radius-card: 12px;
+      --ace-radius-input: 10px;
+      --ace-shadow: 0 0 0 1px rgba(139, 124, 255, 0.12), 0 16px 42px -26px rgba(123, 63, 242, 0.8);
+      /* re-point legacy tokens so both CSS generations agree */
+      --ink: var(--ace-ink);
+      --ink-soft: #cfc8f0;
+      --ink-mute: var(--ace-mute);
+      --paper: var(--ace-bg);
+      --line: var(--ace-line);
+      --line-soft: rgba(139, 124, 255, 0.13);
+      --radius: var(--ace-radius-panel);
+      --shadow: var(--ace-shadow);
+      --studio-panel: var(--ace-surface);
+      --studio-orange: var(--brand-accent);
+      --studio-cyan: var(--brand-cyan);
+      --studio-magenta: var(--brand-accent-2);
+      --green: var(--brand-green);
+      --green-soft: rgba(67, 224, 140, 0.12);
+      --green-line: rgba(67, 224, 140, 0.4);
+      --amber: #ffb347;
+      --amber-soft: rgba(255, 179, 71, 0.12);
+      --serif: 'Mitr', 'Leelawadee UI', 'Segoe UI', sans-serif;
+      --sans: 'Leelawadee UI', 'Segoe UI', system-ui, sans-serif;
+    }
+
+    html,
+    body {
+      background:
+        radial-gradient(1100px 640px at 80% -12%, rgba(123, 63, 242, 0.20), transparent 62%),
+        radial-gradient(900px 520px at -8% 34%, rgba(53, 215, 232, 0.09), transparent 55%),
+        var(--ace-bg);
+      color: var(--ace-ink);
+    }
+
+    ::selection { background: rgba(139, 124, 255, 0.4); }
+
+    :focus-visible { outline: 2px solid var(--brand-primary); outline-offset: 2px; }
+
+    a { color: var(--brand-cyan); }
+
+    * { scrollbar-width: thin; scrollbar-color: rgba(139, 124, 255, 0.35) transparent; }
+    *::-webkit-scrollbar { width: 8px; height: 8px; }
+    *::-webkit-scrollbar-thumb { background: rgba(139, 124, 255, 0.32); border-radius: 999px; }
+    *::-webkit-scrollbar-track { background: transparent; }
+
+    /* ---------- panel titles ---------- */
+
+    .studio-panel-title {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-family: var(--serif);
+      font-size: 15px;
+      font-weight: 600;
+      color: #fff;
+    }
+
+    .studio-panel-title::before {
+      content: "";
+      flex: none;
+      width: 4px;
+      height: 15px;
+      border-radius: 2px;
+      background: linear-gradient(180deg, var(--brand-primary), var(--brand-cyan));
+    }
+
+    .studio-panel-title small {
+      font-size: 10.5px;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--ace-mute);
+    }
+
+    .field-label { color: var(--ace-mute); }
+
+    /* ---------- top bar ---------- */
+
+    .studio-topbar {
+      padding: 10px 14px;
+      border: 1px solid var(--ace-line);
+      border-radius: 16px;
+      background: linear-gradient(180deg, rgba(23, 18, 50, 0.92), rgba(12, 9, 28, 0.92));
+      box-shadow: var(--ace-shadow);
+    }
+
+    .studio-logo-mark {
+      width: 38px;
+      height: 38px;
+      border-radius: 10px;
+      background: linear-gradient(150deg, #7b3ff2, #4a5bf0 55%, #35d7e8);
+      box-shadow: 0 0 20px rgba(123, 63, 242, 0.5);
+      color: #fff;
+    }
+
+    .studio-logo-mark svg { width: 21px; height: 21px; }
+
+    .studio-logo-title {
+      background: linear-gradient(90deg, #ffb257, var(--brand-accent) 45%, var(--brand-accent-2));
+    }
+
+    .studio-logo-sub {
+      color: var(--brand-cyan);
+      font-style: italic;
+      font-weight: 700;
+      letter-spacing: 0.22em;
+    }
+
+    .stage-track span {
+      width: 12px;
+      height: 10px;
+      border-radius: 3px;
+      background: rgba(139, 124, 255, 0.16);
+    }
+
+    .stage-track span.is-on {
+      background: linear-gradient(90deg, var(--brand-primary), var(--brand-cyan));
+      box-shadow: 0 0 8px rgba(139, 124, 255, 0.55);
+    }
+
+    .stage-track-label { color: var(--ace-mute); }
+    .stage-track-label b { color: #fff; }
+
+    .studio-search input {
+      width: 260px;
+      max-width: 42vw;
+      padding: 9px 34px 9px 14px;
+      border-radius: 999px;
+      border: 1px solid var(--ace-line);
+      background: var(--ace-surface-2);
+      color: var(--ace-ink);
+      font: inherit;
+    }
+
+    .studio-search input::placeholder { color: #8b82b8; }
+
+    .studio-search input:focus-visible {
+      outline: none;
+      border-color: var(--ace-line-strong);
+      box-shadow: 0 0 0 3px rgba(139, 124, 255, 0.18);
+    }
+
+    .studio-search > span {
+      position: absolute;
+      right: 12px;
+      display: grid;
+      place-items: center;
+      color: var(--ace-mute);
+      pointer-events: none;
+    }
+
+    .studio-search > span svg { width: 16px; height: 16px; }
+
+    .studio-search { position: relative; display: flex; align-items: center; }
+
+    .icon-pill {
+      position: relative;
+      display: grid;
+      place-items: center;
+      width: 38px;
+      height: 38px;
+      border-radius: 50%;
+      border: 1px solid var(--ace-line);
+      background: var(--ace-surface-2);
+      color: #cfc8f5;
+      cursor: pointer;
+      transition: border-color 0.15s ease, color 0.15s ease, transform 0.1s ease;
+    }
+
+    .icon-pill:hover { border-color: var(--ace-line-strong); color: #fff; }
+    .icon-pill:active { transform: scale(0.96); }
+    .icon-pill svg { width: 18px; height: 18px; }
+
+    .icon-pill .dot {
+      position: absolute;
+      top: -3px;
+      right: -3px;
+      min-width: 17px;
+      height: 17px;
+      padding: 0 4px;
+      border-radius: 999px;
+      background: var(--brand-accent);
+      color: #fff;
+      font-size: 10px;
+      font-weight: 700;
+      line-height: 17px;
+      text-align: center;
+    }
+
+    /* ---------- bottom stage bar ---------- */
+
+    .mvp-footer { border-top: 1px solid var(--ace-line); }
+
+    .footer-nav-btn {
+      padding: 6px 10px;
+      border-radius: 10px;
+      font-family: var(--serif);
+      font-style: italic;
+      font-size: 15.5px;
+      font-weight: 700;
+      letter-spacing: 0.06em;
+      color: #6d65a3;
+      transition: color 0.15s ease, background 0.15s ease;
+    }
+
+    .nav-sep {
+      color: #3d3670;
+      font-weight: 500;
+      user-select: none;
+    }
+
+    .footer-nav-btn:hover { color: #d9d3ff; background: rgba(139, 124, 255, 0.08); }
+
+    .footer-nav-btn.active,
+    .footer-nav-btn[aria-pressed="true"] {
+      color: #fff;
+      background: linear-gradient(90deg, rgba(255, 107, 26, 0.16), rgba(255, 61, 127, 0.16));
+      box-shadow: inset 0 0 0 1px rgba(255, 107, 26, 0.35);
+      text-shadow: 0 0 18px rgba(255, 107, 26, 0.55);
+    }
+
+    .stage-step-btn { width: 34px; height: 34px; font-size: 16px; }
+
+    /* ---------- right rail ---------- */
+
+    .studio-rail {
+      top: 92px;
+      gap: 6px;
+      padding: 10px 7px;
+      border-color: var(--ace-line);
+      background: rgba(12, 9, 28, 0.92);
+    }
+
+    .rail-btn {
+      position: relative;
+      width: 34px;
+      height: 34px;
+      color: #8d84c0;
+      transition: color 0.15s ease, background 0.15s ease;
+    }
+
+    .rail-btn svg { width: 18px; height: 18px; }
+
+    .rail-btn:hover { color: #fff; background: rgba(139, 124, 255, 0.14); }
+
+    .rail-btn.is-active {
+      color: #fff;
+      background: linear-gradient(135deg, rgba(139, 124, 255, 0.35), rgba(53, 215, 232, 0.25));
+      box-shadow: 0 0 14px rgba(139, 124, 255, 0.45), inset 0 0 0 1px var(--ace-line-strong);
+    }
+
+    .rail-btn::after {
+      content: attr(aria-label);
+      position: absolute;
+      right: calc(100% + 12px);
+      top: 50%;
+      transform: translateY(-50%) translateX(4px);
+      padding: 5px 9px;
+      border-radius: 8px;
+      border: 1px solid var(--ace-line);
+      background: #171234;
+      color: #e8e3ff;
+      font-size: 11px;
+      font-weight: 600;
+      white-space: nowrap;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.12s ease, transform 0.12s ease;
+    }
+
+    .rail-btn:hover::after,
+    .rail-btn:focus-visible::after { opacity: 1; transform: translateY(-50%) translateX(0); }
+
+    /* ---------- panels ---------- */
+
+    .studio-panel {
+      border-radius: var(--ace-radius-panel);
+      background: var(--ace-surface);
+      border-color: var(--ace-line);
+      box-shadow: var(--ace-shadow);
+      padding: 14px;
+    }
+
+    .right-drawer { border-color: var(--ace-line-strong); }
+
+    /* ---------- buttons ---------- */
+
+    .btn {
+      border-radius: 999px;
+      font-weight: 700;
+      transition: transform 0.1s ease, filter 0.15s ease, background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+    }
+
+    /* unify radius: beats contextual card rules of equal specificity (this layer loads last) */
+    .btn.btn { border-radius: 999px; }
+
+    .candidate-card .btn-sm:hover { border-color: var(--ace-line-strong); color: #fff; }
+
+    .btn:active { transform: scale(0.98); }
+
+    .btn-primary {
+      border: 0;
+      background: linear-gradient(135deg, #ff8a3c, var(--brand-accent) 55%, var(--brand-accent-2));
+      color: #fff;
+      box-shadow: 0 6px 18px -8px rgba(255, 107, 26, 0.7);
+    }
+
+    .btn-primary:hover { filter: brightness(1.08); }
+
+    .btn-outline {
+      border-color: var(--ace-line-strong);
+      background: rgba(139, 124, 255, 0.08);
+      color: #d9d3ff;
+    }
+
+    .btn-outline:hover { border-color: var(--brand-primary); color: #fff; }
+
+    .btn-ghost { color: var(--ace-mute); }
+    .btn-ghost:hover { color: #fff; }
+
+    .chip-btn {
+      border-radius: 999px;
+      border-color: var(--ace-line);
+      background: rgba(139, 124, 255, 0.07);
+      color: #cfc8f5;
+    }
+
+    .chip-btn:hover { border-color: var(--ace-line-strong); color: #fff; }
+
+    .chip-btn.accent {
+      border-color: rgba(255, 107, 26, 0.5);
+      background: linear-gradient(135deg, rgba(255, 138, 60, 0.18), rgba(255, 61, 127, 0.18));
+      color: #ffc99e;
+    }
+
+    .chip-btn.accent:hover { color: #fff; }
+
+    .btn-send { border: 1px solid var(--ace-line-strong); }
+
+    .btn-send:hover {
+      border-color: var(--brand-accent);
+      color: #fff;
+      box-shadow: 0 0 16px rgba(255, 107, 26, 0.25);
+    }
+
+    /* ---------- cards ---------- */
+
+    .candidate-card {
+      border-radius: var(--ace-radius-card);
+      border: 1px solid var(--ace-line);
+      background: var(--ace-surface-2);
+      box-shadow: none;
+      transition: border-color 0.15s ease, transform 0.12s ease;
+    }
+
+    .candidate-card:hover { border-color: var(--ace-line-strong); transform: translateY(-1px); }
+
+    .candidate-card .card-title { color: #fff; }
+
+    .candidate-card-image.is-placeholder {
+      border: 1px dashed var(--ace-line);
+      background: rgba(139, 124, 255, 0.05);
+      color: var(--ace-mute);
+    }
+
+    .queue-item {
+      border-radius: var(--ace-radius-card);
+      border: 1px solid var(--ace-line);
+      background: var(--ace-surface-2);
+    }
+
+    .queue-index {
+      border-radius: 999px;
+      background: rgba(139, 124, 255, 0.18);
+      color: #cabffb;
+    }
+
+    .queue-item-mini {
+      border-radius: var(--ace-radius-card);
+      border: 1px solid var(--ace-line);
+      background: var(--ace-surface-2);
+    }
+
+    .queue-mini-title { color: #fff; }
+
+    .queue-mini-price { color: var(--brand-green); font-weight: 800; }
+
+    .source-card {
+      border-radius: var(--ace-radius-card);
+      background: var(--ace-surface-2);
+      border-color: var(--ace-line);
+    }
+
+    .profile-card {
+      border: 1px solid var(--ace-line);
+      border-radius: var(--ace-radius-panel);
+      background: var(--ace-surface);
+    }
+
+    .profile-avatar {
+      display: grid;
+      place-items: center;
+      border-radius: 50%;
+      background: linear-gradient(135deg, var(--brand-primary), var(--brand-cyan));
+      color: #fff;
+    }
+
+    .profile-avatar svg { width: 18px; height: 18px; }
+
+    /* ---------- tabs & chips ---------- */
+
+    .studio-tab {
+      border-radius: 999px;
+      color: var(--ace-mute);
+    }
+
+    .studio-tab.is-active {
+      background: rgba(139, 124, 255, 0.18);
+      color: #fff;
+    }
+
+    .actor-type-chip {
+      border-radius: 999px;
+      border: 1px solid var(--ace-line);
+      background: rgba(139, 124, 255, 0.07);
+      color: #cfc8f5;
+    }
+
+    .actor-type-chip.is-active {
+      border-color: var(--ace-line-strong);
+      background: linear-gradient(135deg, rgba(139, 124, 255, 0.35), rgba(53, 215, 232, 0.2));
+      color: #fff;
+    }
+
+    .actor-type-chip .queue-count {
+      padding: 0 6px;
+      border-radius: 999px;
+      background: rgba(139, 124, 255, 0.2);
+    }
+
+    /* ---------- forms ---------- */
+
+    input[type="text"],
+    input[type="url"],
+    input[type="search"],
+    input[type="number"],
+    input[type="time"],
+    input[type="password"],
+    select,
+    textarea,
+    .form-input,
+    .detail-panel input,
+    .detail-panel textarea,
+    .detail-panel select {
+      background: var(--ace-surface-2) !important;
+      border-color: var(--ace-line) !important;
+      color: var(--ace-ink) !important;
+      border-radius: var(--ace-radius-input);
+    }
+
+    input::placeholder,
+    textarea::placeholder { color: #8b82b8 !important; opacity: 1; }
+
+    input:focus-visible,
+    select:focus-visible,
+    textarea:focus-visible {
+      outline: none;
+      border-color: var(--ace-line-strong) !important;
+      box-shadow: 0 0 0 3px rgba(139, 124, 255, 0.16);
+    }
+
+    select option { background: #171234; color: var(--ace-ink); }
+
+    /* ---------- overlays & feedback ---------- */
+
+    .new-offer-menu {
+      border-radius: var(--ace-radius-card);
+      border-color: var(--ace-line-strong);
+      background: #171234;
+      box-shadow: 0 22px 60px -20px rgba(0, 0, 0, 0.85);
+    }
+
+    .settings-card,
+    .actor-shell {
+      border-radius: 18px;
+      border: 1px solid var(--ace-line-strong);
+      background: linear-gradient(180deg, #1a1540, #100c26);
+      box-shadow: 0 30px 90px -30px rgba(0, 0, 0, 0.9);
+    }
+
+    .toast {
+      border-radius: 12px;
+      border: 1px solid var(--ace-line-strong);
+      background: #171234;
+    }
+
+    .slot-list { display: grid; gap: 6px; margin-bottom: 8px; }
+
+    .slot-row { display: flex; align-items: center; gap: 8px; }
+
+    .slot-row .slot-time { width: 120px; flex: none; }
+
+    .slot-remove {
+      border: 0;
+      background: none;
+      color: var(--ace-mute);
+      font-size: 15px;
+      cursor: pointer;
+      padding: 2px 7px;
+      border-radius: 6px;
+    }
+
+    .slot-remove:hover { color: #fff; background: rgba(139, 124, 255, 0.15); }
+
+    .profile-switcher { position: relative; }
+
+    .profile-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 12px;
+      border-radius: 999px;
+      border: 1px solid var(--ace-line);
+      background: var(--ace-surface-2);
+      color: var(--ace-ink);
+      font: inherit;
+      font-weight: 700;
+      cursor: pointer;
+      max-width: 260px;
+      transition: border-color 0.15s ease;
+    }
+
+    .profile-pill:hover { border-color: var(--ace-line-strong); }
+
+    .profile-pill svg { width: 14px; height: 14px; color: var(--ace-mute); flex: none; }
+
+    #profile-switch-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+    .profile-pill-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, var(--brand-primary), var(--brand-cyan));
+      box-shadow: 0 0 8px rgba(139, 124, 255, 0.6);
+      flex: none;
+    }
+
+    .profile-menu {
+      position: absolute;
+      top: calc(100% + 8px);
+      left: 0;
+      z-index: 40;
+      min-width: 300px;
+      padding: 8px;
+      border-radius: 12px;
+      border: 1px solid var(--ace-line-strong);
+      background: #171234;
+      box-shadow: 0 22px 60px -20px rgba(0, 0, 0, 0.85);
+      display: grid;
+      gap: 4px;
+    }
+
+    .profile-menu-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      width: 100%;
+      padding: 8px 10px;
+      border-radius: 8px;
+      border: 0;
+      background: none;
+      color: var(--ace-ink);
+      font: inherit;
+      cursor: pointer;
+      text-align: left;
+    }
+
+    .profile-menu-item:hover { background: rgba(139, 124, 255, 0.14); }
+
+    .profile-menu-item.is-active { background: rgba(139, 124, 255, 0.2); }
+
+    .profile-menu-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+    .profile-menu-count {
+      font-size: 11px;
+      color: var(--ace-mute);
+      background: rgba(139, 124, 255, 0.14);
+      border-radius: 999px;
+      padding: 1px 8px;
+    }
+
+    .profile-menu-new {
+      display: flex;
+      gap: 6px;
+      padding: 8px 6px 4px;
+      border-top: 1px solid var(--ace-line);
+      margin-top: 4px;
+    }
+
+    .profile-menu-new input { flex: 1; min-width: 0; }
+
+    .profile-menu-tools { display: flex; gap: 6px; padding: 2px 6px 6px; }
+
+    .profile-menu-note { padding: 0 8px 4px; }
+
+    .status-active { background: rgba(139, 124, 255, 0.22); border-color: rgba(139, 124, 255, 0.5); color: #cabffb; }
+
+    .lineage-line { margin-top: 3px; font-family: var(--mono); font-size: 10px; color: var(--ace-mute); }
+
+    .qc-overlay {
+      position: fixed;
+      inset: 0;
+      z-index: 90;
+      background: rgba(3, 3, 8, 0.94);
+      backdrop-filter: blur(8px);
+      display: grid;
+      place-items: stretch;
+      padding: 18px;
+    }
+
+    .qc-shell {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      width: 100%;
+      max-width: 1500px;
+      margin: 0 auto;
+      border: 1px solid var(--ace-line-strong);
+      border-radius: 18px;
+      background: linear-gradient(180deg, rgba(23, 18, 50, 0.95), rgba(8, 6, 20, 0.97));
+      padding: 16px 18px;
+      overflow: hidden;
+    }
+
+    .qc-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    .qc-title {
+      font-family: var(--serif);
+      font-size: 20px;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      color: #fff;
+    }
+
+    .qc-body {
+      flex: 1;
+      min-height: 0;
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 340px;
+      gap: 16px;
+    }
+
+    .qc-stage {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      min-width: 0;
+    }
+
+    .qc-stage video {
+      flex: 1;
+      min-height: 0;
+      width: 100%;
+      border-radius: 14px;
+      background: #000;
+      border: 1px solid var(--ace-line);
+    }
+
+    .qc-side {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      min-height: 0;
+      overflow-y: auto;
+      padding: 12px;
+      border: 1px solid var(--ace-line);
+      border-radius: var(--ace-radius-panel);
+      background: var(--ace-surface);
+    }
+
+    .qc-meta { display: grid; gap: 5px; }
+
+    .qc-meta-row {
+      display: flex;
+      justify-content: space-between;
+      gap: 10px;
+      font-size: 12px;
+    }
+
+    .qc-meta-row span { color: var(--ace-mute); }
+    .qc-meta-row b { color: #fff; text-align: right; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 60%; font-weight: 600; }
+
+    .qc-history { display: grid; gap: 5px; max-height: 180px; overflow-y: auto; }
+
+    .qc-history-row {
+      display: grid;
+      gap: 1px;
+      font-size: 11.5px;
+      padding: 5px 8px;
+      border: 1px solid var(--ace-line);
+      border-radius: 8px;
+      background: rgba(139, 124, 255, 0.05);
+    }
+
+    .qc-history-when { color: var(--ace-mute); font-family: var(--mono); font-size: 10px; }
+
+    .qc-actions { display: grid; gap: 8px; }
+
+    .qc-mini { display: grid; gap: 6px; border-top: 1px solid var(--ace-line); padding-top: 10px; }
+
+    .qc-mini-row { display: flex; gap: 6px; flex-wrap: wrap; }
+
+    @media (max-width: 900px) {
+      .qc-body { grid-template-columns: minmax(0, 1fr); overflow-y: auto; }
+      .qc-stage video { min-height: 300px; }
+    }
+
+    body.qc-open { overflow: hidden; }
+
+    .perf-table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+
+    .perf-table th, .perf-table td { text-align: left; padding: 7px 9px; border-bottom: 1px solid var(--ace-line); }
+
+    .perf-table th { color: var(--ace-mute); font-weight: 600; font-size: 11px; letter-spacing: 0.04em; }
+
+    .perf-num { text-align: right; font-family: var(--mono); }
+
+    .perf-evidence { color: var(--ace-mute); font-size: 10.5px; font-family: var(--mono); }
+
+    .top5-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 8px 10px;
+      border: 1px solid var(--ace-line);
+      border-radius: 10px;
+      background: var(--ace-surface-2);
+      margin-bottom: 6px;
+    }
+
+    .top5-rank {
+      width: 24px;
+      height: 24px;
+      flex: none;
+      display: grid;
+      place-items: center;
+      border-radius: 50%;
+      background: linear-gradient(135deg, var(--brand-primary), var(--brand-cyan));
+      color: #fff;
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    .top5-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: #fff; }
+
+    .top5-value { color: var(--brand-green); font-weight: 800; font-family: var(--mono); }
+
+    .revenue-windows { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; margin-bottom: 10px; }
+
+    .rev-window {
+      border: 1px solid var(--ace-line);
+      border-radius: var(--ace-radius-card);
+      background: var(--ace-surface-2);
+      padding: 12px 14px;
+    }
+
+    .rev-window-title { font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--ace-mute); font-weight: 700; margin-bottom: 6px; }
+
+    .rev-big { font-family: var(--serif); font-size: 24px; font-weight: 700; color: var(--brand-green); line-height: 1.2; }
+
+    .rev-line { font-size: 11.5px; color: var(--ace-mute); margin-top: 4px; }
+
+    .mode-pill {
+      display: inline-flex;
+      align-items: center;
+      padding: 8px 14px;
+      border-radius: 999px;
+      border: 1px solid rgba(255, 107, 26, 0.5);
+      background: linear-gradient(135deg, rgba(255, 138, 60, 0.2), rgba(255, 61, 127, 0.2));
+      color: #ffc99e;
+      font: inherit;
+      font-weight: 700;
+      cursor: pointer;
+      transition: filter 0.15s ease, border-color 0.15s ease, background 0.15s ease;
+    }
+
+    .mode-pill.is-advance {
+      border-color: var(--ace-line-strong);
+      background: rgba(139, 124, 255, 0.16);
+      color: #cabffb;
+    }
+
+    .mode-pill:hover { filter: brightness(1.15); }
+
+    /* legacy cream surfaces → dark (invisible-text fix) */
+    .draft-text, .evidence, .choice, .evidence-group, .source-list li, .claim-group,
+    .issue-block, .trace-check, .trace-caption, .beat-card, .calendar-day,
+    .actor-platform, .snap-preview, .actor-card, .sync-item, .offer-item {
+      background: var(--ace-surface-2);
+      color: var(--ace-ink);
+    }
+
+    .menu-divider { border-top: 1px solid var(--ace-line); margin: 6px 0 4px; }
+
+    .menu-section-label {
+      margin: 0 0 2px;
+      padding: 0 4px;
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--ace-mute);
+    }
+<arg_value><b88a6f17>    @media (max-width: 860px) {
+      .studio-search input { width: 100%; max-width: none; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      * {
+        transition-duration: 0.01ms !important;
+        animation-duration: 0.01ms !important;
+      }
+    }
+    </style>
+
     <script src="/mvp-stages.js" defer></script>
     <script src="/mvp.js" defer></script>
   </body>
