@@ -1,3486 +1,4789 @@
+// ============================================================
+// ACE — MVP Affiliate Content Engine (mvp.js)
+// Boots the shell, connects UI ↔ data, and runs the full pipeline.
+// ============================================================
 'use strict';
 
-/**
- * ACE — MVP affiliate workflow slice client.
- *
- * Talks only to /api/mvp/*, which owns fixture state. It never posts to the
- * Plan Version or CWI endpoints, so a demo cannot change data/app/state.json.
- */
+// ----- Configuration & Constants -----
+const AFFILIATE_BASE = 'https://s.shopee.co.th';
 
-// The dashboard follows the order the work actually happens in. Import is gone:
-// the pool is the system's own data, not an upload step.
-// One core workflow, six isolated stages. Each stage shows only its own tools.
-const SECTIONS = [
-  { key: 'profile', label: 'Profile & Channels', hint: 'แพลตฟอร์ม · ช่องทาง · สถานะ AI' },
-  { key: 'research', label: 'Research & Candidate Pool', hint: 'วิเคราะห์ · คัด 5 รายการ' },
-  { key: 'plan', label: 'Plan & AI Video', hint: 'Hook · Action · Payoff · CTA' },
-  { key: 'production', label: 'Production & Finalize', hint: 'สตอรี่บอร์ด · เสียง · QC · Export' },
-  { key: 'schedule', label: 'Schedule & Task', hint: 'ปฏิทิน · คิว · Library' },
-  { key: 'analytics', label: 'Analytics', hint: 'รายได้ · อันดับคอนเทนต์' },
-];
-
-const LIBRARY_INTEGRITY = {
-  VERIFIED: { label: 'VERIFIED', kind: 'badge-fact' },
-  MISMATCH: { label: 'MISMATCH', kind: 'badge-reject' },
-  MISSING: { label: 'MISSING', kind: 'badge-defer' },
-  UNREADABLE: { label: 'UNREADABLE', kind: 'badge-neutral' },
+// ----- State -----
+let candidatePool = [];
+let contentLibrary = [];
+let publishQueue = [];
+let snapImageDataUrl = null;
+let lastDraft = null;
+let dashboardData = {
+  totalSales: 0,
+  totalClicks: 0,
+  totalCommission: 0,
+  trendPoints: [],
 };
 
-const CONTENT_STATUSES = ['DRAFT', 'REVIEW', 'FINALIZED', 'EXPORTED', 'READY_TO_PUBLISH'];
-const CONTENT_TABS = [
-  { key: 'storyboard', label: 'Storyboard / Script / CTA' },
-  { key: 'preview', label: 'Preview' },
-  { key: 'qa', label: 'Thai QA' },
-  { key: 'finalize', label: 'Finalize' },
-  { key: 'export', label: 'Export' },
-  { key: 'publish', label: 'Publish prep' },
-];
-const SCENE_TABS = [
-  { key: 'visual', label: 'ภาพ / Scene' },
-  { key: 'text', label: 'ตัวหนังสือ' },
-  { key: 'audio', label: 'เสียง / Script' },
-];
-const CONTENT_APPROACHES = [
-  { key: 'problem_first', label: 'แนวทาง 1 · เริ่มจากปัญหา' },
-  { key: 'value_compare', label: 'แนวทาง 2 · เทียบราคา' },
-  { key: 'evidence_first', label: 'แนวทาง 3 · เน้นหลักฐาน' },
-  { key: 'user_custom', label: 'แนวทาง 4 · กำหนดเอง' },
-];
-const VISUAL_PRESET_KEYS = ['dark', 'warm', 'cool', 'light'];
-
-const CLAIM_ORDER = ['FACT', 'INFERENCE', 'HYPOTHESIS', 'UNKNOWN'];
-const APPROACH_LABEL = {
-  personalized_a: 'Personalized A',
-  personalized_b: 'Personalized B',
-  exploration: 'Exploration',
-  user_custom: 'User Custom',
+// ----- DOM Elements (cached, initialized on DOMContentLoaded) -----
+const dom = {
+  quickStart: null,
+  openOffers: null,
+  snapProducts: null,
+  confirmSnap: null,
+  candidatePool: null,
+  noCandidates: null,
+  snapWorkflow: null,
+  actorStudio: null,
+  addActor: null,
+  closeActorPanel: null,
+  snapCategory: null,
+  snapProductName: null,
+  snapProductPrice: null,
+  snapProductShop: null,
+  productImageUpload: null,
+  dropZone: null,
+  contentLibrary: null,
+  refreshLibrary: null,
+  setActive: null,
+  selectAllLib: null,
+  libraryStatusFilter: null,
+  libraryTableBody: null,
+  libraryCount: null,
+  sourceLibrary: null,
+  dashboardArea: null,
+  importCSV: null,
+  refreshDashboard: null,
+  totalSales: null,
+  totalClicks: null,
+  totalCommission: null,
+  trendCanvas: null,
+  trendCtx: null,
+  toast: null,
+  evidenceLog: null,
+  importFixtures: null,
+  addManual: null,
+  snapProductBtn: null,
+  productUrl: null,
+  fetchProduct: null,
+  linkImportStatus: null,
+  linkImportPreview: null,
+  linkImportImage: null,
+  linkName: null,
+  linkPrice: null,
+  linkCommission: null,
+  addLinkProduct: null,
+  snapText: null,
+  snapAiExtract: null,
+  snapAiStatus: null,
+  snapNameInput: null,
+  snapPriceInput: null,
+  snapCommissionInput: null,
+  snapShopInput: null,
+  snapRatingInput: null,
+  snapSoldInput: null,
+  snapPreviewImg: null,
+  contentDraftPanel: null,
+  contentDraftStatus: null,
+  draftHook: null,
+  draftScript: null,
+  draftCaption: null,
+  draftHashtags: null,
+  copyContentDraft: null
 };
 
-const ui = {
-  meta: null,
-  state: null,
-  section: 'profile',
-  busy: false,
-  error: null,
-  draft: null,
-  createdPlan: null,
-  selectedCandidateId: null,
-  approach: 'personalized_a',
-  custom: { angle: '', audience: '', hook: '', format: '', rationale: '' },
-  confirmImpact: false,
-  toastTimer: null,
-  preview: null,
-  filePayload: null,
-  mappingDraft: {},
-  account: '',
-  dateRange: { from: '', to: '' },
-  mappingConfirmed: false,
-  draftReviewConfirmed: false,
-  draftReviewBy: 'Owner',
-  staging: [],
-  sourceFilter: null,
-  expiredWarning: null,
-  expiredContext: null,
-  contentId: null,
-  contentTab: 'storyboard',
-  sceneTab: 'visual',
-  sceneId: null,
-  contentApproach: 'problem_first',
-  contentCustom: { angle: '', audience: '', hook: '', format: '', cta: '' },
-  contentSource: null,
-  contentNew: false,
-  contentQa: null,
-  contentExport: null,
-  contentPrep: null,
-  library: { items: null, counts: null, meta: null, loading: false, error: null },
-  trace: { candidateId: null, data: null, loading: false, error: null },
-  plan: null,
-  analytics: { data: null, loading: false, error: null, profileFilter: null },
-  analyticsForm: null,
-  profileForm: null,
-  scheduleProfileId: null,
-};
+function initDomElements() {
+  dom.quickStart = document.getElementById('quick-start');
+  dom.openOffers = document.getElementById('open-offers');
+  dom.snapProducts = document.getElementById('snap-products');
+  dom.confirmSnap = document.getElementById('confirm-snap');
+  dom.candidatePool = document.getElementById('candidate-pool');
+  dom.noCandidates = document.getElementById('no-candidates');
+  dom.snapWorkflow = document.getElementById('snap-workflow');
+  dom.actorStudio = document.getElementById('actor-studio');
+  dom.addActor = document.getElementById('add-actor');
+  dom.closeActorPanel = document.getElementById('close-actor-panel');
+  dom.snapCategory = document.querySelectorAll('input[name="snap-category"]');
+  dom.snapProductName = document.getElementById('snap-product-name');
+  dom.snapProductPrice = document.getElementById('snap-product-price');
+  dom.snapProductShop = document.getElementById('snap-product-shop');
+  dom.productImageUpload = document.getElementById('product-image-upload');
+  dom.dropZone = document.getElementById('drop-zone');
+  dom.contentLibrary = document.getElementById('content-library');
+  dom.refreshLibrary = document.getElementById('refresh-library');
+  dom.setActive = document.getElementById('set-active');
+  dom.selectAllLib = document.getElementById('select-all-lib');
+  dom.libraryStatusFilter = document.getElementById('library-status-filter');
+  dom.libraryTableBody = document.getElementById('library-table-body');
+  dom.libraryCount = document.getElementById('library-count');
+  dom.sourceLibrary = document.getElementById('source-library');
+  dom.dashboardArea = document.getElementById('dashboard-area');
+  dom.importCSV = document.getElementById('import-csv');
+  dom.refreshDashboard = document.getElementById('refresh-dashboard');
+  dom.totalSales = document.getElementById('total-sales');
+  dom.totalClicks = document.getElementById('total-clicks');
+  dom.totalCommission = document.getElementById('total-commission');
+  dom.trendCanvas = document.getElementById('trend-canvas');
+  dom.toast = document.getElementById('mvp-toast');
+  dom.evidenceLog = document.getElementById('evidence-log');
+  dom.importFixtures = document.getElementById('import-fixtures');
+  dom.addManual = document.getElementById('add-manual');
+  dom.snapProductBtn = document.getElementById('snap-product');
+  dom.productUrl = document.getElementById('product-url');
+  dom.fetchProduct = document.getElementById('fetch-product');
+  dom.linkImportStatus = document.getElementById('link-import-status');
+  dom.linkImportPreview = document.getElementById('link-import-preview');
+  dom.linkImportImage = document.getElementById('link-import-image');
+  dom.linkName = document.getElementById('link-name');
+  dom.linkPrice = document.getElementById('link-price');
+  dom.linkCommission = document.getElementById('link-commission');
+  dom.addLinkProduct = document.getElementById('add-link-product');
+  dom.snapText = document.getElementById('snap-source-text');
+  dom.snapAiExtract = document.getElementById('snap-ai-extract');
+  dom.snapAiStatus = document.getElementById('snap-ai-status');
+  dom.snapNameInput = document.getElementById('snap-name-input');
+  dom.snapPriceInput = document.getElementById('snap-price-input');
+  dom.snapCommissionInput = document.getElementById('snap-commission-input');
+  dom.snapShopInput = document.getElementById('snap-shop-input');
+  dom.snapRatingInput = document.getElementById('snap-rating-input');
+  dom.snapSoldInput = document.getElementById('snap-sold-input');
+  dom.snapPreviewImg = document.querySelector('.snap-preview-area img');
+  dom.contentDraftPanel = document.getElementById('content-draft-panel');
+  dom.contentDraftStatus = document.getElementById('content-draft-status');
+  dom.draftHook = document.getElementById('draft-hook');
+  dom.draftScript = document.getElementById('draft-script');
+  dom.draftCaption = document.getElementById('draft-caption');
+  dom.draftHashtags = document.getElementById('draft-hashtags');
+  dom.copyContentDraft = document.getElementById('copy-content-draft');
+}
 
-const els = {
-  nav: document.getElementById('mvp-nav'),
-  progress: document.getElementById('mvp-progress'),
-  eyebrow: document.getElementById('mvp-eyebrow'),
-  title: document.getElementById('mvp-title'),
-  body: document.getElementById('mvp-body'),
-  save: document.getElementById('mvp-save'),
-  toast: document.getElementById('mvp-toast'),
-  dataChip: document.getElementById('mvp-data-chip'),
-};
+// ----- Offers Modal -----
+function openOffersModal() {
+  // Sample offers data - in a real app, this would come from an API
+  const offers = [
+    {
+      id: 1,
+      name: 'สินค้าเทคโนโลยีอิเล็กทรอนิกส์',
+      platform: 'Shopee',
+      affiliateLink: 'https://s.shopee.co.th/product/tech123',
+      price: 199,
+      image: 'https://via.placeholder.com/150',
+    },
+    {
+      id: 2,
+      name: 'ชุดเครื่องสำอาง',
+      platform: 'Shopee',
+      affiliateLink: 'https://s.shopee.co.th/beauty456',
+      price: 299,
+      image: 'https://via.placeholder.com/150',
+    },
+    {
+      id: 3,
+      name: 'อุปกรณ์ออกกำลังกาย',
+      platform: 'Shopee',
+      affiliateLink: 'https://s.shopee.co.th/sports789',
+      price: 399,
+      image: 'https://via.placeholder.com/150',
+    },
+    {
+      id: 4,
+      name: 'ของใช้บ้าน',
+      platform: 'Shopee',
+      affiliateLink: 'https://s.shopee.co.th/home101',
+      price: 150,
+      image: 'https://via.placeholder.com/150',
+    },
+    {
+      id: 5,
+      name: 'ของเล่นเด็ก',
+      platform: 'Shopee',
+      affiliateLink: 'https://s.shopee.co.th/toys202',
+      price: 99,
+      image: 'https://via.placeholder.com/150',
+    },
+  ];
 
-/* ---------- DOM helpers ---------- */
-
-function h(tag, props, ...children) {
-  const node = document.createElement(tag);
-  for (const [key, value] of Object.entries(props || {})) {
-    if (value === null || value === undefined || value === false) continue;
-    if (key === 'class') node.className = value;
-    else if (key === 'text') node.textContent = value;
-    else if (key === 'for') node.htmlFor = value;
-    else if (key === 'on') {
-      for (const [event, handler] of Object.entries(value)) node.addEventListener(event, handler);
-    } else if (key.startsWith('aria-') || key.startsWith('data-') || key === 'role') {
-      node.setAttribute(key, value === true ? 'true' : String(value));
-    } else if (key in node) {
-      node[key] = value;
+  // Render offers in the modal
+  if (dom.offersGrid) {
+    if (offers.length === 0) {
+      dom.noOffers.classList.remove('hidden');
     } else {
-      node.setAttribute(key, String(value));
+      dom.noOffers.classList.add('hidden');
     }
+
+    let html = offers.map(offer => `
+      <div class="offer-item" data-id="${offer.id}">
+        <img src="${offer.image}" alt="${offer.name}" class="offer-image">
+        <div class="offer-info">
+          <h3 class="offer-name">${offer.name}</h3>
+          <p class="offer-platform">${offer.platform}</p>
+          <p class="offer-price">฿${offer.price}</p>
+        </div>
+        <button class="btn btn-small btn-outline select-offer">เลือก</button>
+      </div>
+    `).join('');
+
+    dom.offersGrid.innerHTML = html;
+
+    // Add select offer handlers
+    dom.offersGrid.querySelectorAll('.select-offer').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const offerId = parseInt(btn.closest('.offer-item').dataset.id, 10);
+        selectOffer(offerId);
+      });
+    });
   }
-  for (const child of children.flat(Infinity)) {
-    if (child === null || child === undefined || child === false) continue;
-    node.append(child instanceof Node ? child : document.createTextNode(String(child)));
+
+  // Show the modal
+  if (dom.offersModal) {
+    dom.offersModal.classList.remove('hidden');
+    document.body.style.overflow = 'hidden'; // Prevent background scroll
   }
-  return node;
 }
 
-function clear(node) {
-  while (node.firstChild) node.removeChild(node.firstChild);
-}
+function selectOffer(offerId) {
+  // Find the offer in our sample data
+  const offers = [
+    {
+      id: 1,
+      name: 'สินค้าเทคโนโลยีอิเล็กทรอนิกส์',
+      platform: 'Shopee',
+      affiliateLink: 'https://s.shopee.co.th/product/tech123',
+      price: 199,
+    },
+    {
+      id: 2,
+      name: 'ชุดเครื่องสำอาง',
+      platform: 'Shopee',
+      affiliateLink: 'https://s.shopee.co.th/beauty456',
+      price: 299,
+    },
+    {
+      id: 3,
+      name: 'อุปกรณ์ออกกำลังกาย',
+      platform: 'Shopee',
+      affiliateLink: 'https://s.shopee.co.th/sports789',
+      price: 399,
+    },
+    {
+      id: 4,
+      name: 'ของใช้บ้าน',
+      platform: 'Shopee',
+      affiliateLink: 'https://s.shopee.co.th/home101',
+      price: 150,
+    },
+    {
+      id: 5,
+      name: 'ของเล่นเด็ก',
+      platform: 'Shopee',
+      affiliateLink: 'https://s.shopee.co.th/toys202',
+      price: 99,
+    },
+  ];
 
-// Element.append(null) inserts the string "null" as a text node, so every
-// optional child goes through here instead of being appended directly.
-function mount(parent, child) {
-  if (child === null || child === undefined || child === false) return null;
-  parent.append(child);
-  return child;
-}
+  const offer = offers.find(o => o.id === offerId);
+  if (!offer) return;
 
-function badge(text, kind) {
-  return h('span', { class: `badge ${kind || 'badge-neutral'}`, text });
-}
-
-function claimBadge(claimClass) {
-  return badge(claimClass, `badge-${String(claimClass).toLowerCase()}`);
-}
-
-function statusBadge(status) {
-  const map = {
-    NONE: ['Not actioned', 'badge-neutral'],
-    SAVED: ['Saved', 'badge-select'],
-    REJECTED: ['Rejected', 'badge-reject'],
-    QUEUED: ['Queued', 'badge-defer'],
+  // Create a candidate from the offer
+  const newCandidate = {
+    id: candidatePool.length + 1,
+    name: `Candidate: ${offer.name}`,
+    platform: offer.platform,
+    affiliateLink: offer.affiliateLink,
+    quality: 'Medium',
+    status: 'DRAFT',
+    views: Math.floor(100 + Math.random() * 500),
+    clicks: Math.floor(views * 0.3 + Math.random() * 50),
+    estimatedSale: Math.floor(clicks * 0.04 + Math.random()),
+    commission: Math.floor(estimatedSale * 32 + Math.random() * 100),
+    evidence: 'เพิ่มจากข้อเสนอใหม่',
   };
-  const [text, kind] = map[status] || [status, 'badge-neutral'];
-  return badge(text, kind);
-}
 
-const dateFmt = new Intl.DateTimeFormat('en-GB', {
-  year: 'numeric', month: 'short', day: '2-digit', hour: '2-digit', minute: '2-digit',
-});
+  // Add to candidate pool
+  candidatePool.push(newCandidate);
 
-function fmtDate(iso) {
-  const date = new Date(iso);
-  return Number.isNaN(date.getTime()) ? String(iso) : dateFmt.format(date);
-}
-
-function thb(value) {
-  return `THB ${Number(value).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-}
-
-function toast(message, isError) {
-  els.toast.textContent = message;
-  els.toast.className = `toast is-visible${isError ? ' is-error' : ''}`;
-  window.clearTimeout(ui.toastTimer);
-  ui.toastTimer = window.setTimeout(() => { els.toast.className = 'toast'; }, 4200);
-}
-
-/* ---------- API ---------- */
-
-async function api(pathname, method = 'GET', body) {
-  const response = await fetch(pathname, {
-    method,
-    headers: body ? { 'Content-Type': 'application/json', Accept: 'application/json' } : { Accept: 'application/json' },
-    body: body ? JSON.stringify(body) : undefined,
+  // Also add to content library
+  contentLibrary.push({
+    ...newCandidate,
+    libraryId: 'off-' + newCandidate.id,
+    status: 'PENDING',
+    qualityScore: newCandidate.quality,
   });
-  const text = await response.text();
-  let payload;
-  try { payload = JSON.parse(text); } catch { payload = { error: text || response.statusText }; }
-  if (!response.ok) {
-    const err = new Error(payload.error || `${response.status} ${response.statusText}`);
-    err.status = response.status;
-    err.payload = payload;
-    throw err;
-  }
-  return payload;
+
+  // Render updates
+  renderCandidatePool();
+  renderContentLibrary();
+
+  // Hide the modal
+  closeOffersModal();
+  showToast('เพิ่มข้อเสนอใหม่เป็น Candidate เรียบร้อย', 'success');
 }
 
-function applyState(state) {
-  ui.state = state;
-  const drafts = (state.planDrafts || []).filter((d) => d.status === 'DRAFT');
-  if (ui.draft) {
-    const current = (state.planDrafts || []).find((d) => d.id === ui.draft.id && d.status === 'DRAFT');
-    ui.draft = current || null;
-  }
-  if (!ui.draft) ui.draft = drafts.length ? drafts[drafts.length - 1] : null;
-  if (!ui.createdPlan && (state.plans || []).length) ui.createdPlan = state.plans[state.plans.length - 1];
-  const contents = state.contents || [];
-  if (ui.contentId && !contents.some((c) => c.content_id === ui.contentId)) ui.contentId = null;
-  if (!ui.contentId && contents.length) ui.contentId = contents[contents.length - 1].content_id;
-  const open = contents.find((c) => c.content_id === ui.contentId);
-  if (open && !open.storyboard.scenes.some((s) => s.id === ui.sceneId)) {
-    ui.sceneId = open.storyboard.scenes.length ? open.storyboard.scenes[0].id : null;
-  }
-  if (open && CONTENT_APPROACHES.some((a) => a.key === open.approach)) {
-    ui.contentApproach = open.approach;
+function closeOffersModal() {
+  if (dom.offersModal) {
+    dom.offersModal.classList.add('hidden');
+    document.body.style.overflow = ''; // Re-enable background scroll
   }
 }
 
-async function run(fn, successMessage) {
-  if (ui.busy) return;
-  ui.busy = true;
-  ui.error = null;
-  render();
+// ----- Event Delegation -----
+function attachEventListeners() {
+  // --- "+ ข้อเสนอใหม่" menu: AI picks from real data (offer text / pool / link) ---
+  if (dom.quickStart) {
+    dom.quickStart.addEventListener('click', toggleNewOfferMenu);
+  }
+
+  // --- Open Offers ---
+  if (dom.openOffers) {
+    dom.openOffers.addEventListener('click', () => openOffersModal());
+  }
+
+  // --- Snap Products ---
+  if (dom.snapProducts) {
+    dom.snapProducts.addEventListener('click', () => showSnapWorkflow());
+  }
+
+  // --- Confirm Snap ---
+  if (dom.confirmSnap) {
+    dom.confirmSnap.addEventListener('click', () => confirmSnapAndAddCandidate());
+  }
+
+  // --- Product Image Upload ---
+  if (dom.productImageUpload) {
+    dom.productImageUpload.addEventListener('change', handleProductImageSelect);
+  }
+  if (dom.dropZone) {
+    dom.dropZone.addEventListener('click', () => dom.productImageUpload.click());
+    dom.dropZone.addEventListener('dragover', handleDragOver);
+    dom.dropZone.addEventListener('drop', handleDrop);
+  }
+
+  // --- Actor Studio ---
+  if (dom.addActor) {
+    dom.addActor.addEventListener('click', () => addActorRow());
+  }
+  if (dom.closeActorPanel) {
+    dom.closeActorPanel.addEventListener('click', () => hideActorStudio());
+  }
+
+  // --- Content Library ---
+  if (dom.refreshLibrary) {
+    dom.refreshLibrary.addEventListener('click', () => renderContentLibrary());
+  }
+  if (dom.setActive) {
+    dom.setActive.addEventListener('click', () => setActiveLineage());
+  }
+  if (dom.selectAllLib) {
+    dom.selectAllLib.addEventListener('change', toggleSelectAll);
+  }
+  if (dom.libraryStatusFilter) {
+    dom.libraryStatusFilter.addEventListener('change', filterLibraryByStatus);
+  }
+
+  // --- Research / Source Library ---
+  if (dom.importFixtures) {
+    dom.importFixtures.addEventListener('click', function() {
+      if (!window.confirm('ล้างคลังสินค้าทั้งหมด (pool / content library / publish queue / แหล่งข้อมูล) แล้วเริ่มใหม่? การกระทำนี้ย้อนกลับไม่ได้')) return;
+      clearPoolState();
+      loadFixtures();
+      seedSourceLibraryFromPool();
+      showToast('ล้างคลังแล้ว — เริ่มต้นใหม่จากศูนย์ (ข้อมูลจริงเท่านั้น)', 'info');
+    });
+  }
+  if (dom.addManual) {
+    dom.addManual.addEventListener('click', addManualSource);
+  }
+
+  // --- Shopee product link import ---
+  if (dom.fetchProduct) {
+    dom.fetchProduct.addEventListener('click', fetchProductFromLink);
+  }
+  if (dom.addLinkProduct) {
+    dom.addLinkProduct.addEventListener('click', addLinkProductToPools);
+  }
+  if (dom.linkPrice) {
+    dom.linkPrice.addEventListener('input', suggestCommission);
+  }
+
+  // --- Snap assistant / content draft ---
+  if (dom.snapAiExtract) {
+    dom.snapAiExtract.addEventListener('click', handleSnapAiExtract);
+  }
+  if (dom.copyContentDraft) {
+    dom.copyContentDraft.addEventListener('click', copyContentDraft);
+  }
+  var closeDraft = document.getElementById('close-content-draft');
+  if (closeDraft) {
+    closeDraft.addEventListener('click', function() {
+      if (dom.contentDraftPanel) dom.contentDraftPanel.classList.add('hidden');
+    });
+  }
+
+  // --- Dashboard ---
+  if (dom.importCSV) {
+    dom.importCSV.addEventListener('click', () => importCSVHandler());
+  }
+  if (dom.refreshDashboard) {
+    dom.refreshDashboard.addEventListener('click', () => refreshDashboard());
+  }
+
+  // --- Settings (AI Agent) + AI shortlist panel + "+ ข้อเสนอใหม่" menu ---
+  bindSettingsPanel();
+  bindNewOfferMenu();
+  var batchBtn = document.getElementById('batch-drafts');
+  if (batchBtn) batchBtn.addEventListener('click', generateBatchPostKits);
+  var trackBtn = document.getElementById('tracking-csv');
+  if (trackBtn) trackBtn.addEventListener('click', downloadTrackingCsv);
+  var resultsBtn = document.getElementById('results-csv');
+  var resultsInput = document.getElementById('results-csv-file');
+  if (resultsBtn && resultsInput && resultsBtn.dataset.bound !== '1') {
+    resultsBtn.dataset.bound = '1';
+    resultsBtn.addEventListener('click', function() { resultsInput.click(); });
+    resultsInput.addEventListener('change', function() {
+      handleResultsCsvFile(resultsInput.files && resultsInput.files[0]);
+      resultsInput.value = '';
+    });
+  }
+  var previewBtn = document.getElementById('render-preview-clip');
+  if (previewBtn) previewBtn.addEventListener('click', renderPreviewClip);
+  var presetSel = document.getElementById('clip-preset');
+  if (presetSel) presetSel.addEventListener('change', function() {
+    const target = ensureCandidateSettings(currentCandidate());
+    if (target) { target.preset = presetSel.value; showToast('ใช้รูปแบบการผลิต: ' + getProductionPreset(presetSel.value).label, 'success'); }
+  });
+  var closeShortlistBtn = document.getElementById('close-ai-shortlist');
+  if (closeShortlistBtn) {
+    closeShortlistBtn.addEventListener('click', function() {
+      var panel = document.getElementById('ai-shortlist-panel');
+      if (panel) panel.classList.add('hidden');
+    });
+  }
+}
+
+// ----- Persistence: the pool survives page refresh (localStorage) -----
+
+const POOL_STORAGE_KEY = 'ace.research-pool.v1';
+let poolSaveTimer = null;
+let poolSaveWarned = false;
+
+function savePoolState() {
+  // Debounced: renders fire often, and stringify can be heavy with images.
+  if (poolSaveTimer) return;
+  poolSaveTimer = window.setTimeout(function() {
+    poolSaveTimer = null;
+    try {
+      localStorage.setItem(POOL_STORAGE_KEY, JSON.stringify({
+        saved_at: new Date().toISOString(),
+        pool: candidatePool,
+        library: contentLibrary,
+        queue: publishQueue,
+        sources: sourceItems,
+      }));
+    } catch (error) {
+      if (!poolSaveWarned) {
+        poolSaveWarned = true;
+        showToast('บันทึกลง localStorage ไม่สำเร็จ (พื้นที่เต็ม?) — ข้อมูลอาจหายเมื่อ refresh', 'warning');
+      }
+    }
+  }, 400);
+}
+
+function loadPoolState() {
   try {
-    await fn();
-    if (successMessage) toast(successMessage);
-  } catch (err) {
-    const details = err.payload && (err.payload.details || err.payload.impact_preview);
-    ui.error = { message: err.message, details };
-    ui.expiredWarning = details && details.expired_sources ? details : null;
-    toast(err.message, true);
-  } finally {
-    ui.busy = false;
-    render();
+    const raw = localStorage.getItem(POOL_STORAGE_KEY);
+    if (!raw) return false;
+    const data = JSON.parse(raw);
+    if (!data || typeof data !== 'object') return false;
+    const pool = Array.isArray(data.pool) ? data.pool.filter(function(c) { return c && c.name; }) : [];
+    const library = Array.isArray(data.library) ? data.library : [];
+    const queue = Array.isArray(data.queue) ? data.queue : [];
+    const sources = Array.isArray(data.sources) ? data.sources : [];
+    if (!pool.length && !library.length && !queue.length && !sources.length) return false;
+    candidatePool = pool;
+    contentLibrary = library;
+    publishQueue = queue;
+    sourceItems = sources;
+    return true;
+  } catch (error) {
+    return false;
   }
 }
 
-/* ---------- Navigation ---------- */
-
-function sectionStatus(key) {
-  const state = ui.state;
-  if (!state) return 'loading';
-  const contents = state.contents || [];
-  if (key === 'profile') {
-    const active = state.active_profile;
-    if (!active) return 'ยังไม่มีโปรไฟล์';
-    return `${active.platform_label || active.platform} · ${active.counts ? active.counts.contents : 0} งาน`;
-  }
-  if (key === 'research') {
-    const offers = state.summary ? state.summary.offers : 0;
-    const pool = state.summary ? state.summary.candidates : 0;
-    if (!offers) return 'ยังไม่มีข้อมูล';
-    return pool ? `${offers} offers · ${pool} candidates` : `${offers} offers`;
-  }
-  if (key === 'production') {
-    if (ui.contentId) {
-      const open = contents.find((c) => c.content_id === ui.contentId);
-      if (open) return `${open.content_id} · ${open.status}`;
-    }
-    return contents.length ? `${contents.length} project(s)` : 'ยังไม่มีคอนเทนต์';
-  }
-  if (key === 'plan') {
-    return contents.length ? `${contents.length} คอนเทนต์ · 4 ช่วง` : 'ยังไม่มีคอนเทนต์';
-  }
-  if (key === 'schedule') {
-    const scheduled = contents.filter((c) => c.publish_schedule);
-    const queued = scheduled.filter((c) => c.publish_schedule.status === 'QUEUED');
-    if (!scheduled.length) return 'ยังไม่มีกำหนดการ';
-    return queued.length ? `${queued.length} รออนุมัติ` : `${scheduled.length} ในคิว`;
-  }
-  const published = contents.filter((c) => c.publish_schedule && c.publish_schedule.status === 'PUBLISHED');
-  return published.length ? `${published.length} เผยแพร่แล้ว` : 'ยังไม่มีผลลัพธ์';
+function clearPoolState() {
+  try { localStorage.removeItem(POOL_STORAGE_KEY); } catch (error) { /* nothing to clear */ }
 }
 
-// Next step in the pipeline: where the work actually is right now.
-function nextSection() {
-  const state = ui.state;
-  const contents = (state && state.contents) || [];
-  if (!state || !state.summary || !state.summary.candidates) return 'research';
-  if (!contents.length) return 'production';
-  if (!contents.some((c) => c.publish_schedule)) return 'schedule';
-  return 'analytics';
-}
-
-function go(section) {
-  ui.section = section;
-  ui.error = null;
-  if (section !== 'research' && ui.trace.candidateId) {
-    ui.trace = { candidateId: null, data: null, loading: false, error: null };
-  }
-  if (SECTION_CONTENT_TAB[section]) ui.contentTab = SECTION_CONTENT_TAB[section];
-  render();
-  if (section === 'schedule' && ui.library.items === null && !ui.library.loading) loadLibrary();
-  // The Plan stage fetches its own view model once, so there is a single load
-  // path (and no duplicate request) whether it was opened from the nav or after
-  // creating a content item inside it.
-  if (section === 'analytics' && !(ui.analytics && ui.analytics.data) && !(ui.analytics && ui.analytics.loading)) loadAnalytics(null);
-  if ((section === 'profile' || section === 'research') && !(ui.ai && ui.ai.status) && !(ui.ai && ui.ai.loading)) loadAiStatus();
-}
-
-function renderNav() {
-  clear(els.nav);
-  for (const [index, section] of SECTIONS.entries()) {
-    const active = ui.section === section.key;
-    els.nav.append(h('li', { class: `pipeline-step${active ? ' is-active' : ''}` },
-      h('button', {
-        type: 'button',
-        class: 'pipeline-btn',
-        'aria-current': active ? 'step' : null,
-        on: { click: () => go(section.key) },
-      },
-      h('span', { class: 'pipeline-num', text: String(index + 1) }),
-      h('span', { class: 'pipeline-text' },
-        h('span', { class: 'pipeline-label', text: section.label }),
-        h('span', { class: 'pipeline-hint', text: sectionStatus(section.key) }),
-      )),
-    ));
-  }
-  const contents = (ui.state && ui.state.contents) || [];
-  const done = [
-    Boolean(ui.state && ui.state.active_profile),
-    Boolean(ui.state && ui.state.summary && ui.state.summary.candidates),
-    contents.length > 0,
-    contents.some((c) => ['FINALIZED', 'EXPORTED', 'READY_TO_PUBLISH'].includes(c.status)),
-    contents.some((c) => c.publish_schedule && c.publish_schedule.status !== 'CANCELLED'),
-    contents.some((c) => c.publish_schedule && c.publish_schedule.status === 'PUBLISHED'),
-  ].filter(Boolean).length;
-  els.progress.textContent = `${done} / ${SECTIONS.length}`;
-}
-
-async function generateFromResearch(acknowledgeExpired = false) {
-  ui.expiredContext = 'generate';
-  const res = await api('/api/mvp/candidates/generate', 'POST', { acknowledgeExpired });
-  applyState(res.state);
-  ui.section = 'research';
-  ui.selectedCandidateId = res.candidates[0] ? res.candidates[0].id : null;
-}
-
-async function synthesizeThaiVoiceover(contentId, force) {
-  const res = await api(`/api/mvp/content/${contentId}/voiceover`, 'POST', force ? { force: true } : {});
-  applyState(res.state);
-  const failed = res.failures || [];
-  if (failed.length) {
-    throw new Error(`สร้างเสียงได้ ${(res.scenes || []).length} ฉาก แต่ล้มเหลว ${failed.length} ฉาก `
-      + `(${failed[0].scene_id}) — กดอีกครั้งเพื่อลองเฉพาะฉากที่เหลือ`);
-  }
-  return res;
-}
-
-async function retryExpired() {
-  const context = ui.expiredContext;
-  ui.expiredWarning = null;
-  const res = await api('/api/mvp/candidates/generate', 'POST', { acknowledgeExpired: true });
-  applyState(res.state);
-  ui.selectedCandidateId = res.candidates && res.candidates[0] ? res.candidates[0].id : null;
-}
-
-function countChips(counts) {
-  return h('div', { class: 'counts' },
-    [['Total', counts.total], ['Valid', counts.valid], ['Duplicate', counts.duplicate], ['Invalid', counts.invalid], ['Unknown', counts.unknown]]
-      .map(([label, value]) => h('div', { class: 'count' },
-        h('span', { class: 'count-val', text: String(value) }),
-        h('span', { class: 'count-label', text: label }),
-      )),
-  );
-}
-
-function issueList(title, items, render) {
-  if (!items || !items.length) return null;
-  return h('details', { class: 'issue-block' },
-    h('summary', { text: `${title} (${items.length})` }),
-    h('ul', { class: 'plain-list tight' }, items.map((item) => h('li', { text: render(item) }))),
-  );
-}
-
-/* ---------- Source library ---------- */
-
-function sourceSyntheticBadge(source) {
-  return source.synthetic ? badge('SYNTHETIC', 'badge-mock') : badge('USER FILE', 'badge-defer');
-}
-
-function freshnessBadge(freshness) {
-  const kind = freshness.status === 'EXPIRED' ? 'badge-reject'
-    : freshness.status === 'AGING' ? 'badge-defer'
-      : freshness.status === 'FRESH' ? 'badge-select' : 'badge-neutral';
-  return badge(freshness.status, kind);
-}
-
-function filterBySource(sourceId) {
-  ui.sourceFilter = sourceId;
-  go('research');
-}
-
-async function archiveSource(source) {
-  const confirmed = window.confirm(
-    `Archive ${source.id}?\n\nEvidence records stay, and existing candidates keep working. New candidate generation will be blocked while this source is archived.`,
-  );
-  if (!confirmed) return;
-  const res = await api(`/api/mvp/sources/${encodeURIComponent(source.id)}/archive`, 'POST', {
-    confirm: true,
-    reason: 'Archived from the Source Library',
-  });
-  applyState(res.state);
-}
-
-async function validateSource(source) {
-  const res = await api(`/api/mvp/sources/${encodeURIComponent(source.id)}/validate`, 'POST', {});
-  applyState(res.state);
-}
-
-function renderSourceCard(source) {
-  const counts = source.record_counts || { products: 0, offers: 0, evidence: 0 };
-  return h('article', { class: `source-card${source.status === 'ARCHIVED' ? ' is-archived' : ''}` },
-    h('div', { class: 'cand-head' },
-      h('div', { class: 'cand-title-wrap' },
-        h('h3', { class: 'cand-title', text: source.label }),
-        h('p', { class: 'cell-sub mono', text: `${source.id} · ${source.kind} · ${source.source_type || '—'}` }),
-      ),
-      h('div', { class: 'head-meta' },
-        sourceSyntheticBadge(source),
-        badge(source.status || 'ACTIVE', source.status === 'ARCHIVED' ? 'badge-neutral' : 'badge-select'),
-        source.validation ? badge(source.validation.status, source.validation.status === 'PASSED' ? 'badge-select' : 'badge-reject') : null,
-      ),
-    ),
-    h('dl', { class: 'kv compact' },
-      h('div', null, h('dt', { text: 'checked_at' }), h('dd', { text: fmtDate(source.checked_at) })),
-      h('div', null, h('dt', { text: 'File hash' }), h('dd', { class: 'mono small', text: source.file_hash || '—' })),
-      h('div', null, h('dt', { text: 'Records created' }), h('dd', { text: `${counts.products} products · ${counts.offers} offers · ${counts.evidence} evidence` })),
-      h('div', null, h('dt', { text: 'Data as of' }), h('dd', { text: source.data_as_of || '—' })),
-      h('div', null, h('dt', { text: 'Freshness' }), h('dd', null, freshnessBadge(source.freshness), h('span', { class: 'cell-sub', text: ` ${source.freshness.age_days === null ? 'age unknown' : `${source.freshness.age_days}d old`}` }))),
-      source.expires_at ? h('div', null, h('dt', { text: 'Expires' }), h('dd', { text: fmtDate(source.expires_at) })) : null,
-    ),
-    source.freshness.warning ? h('p', { class: 'warn', text: source.freshness.warning }) : null,
-    h('p', { class: 'trace mono small', text: `linked candidates: ${(source.linked_candidates || []).length ? source.linked_candidates.map((candidate) => candidate.id).join(' · ') : 'none yet'}` }),
-    (source.linked_candidates || []).length
-      ? h('div', { class: 'toolbar' }, source.linked_candidates.map((candidate) => h('button', {
-        type: 'button', class: 'link-btn mono small',
-        on: { click: () => filterBySource(source.id) },
-      }, `${candidate.id} #${candidate.rank}`)))
-      : null,
-    h('details', { class: 'reasons' },
-      h('summary', { text: 'Source details' }),
-      h('dl', { class: 'kv compact' },
-        h('div', null, h('dt', { text: 'source_id' }), h('dd', { class: 'mono', text: source.id })),
-        h('div', null, h('dt', { text: 'Reference' }), h('dd', { class: 'mono small', text: source.reference || '—' })),
-        h('div', null, h('dt', { text: 'Method' }), h('dd', { text: source.provenance ? source.provenance.method : '—' })),
-        h('div', null, h('dt', { text: 'Provenance source' }), h('dd', { text: source.provenance ? source.provenance.source : '—' })),
-        h('div', null, h('dt', { text: 'File' }), h('dd', { class: 'mono small', text: source.provenance ? source.provenance.file : '—' })),
-        source.archive_reason ? h('div', null, h('dt', { text: 'Archive reason' }), h('dd', { text: source.archive_reason })) : null,
-      ),
-      h('ul', { class: 'limits' }, ((source.provenance && source.provenance.limitations) || []).map((text) => h('li', { text }))),
-      source.validation ? h('ul', { class: 'plain-list tight' }, source.validation.checks.map((check) => h('li', { text: `${check.ok ? '✓' : '✗'} ${check.name}${check.detail ? ` — ${check.detail}` : ''}` }))) : null,
-    ),
-    h('div', { class: 'toolbar' },
-      source.linked_candidates && source.linked_candidates.length
-        ? h('button', { type: 'button', class: 'btn btn-ghost', on: { click: () => filterBySource(source.id) } }, 'View linked candidates →')
-        : null,
-      h('button', {
-        type: 'button', class: 'btn btn-ghost', disabled: ui.busy,
-        on: { click: () => run(() => validateSource(source), `Source ${source.id} revalidated`) },
-      }, 'Revalidate'),
-      source.status !== 'ARCHIVED'
-        ? h('button', {
-          type: 'button', class: 'btn btn-ghost danger', disabled: ui.busy,
-          on: { click: () => run(() => archiveSource(source), `Source ${source.id} archived — evidence kept`) },
-        }, 'Archive source')
-        : h('span', { class: 'cell-sub', text: 'Archived: evidence kept, new candidates blocked.' }),
-    ),
-  );
-}
-
-function renderSourceLibrary() {
-  const state = ui.state;
-  const sources = (state && state.sources) || [];
-  const warnings = (state && state.freshness_warnings) || [];
-  return h('section', { class: 'mvp-card source-library' },
-    h('div', { class: 'card-head' },
-      h('div', null,
-        h('p', { class: 'eyebrow', text: 'Source library' }),
-        h('h2', { text: `${sources.length} imported source${sources.length === 1 ? '' : 's'}` }),
-      ),
-      h('div', { class: 'head-meta' },
-        state && state.synthetic ? badge('SYNTHETIC DATA', 'badge-mock') : badge('USER-SUPPLIED DATA — UNVERIFIED', 'badge-defer'),
-        badge(`${sources.filter((source) => source.status === 'ARCHIVED').length} archived`, 'badge-neutral'),
-      ),
-    ),
-    h('p', { class: 'lead' },
-      'Every source link below is the same source_id used by candidates and the research report. Archiving keeps evidence and existing candidates; it only blocks new generation.'),
-    warnings.length
-      ? h('div', { class: 'notice notice-warn' },
-        h('div', { class: 'notice-head' }, h('h2', { text: `${warnings.length} freshness warning${warnings.length === 1 ? '' : 's'}` })),
-        h('ul', { class: 'plain-list tight' }, warnings.map((warning) => h('li', { text: `${warning.source_id} · ${warning.status} · ${warning.warning}` }))),
-      )
-      : null,
-    h('div', { class: 'source-grid' }, sources.map(renderSourceCard)),
-  );
-}
-
-function renderResearchReport() {
-  const state = ui.state;
-  if (!state) return null;
-  const sources = state.sources || [];
-  return h('section', { class: 'mvp-card' },
-    h('div', { class: 'card-head' },
-      h('div', null, h('p', { class: 'eyebrow', text: 'Research report' }), h('h2', { text: 'Source → Candidate trace' })),
-      badge('GET /api/mvp/research-report', 'badge-neutral'),
-    ),
-    h('p', { class: 'muted' },
-      'Trace from each source_id to the candidates and evidence built from it. Nothing is inferred across imports.'),
-    h('div', { class: 'table-scroll' },
-      h('table', { class: 'mvp-table' },
-        h('thead', null, h('tr', null,
-          ['Source', 'Synthetic', 'Records', 'Evidence', 'Candidates'].map((label) => h('th', { scope: 'col', text: label })),
-        )),
-        h('tbody', null, sources.map((source) => {
-          const evidence = state.evidence.filter((record) => (record.source_ids || []).includes(source.id));
-          return h('tr', null,
-            h('td', null,
-              h('p', { class: 'cell-title mono small', text: source.id }),
-              h('p', { class: 'cell-sub', text: source.kind }),
-            ),
-            h('td', null, source.synthetic ? badge('SYNTHETIC', 'badge-mock') : badge('USER', 'badge-defer')),
-            h('td', { text: `${source.record_counts.products} / ${source.record_counts.offers}` }),
-            h('td', { class: 'mono', text: String(evidence.length) }),
-            h('td', null, (source.linked_candidates || []).length
-              ? h('div', { class: 'toolbar' }, source.linked_candidates.map((candidate) => h('button', {
-                type: 'button', class: 'link-btn mono small',
-                on: { click: () => filterBySource(source.id) },
-              }, `${candidate.id} #${candidate.rank}`)))
-              : h('span', { class: 'muted small', text: 'none yet' })),
-          );
-        })),
-      ),
-    ),
-  );
-}
-
-function renderExpiredNotice() {
-  if (!ui.expiredWarning) return null;
-  const expired = ui.expiredWarning.expired_sources || [];
-  return h('section', { class: 'notice notice-warn' },
-    h('div', { class: 'notice-head' }, h('h2', { text: 'Expired source data — acknowledgement required' })),
-    h('ul', { class: 'plain-list tight' }, expired.map((entry) => h('li', { text: `${entry.id}: ${entry.freshness.warning}` }))),
-    h('div', { class: 'toolbar' },
-      h('button', {
-        type: 'button', class: 'btn', disabled: ui.busy,
-        on: { click: () => run(retryExpired, 'Continued with expired data acknowledged') },
-      }, 'Acknowledge and continue'),
-    ),
-  );
-}
-
-
-/* ---------- Research ---------- */
-
-function offerRows() {
-  const state = ui.state;
-  if (!state) return [];
-  const productById = Object.fromEntries(state.products.map((p) => [p.id, p]));
-  return state.offers.map((offer) => ({ offer, product: productById[offer.product_id] }));
-}
-
-function renderResearch() {
-  const state = ui.state;
-  const wrap = h('div', { class: 'stack' });
-
-  if (!state || !state.import) {
-    wrap.append(h('section', { class: 'notice' },
-      h('div', { class: 'notice-head' }, h('h2', { text: 'ยังไม่มีข้อมูลพูลสินค้า' })),
-      h('p', null, 'ข้อมูลพูลยังว่าง — ', h('button', { type: 'button', class: 'link-btn', on: { click: () => go('research') } }, 'ไปที่ Research →')),
-    ));
-    return wrap;
+function loadFixtures() {
+  // Real data only. The pool now persists in this browser (localStorage), so a
+  // refresh keeps the user's candidates; boot restores them here.
+  if (loadPoolState()) {
+    renderCandidatePool();
+    renderContentLibrary();
+    renderDashboard();
+    renderPublishQueue();
+    renderSourceLibrary();
+    showToast('โหลดคลังเดิมกลับมา ' + candidatePool.length + ' รายการ (เก็บไว้ในเครื่องนี้)', 'info');
+    return;
   }
 
-  mount(wrap, renderSourceLibrary());
-  mount(wrap, renderExpiredNotice());
+  // Nothing saved yet — start EMPTY. Candidates come from real Shopee data
+  // only (Product Offer paste, Capture bookmarklet, or a link), never fakes.
+  candidatePool = [];
+  sourceItems = [];
+  publishQueue = [];
 
-  wrap.append(h('section', { class: 'mvp-card' },
-    h('div', { class: 'card-head' },
-      h('div', null,
-        h('p', { class: 'eyebrow', text: 'Step 2 · Research' }),
-        h('h2', { text: 'Price, promotion, commission, reviews and shops' }),
-      ),
-      state.synthetic ? badge('from synthetic rows', 'badge-mock') : badge('from user export — unverified', 'badge-defer'),
-    ),
-    h('p', { class: 'lead' },
-      'Every number below is read from the current import or computed from it. Derived comparisons are INFERENCE; conversion, click-through and live validity stay UNKNOWN.'),
-    h('div', { class: 'table-scroll' },
-      h('table', { class: 'mvp-table' },
-        h('thead', null, h('tr', null,
-          ['Product', 'Price', 'Category median', 'Δ vs median', 'Promotion', 'Commission', 'Reviews', 'Shop', 'Related shops', 'Crowding']
-            .map((label) => h('th', { scope: 'col', text: label })),
-        )),
-        h('tbody', null, offerRows().map(({ offer, product }) => h('tr', null,
-          h('td', null,
-            h('p', { class: 'cell-title', text: product ? product.name : offer.item_id }),
-            h('p', { class: 'cell-sub mono', text: `${offer.id} · ${offer.shop_name}` }),
-          ),
-          h('td', { text: thb(offer.price_thb) }),
-          h('td', { text: thb(offer.metrics.category_median_price_thb) }),
-          h('td', null, h('span', { class: `delta ${offer.metrics.price_position_pct <= 0 ? 'is-low' : 'is-high'}`, text: `${offer.metrics.price_position_pct > 0 ? '+' : ''}${offer.metrics.price_position_pct}%` })),
-          h('td', null,
-            h('span', { class: 'tag', text: offer.promo.type }),
-            h('span', { class: 'cell-sub', text: `${offer.promo.label} · ${offer.promo.depth_pct}%` }),
-          ),
-          h('td', null,
-            h('span', { class: 'mono', text: `${Math.round(offer.commission_rate * 10000) / 100}%` }),
-            h('span', { class: 'cell-sub', text: `${thb(offer.commission_per_order_thb)}/order` }),
-          ),
-          h('td', null,
-            h('span', { class: 'mono', text: `${offer.reviews.rating}/5` }),
-            h('span', { class: 'cell-sub', text: `${offer.reviews.rating_count} ratings · ${offer.reviews.units_sold} sold` }),
-          ),
-          h('td', null,
-            h('span', { class: 'mono', text: `${offer.shop.rating}/5` }),
-            h('span', { class: 'cell-sub', text: offer.shop_name }),
-          ),
-          h('td', { class: 'mono', text: String(offer.shop.related_shop_count) }),
-          h('td', null, h('span', { class: 'tag', text: offer.metrics.competition_level.replace('_FIXTURE_CROWDING', '') })),
-        ))),
-      ),
-    ),
-    h('p', { class: 'note' },
-      'Δ vs median is the offer price compared with the median of the same fixture category. It is not a market price survey.'),
-  ));
+  dashboardData = {
+    totalSales: 0,
+    totalClicks: 0,
+    totalCommission: 0,
+    trendPoints: [],
+  };
 
-  wrap.append(h('section', { class: 'mvp-card' },
-    h('div', { class: 'card-head' }, h('div', null, h('p', { class: 'eyebrow', text: 'Analysis method' }), h('h2', { text: 'What the slice knows and does not know' }))),
-    h('div', { class: 'two-col' },
-      h('div', null,
-        h('h3', { text: 'Known from the fixture' }),
-        h('ul', { class: 'plain-list' },
-          h('li', { text: `Price and list price · ${state.summary.offers} offers` }),
-          h('li', { text: 'Promotion type, label and stated depth' }),
-          h('li', { text: 'Commission rate and per-order value at the listed price' }),
-          h('li', { text: 'Rating, rating count, units sold, shop rating and related-shop count' }),
-        ),
-      ),
-      h('div', null,
-        h('h3', { text: 'Explicitly unknown' }),
-        h('ul', { class: 'plain-list' }, (state.analysis.dataset_unknowns || []).map((text) => h('li', { text }))),
-      ),
-    ),
-  ));
-
-  wrap.append(h('section', { class: 'mvp-card' },
-    h('div', { class: 'card-head' },
-      h('div', null, h('p', { class: 'eyebrow', text: 'Evidence register' }), h('h2', { text: `${state.summary.evidence} evidence records` })),
-      badge('FACT / INFERENCE / UNKNOWN', 'badge-neutral'),
-    ),
-    h('p', { class: 'muted' }, 'Each record carries checked_at, source_ids and its own limitations. Open an offer to inspect the claims.'),
-    h('div', { class: 'evidence-list' },
-      offerRows().map(({ offer, product }, index) => {
-        const items = state.evidence.filter((item) => item.subject.id === offer.id);
-        return h('details', { class: 'evidence-group', open: index === 0 },
-          h('summary', null,
-            h('span', { class: 'evidence-summary-title', text: product ? product.name : offer.item_id }),
-            h('span', { class: 'evidence-summary-meta' },
-              items.map((item) => claimBadge(item.claim_class)),
-              h('span', { class: 'muted small', text: `${items.length} records · checked ${fmtDate(offer.checked_at)}` }),
-            ),
-          ),
-          h('ul', { class: 'claim-list' },
-            items.map((item) => h('li', { class: 'claim' },
-              claimBadge(item.claim_class),
-              h('div', null,
-                h('p', { class: 'claim-text', text: item.statement }),
-                h('p', { class: 'claim-meta mono' }, `${item.id} · ${item.value === null ? 'value: null' : `${item.value}${item.unit ? ` ${item.unit}` : ''}`}`),
-                h('p', { class: 'claim-meta' }, item.limitations.join(' ')),
-              ),
-            )),
-          ),
-        );
-      }),
-    ),
-  ));
-
-  mount(wrap, renderResearchReport());
-
-  wrap.append(h('div', { class: 'toolbar sticky-actions' },
-    h('button', {
-      type: 'button',
-      class: 'btn btn-primary',
-      disabled: ui.busy,
-      on: {
-        click: () => run(() => generateFromResearch(false), 'สร้าง 5 แคนดิเดตจากข้อมูลพูลแล้ว'),
-      },
-    }, state.summary.candidates ? 'Regenerate 5 candidates' : 'Generate 5 candidates'),
-    h('button', { type: 'button', class: 'btn btn-ghost', on: { click: () => go('research') } }, 'Open candidates →'),
-  ));
-
-  return wrap;
+  renderCandidatePool();
+  renderContentLibrary();
+  renderDashboard();
 }
 
-/* ---------- Candidates ---------- */
+// ----- Candidate Pool: AI shortlist over real imported data -----
 
-function statusCounts() {
-  const state = ui.state;
-  return (state && state.summary.status_counts) || { NONE: 0, SAVED: 0, REJECTED: 0, QUEUED: 0 };
+// One shortlist run considers at most this many pool items — the server
+// snapshot accepts the same cap, and both sides report coverage honestly.
+const AI_SHORTLIST_MAX = 12;
+let lastAiResearch = null;
+
+function aiFailureMessage(status, message) {
+  if (status === 'missing_credential') return 'ยังไม่ได้ผูก API Key — เปิด Settings (⚙️) แล้ววาง OPENROUTER_API_KEY ก่อน';
+  if (status === 'auth_error') return 'ผู้ให้บริการปฏิเสธ API Key — ตรวจคีย์อีกครั้งใน Settings (⚙️)';
+  if (status === 'rate_limited') return 'โมเดลจำกัดอัตราการเรียก — รอสักครู่แล้วลองใหม่';
+  if (status === 'timeout') return 'โมเดลไม่ตอบกลับภายในเวลา — ลองอีกครั้ง';
+  if (status === 'provider_disabled') return 'ระบบปิดการเรียกเครือข่ายอยู่ (interlock) — ตรวจการตั้งค่าใน Settings (⚙️)';
+  if (status === 'invalid_configuration') return 'ตั้งค่าโมเดลไม่ถูกต้อง — ตรวจชื่อโมเดลใน Settings (⚙️)';
+  return message || ('AI ล้มเหลว (' + (status || 'unknown') + ')');
 }
 
-function candidateById(id) {
-  return ui.state ? ui.state.candidates.find((c) => c.id === id) : null;
-}
-
-function renderCandidateCard(candidate) {
-  const claimGroups = CLAIM_ORDER.map((claimClass) => ({
-    claimClass,
-    items: candidate.claims.filter((item) => item.claim_class === claimClass),
-  }));
-
-  const actionButton = (label, action, disabled, primary) => h('button', {
-    type: 'button',
-    class: `btn ${primary ? 'btn-primary' : ''}`,
-    disabled: disabled || ui.busy,
-    on: {
-      click: () => run(async () => {
-        const res = await api(`/api/mvp/candidates/${candidate.id}/action`, 'POST', { action });
-        applyState(res.state);
-      }, `${label} · ${candidate.id}`),
-    },
-  }, label);
-
-  return h('article', { class: `cand-card${candidate.status === 'REJECTED' ? ' is-rejected' : ''}` },
-    h('div', { class: 'cand-head' },
-      h('div', { class: 'cand-rank', text: candidate.consistency && candidate.consistency !== 'OK' ? `#${candidate.rank} ⚠` : `#${candidate.rank}` }),
-      h('div', { class: 'cand-title-wrap' },
-        h('h3', { class: 'cand-title', text: candidate.title }),
-        h('p', { class: 'cell-sub', text: `${candidate.id} · ${candidate.shop.name} · ${candidate.category}` }),
-      ),
-      candidate.consistency && candidate.consistency !== 'OK'
-        ? badge(`⚠ ${candidate.consistency}`, 'badge-defer')
-        : statusBadge(candidate.status),
-    ),
-    h('div', { class: 'score-row' },
-      h('div', { class: 'score' }, h('span', { class: 'score-val', text: String(candidate.scores.ranking_score) }), h('span', { class: 'score-label', text: 'Ranking /100' })),
-      h('div', { class: 'score' }, h('span', { class: 'score-val', text: String(candidate.scores.opportunity_score) }), h('span', { class: 'score-label', text: 'Opportunity /100' })),
-      h('div', { class: 'score' }, h('span', { class: 'score-val', text: candidate.scores.confidence.level }), h('span', { class: 'score-label', text: 'Confidence' })),
-    ),
-    h('p', { class: 'note' },
-      `Ranking = 0.85 × opportunity + 0.15 × data confidence (${candidate.scores.confidence.score}). Not a sales forecast.`),
-    h('div', { class: 'claim-grid' },
-      claimGroups.map((group) => h('div', { class: 'claim-group' },
-        h('p', { class: 'claim-group-head' }, claimBadge(group.claimClass), h('span', { class: 'muted small', text: `${group.items.length}` })),
-        h('ul', { class: 'claim-list tight' }, group.items.map((item) => h('li', { class: 'claim' },
-          h('p', { class: 'claim-text', text: item.text }),
-          h('p', { class: 'claim-meta mono', text: item.evidence_ids.join(' · ') }),
-        ))),
-      )),
-    ),
-    h('details', { class: 'reasons' },
-      h('summary', { text: 'Why this candidate' }),
-      h('ul', { class: 'plain-list' }, candidate.reasons.map((text) => h('li', { text }))),
-    ),
-    h('div', { class: 'trace' },
-      h('span', { class: 'mono small', text: 'sources: ' }),
-      candidate.source_ids.map((id) => h('button', {
-        type: 'button', class: 'link-btn mono small', title: `Show every candidate built from ${id}`,
-        on: { click: () => filterBySource(id) },
-      }, id)),
-    ),
-    h('p', { class: 'trace mono small' }, `evidence: ${candidate.evidence_ids.length} records`),
-    h('div', { class: 'toolbar cand-actions' },
-      actionButton('Save', 'SAVE', candidate.status === 'SAVED' || candidate.status === 'REJECTED', true),
-      actionButton('Reject', 'REJECT', candidate.status === 'REJECTED', false),
-      actionButton('Add to queue', 'QUEUE', candidate.status === 'QUEUED' || candidate.status === 'REJECTED', false),
-      h('button', {
-        type: 'button',
-        class: 'btn',
-        disabled: candidate.status === 'NONE' && (candidate.status_history || []).length > 0
-          && (candidate.status_history || []).at(-1).action === 'REMOVE',
-        title: candidate.status === 'NONE' && (candidate.status_history || []).length > 0
-          && (candidate.status_history || []).at(-1).action === 'REMOVE'
-          ? 'Already removed — restore จาก Removed list ก่อน'
-          : 'นำออกจากชุด active (soft delete) แล้วเลือกวิธีสร้างรายการทดแทน',
-        on: {
-          click: () => {
-            if (!window.confirm(`นำ "${candidate.title}" ออกจากชุด candidates? (soft delete — restore ได้จากประวัติ แล้วระบบจะเปิด modal เลือกรายการทดแทน)`)) return;
-            run(async () => {
-              const res = await api(`/api/mvp/candidates/${candidate.id}/action`, 'POST', { action: 'REMOVE' });
-              applyState(res.state);
-              openSelectModal('replace', candidate.id);
-            }, `Remove + replace flow · ${candidate.id}`);
-          },
-        },
-      }, '✕ นำออก/แทนที่'),
-      h('button', {
-        type: 'button',
-        class: 'btn',
-        on: { click: () => openTrace(candidate.id) },
-        title: 'ดูเส้นทางชีวิตของรายการนี้ตั้งแต่ Research ถึงไฟล์ที่ export',
-      }, 'ไทม์ไลน์ →'),
-      h('button', {
-        type: 'button',
-        class: 'btn btn-ghost',
-        disabled: candidate.status !== 'SAVED' && candidate.status !== 'QUEUED',
-        title: candidate.status === 'SAVED' || candidate.status === 'QUEUED' ? 'Create a plan draft from this candidate' : 'Save or queue the candidate first',
-        on: {
-          click: () => {
-            ui.selectedCandidateId = candidate.id;
-            ui.createdPlan = null;
-            ui.contentNew = true;
-            go('plan');
-          },
-        },
-      }, 'Plan →'),
-    ),
-  );
-}
-
-function renderQueue() {
-  const state = ui.state;
-  const queue = state.queue.map((id) => candidateById(id)).filter(Boolean);
-  return h('section', { class: 'mvp-card queue-card' },
-    h('div', { class: 'card-head' },
-      h('div', null, h('p', { class: 'eyebrow', text: 'Queue' }), h('h2', { text: `${queue.length} candidate${queue.length === 1 ? '' : 's'} in order` })),
-      badge('persisted in fixture state', 'badge-neutral'),
-    ),
-    queue.length === 0
-      ? h('p', { class: 'muted' }, 'Nothing queued. Use “Add to queue” on a candidate card; reordering happens here.')
-      : h('ol', { class: 'queue-list' }, queue.map((candidate, index) => h('li', { class: 'queue-item' },
-        h('span', { class: 'queue-index', text: String(index + 1) }),
-        h('div', { class: 'queue-title' },
-          h('p', { class: 'cell-title', text: candidate.title }),
-          h('p', { class: 'cell-sub mono', text: `${candidate.id} · rank #${candidate.rank} · ${candidate.scores.ranking_score}/100` }),
-        ),
-        h('div', { class: 'queue-controls' },
-          h('button', {
-            type: 'button', class: 'icon-btn', 'aria-label': `Move ${candidate.title} up`, disabled: ui.busy || index === 0,
-            on: {
-              click: () => run(async () => {
-                const res = await api('/api/mvp/queue/reorder', 'POST', { candidateId: candidate.id, direction: 'UP' });
-                applyState(res.state);
-              }, 'Queue reordered'),
-            },
-          }, '↑'),
-          h('button', {
-            type: 'button', class: 'icon-btn', 'aria-label': `Move ${candidate.title} down`, disabled: ui.busy || index === queue.length - 1,
-            on: {
-              click: () => run(async () => {
-                const res = await api('/api/mvp/queue/reorder', 'POST', { candidateId: candidate.id, direction: 'DOWN' });
-                applyState(res.state);
-              }, 'Queue reordered'),
-            },
-          }, '↓'),
-          h('button', {
-            type: 'button', class: 'icon-btn danger', 'aria-label': `Remove ${candidate.title} from the queue`, disabled: ui.busy,
-            on: {
-              click: () => run(async () => {
-                const res = await api(`/api/mvp/candidates/${candidate.id}/action`, 'POST', { action: 'REMOVE' });
-                applyState(res.state);
-              }, 'Removed from queue'),
-            },
-          }, '✕'),
-        ),
-      ))),
-  );
-}
-
-/* ---------- Shared select modal (ADD/REPLACE — User Select Integration) ---------- */
-
-function removedCandidates(state) {
-  return (state.candidates || []).filter((candidate) => candidate.status === 'NONE'
-    && (candidate.status_history || []).length > 0
-    && (candidate.status_history || []).at(-1).action === 'REMOVE');
-}
-
-function openSelectModal(context, replaceCandidateId) {
-  closeSelectModal();
-  const state = ui.state;
-  const removedCount = removedCandidates(state).length;
-  const overlay = h('div', { class: 'modal-overlay', style: 'position:fixed;inset:0;background:rgba(0,0,0,.55);display:flex;align-items:center;justify-content:center;z-index:60;' },
-    h('div', { class: 'modal-card', style: 'background:var(--bg,#141414);color:inherit;border:1px solid rgba(255,255,255,.18);border-radius:12px;max-width:560px;width:92%;max-height:82vh;overflow:auto;padding:18px;' },
-      h('div', { class: 'modal-head', style: 'display:flex;justify-content:space-between;align-items:center;gap:12px;' },
-        h('h3', { text: context === 'replace' ? 'แทนที่ candidate ที่นำออก' : 'เพิ่มข้อเสนอใหม่' }),
-        h('button', { type: 'button', class: 'link-btn', on: { click: closeSelectModal } }, 'ปิด ✕'),
-      ),
-      h('p', { class: 'note', text: context === 'replace'
-        ? `Candidate ถูกนำออกแบบ soft delete แล้ว (ปัจจุบันมี removed ${removedCount} รายการ — restore ได้จากประวัติ) เลือกวิธีสร้างรายการทดแทน 1 รายการ`
-        : 'เลือกวิธีค้นคว้ารายการใหม่ — ผลลัพธ์จะแสดงเพื่อรีวิวก่อนส่งเข้า Queue เสมอ (ระบบจะไม่ยิง Queue เอง)' }),
-      h('div', { class: 'stack', style: 'display:flex;flex-direction:column;gap:10px;margin:12px 0;' },
-        h('button', { type: 'button', class: 'btn btn-primary', disabled: ui.busy,
-          on: { click: () => runSelect(context, replaceCandidateId, { method: 'research' }) } },
-          'Research Select — ให้ระบบค้นคว้าและจัดอันดับให้'),
-        h('button', { type: 'button', class: 'btn btn-ghost', disabled: ui.busy,
-          on: { click: () => renderUserShortlist(context, replaceCandidateId) } },
-          'User Select — เลือกเองจาก shortlist'),
-      ),
-      h('div', { id: 'select-modal-body' }),
-    ),
-  );
-  document.body.append(overlay);
-}
-
-function closeSelectModal() {
-  const overlay = document.querySelector('.modal-overlay');
-  if (overlay) overlay.remove();
-}
-
-function existingOfferItems(state) {
-  const byId = new Map((state.offers || []).map((offer) => [offer.id, offer]));
-  const items = new Set();
-  for (const candidate of state.candidates || []) {
-    const offer = byId.get(candidate.offer_id);
-    if (offer) items.add(String(offer.item_id));
-  }
-  return items;
-}
-
-function renderUserShortlist(context, replaceCandidateId) {
-  const body = document.getElementById('select-modal-body');
-  if (!body) return;
-  const state = ui.state;
-  const existingItems = existingOfferItems(state);
-  const shortlist = (state.offers || [])
-    .filter((offer) => !existingItems.has(String(offer.item_id)))
-    .slice(0, 50);
-  body.innerHTML = '';
-  body.append(h('p', { class: 'note', text: `Shortlist ${shortlist.length} รายการ (สูงสุด 50 ต่อหน้า — จัดอันดับตาม mvp-score-v1) — ติ๊กเลือกแล้วกดยืนยัน` }));
-  const checkboxes = shortlist.map((offer) => h('label', { class: 'shortlist-row', style: 'display:flex;gap:8px;align-items:center;padding:6px 0;border-bottom:1px solid rgba(255,255,255,.08);' },
-    h('input', { type: 'checkbox', value: offer.id }),
-    h('span', { class: 'mono small', text: `${offer.item_id} · ${offer.product_name || ''} · THB ${offer.price_thb} (list ${offer.list_price_thb})` }),
-  ));
-  const confirmBtn = h('button', {
-    type: 'button', class: 'btn btn-primary', disabled: ui.busy,
-    on: {
-      click: () => {
-        const checked = [...body.querySelectorAll('input[type=checkbox]:checked')].map((el) => el.value);
-        if (!checked.length) { toast('เลือกอย่างน้อย 1 รายการก่อนยืนยัน', true); return; }
-        runSelect(context, replaceCandidateId, { method: 'user', offerIds: checked });
-      },
-    },
-  }, 'ยืนยันการเลือก (สร้าง candidate เพื่อรีวิว — ไม่เข้า Queue เอง)');
-  body.append(h('div', { class: 'stack', style: 'display:flex;flex-direction:column;' }, checkboxes), h('div', { style: 'margin-top:12px;' }, confirmBtn));
-}
-
-async function runSelect(context, replaceCandidateId, payload) {
-  await run(async () => {
-    const body = { ...payload, context };
-    if (replaceCandidateId) body.replaceCandidateId = replaceCandidateId;
-    const res = await api('/api/mvp/candidates/select', 'POST', body);
-    applyState(res.state);
-    closeSelectModal();
-    toast(`เพิ่ม ${res.added_count} candidate เพื่อรีวิว (ยังไม่เข้า Queue — กด Send To Queue ต่อรายการเอง)`);
-  }, 'Select candidates');
-}
-
-function renderRemovedHistory() {
-  const state = ui.state;
-  const removed = removedCandidates(state);
-  if (!removed.length) return null;
-  return h('section', { class: 'mvp-card' },
-    h('div', { class: 'card-head' },
-      h('div', null,
-        h('p', { class: 'eyebrow', text: 'Removed candidates (soft delete — restore available)' }),
-        h('h2', { text: `${removed.length} removed` }),
-      ),
-    ),
-    h('p', { class: 'note' }, 'รายการเหล่านี้ถูกนำออกจากชุด active ด้วย REMOVE — กด Restore เพื่อกลับเข้า Active-NONE (ระบบจะ re-rank ให้ และไม่เข้า Queue เอง)'),
-    h('div', { class: 'stack' }, removed.map((candidate) => h('div', { class: 'removed-row', style: 'display:flex;justify-content:space-between;align-items:center;gap:12px;padding:8px 0;border-bottom:1px solid rgba(255,255,255,.08);' },
-      h('div', null,
-        h('p', { class: 'mono small', text: `${candidate.id} · ${candidate.title}` }),
-        h('p', { class: 'muted small', text: `removed เมื่อ ${(candidate.status_history || []).at(-1)?.at || '—'} · evidence ${candidate.evidence_ids.length} records` }),
-      ),
-      h('button', {
-        type: 'button', class: 'btn btn-ghost', disabled: ui.busy,
-        on: {
-          click: () => run(async () => {
-            const res = await api(`/api/mvp/candidates/${candidate.id}/restore`, 'POST', {});
-            applyState(res.state);
-          }, `Restore · ${candidate.id}`),
-        },
-      }, 'Restore'),
-    ))),
-  );
-}
-
-function renderCandidates() {
-  const state = ui.state;
-  const wrap = h('div', { class: 'stack' });
-
-  if (!state || !state.import) {
-    wrap.append(h('section', { class: 'notice' },
-      h('div', { class: 'notice-head' }, h('h2', { text: 'ยังไม่มีข้อมูลพูลสินค้า' })),
-      h('p', null, h('button', { type: 'button', class: 'link-btn', on: { click: () => go('research') } }, 'ไปที่ Research →')),
-    ));
-    return wrap;
-  }
-
-  const counts = statusCounts();
-  const visible = ui.sourceFilter
-    ? state.candidates.filter((candidate) => candidate.source_ids.includes(ui.sourceFilter))
-    : state.candidates;
-  wrap.append(h('section', { class: 'mvp-card' },
-    h('div', { class: 'card-head' },
-      h('div', null,
-        h('p', { class: 'eyebrow', text: 'Step 3 · Candidate workspace' }),
-        h('h2', { text: state.summary.candidates ? `${state.summary.candidates} ranked candidates` : 'No candidates yet' }),
-      ),
-      h('div', { class: 'head-meta' },
-        badge(`${counts.SAVED} saved`, 'badge-select'),
-        badge(`${counts.QUEUED} queued`, 'badge-defer'),
-        badge(`${counts.REJECTED} rejected`, 'badge-reject'),
-      ),
-    ),
-    h('p', { class: 'lead' },
-      'The five candidates are generated deterministically from the current import. Save, reject, queue and remove are written to research state and survive a reload; nothing here advances a gate.'),
-    h('div', { class: 'toolbar' },
-      h('button', {
-        type: 'button', class: 'btn btn-primary', disabled: ui.busy,
-        on: {
-          click: () => run(() => generateFromResearch(false), 'Regenerated 5 candidates (actions kept for surviving ids)'),
-        },
-      }, state.summary.candidates ? 'Regenerate candidates' : 'Generate 5 candidates'),
-      h('button', { type: 'button', class: 'btn btn-ghost', on: { click: () => openSelectModal('add', null) }, disabled: ui.busy }, '+ ข้อเสนอใหม่ (Research/User Select)'),
-      h('button', { type: 'button', class: 'btn btn-ghost', on: { click: () => go('plan') }, disabled: !(counts.SAVED + counts.QUEUED) }, 'Go to plan →'),
-    ),
-    h('p', { class: 'note' }, 'Status counts are shown above. “Remove” clears the candidate back to not-actioned and takes it out of the queue.'),
-  ));
-
-  if (ui.sourceFilter) {
-    const source = (state.sources || []).find((entry) => entry.id === ui.sourceFilter);
-    wrap.append(h('section', { class: 'notice notice-filter' },
-      h('div', { class: 'notice-head' },
-        h('h2', { text: `Filtered by ${source ? source.label : ui.sourceFilter}` }),
-        h('button', { type: 'button', class: 'link-btn', on: { click: () => { ui.sourceFilter = null; render(); } } }, 'Clear filter ✕'),
-      ),
-      h('p', { class: 'cell-sub mono', text: `${ui.sourceFilter} · ${visible.length} of ${state.candidates.length} candidates` }),
-    ));
-  }
-
-  mount(wrap, renderExpiredNotice());
-
-  if (ui.error) {
-    wrap.append(h('section', { class: 'notice notice-error' },
-      h('div', { class: 'notice-head' }, h('h2', { text: ui.error.message })),
-    ));
-  }
-
-  if (!state.summary.candidates) {
-    wrap.append(h('section', { class: 'notice' },
-      h('div', { class: 'notice-head' }, h('h2', { text: 'Candidates are generated, not auto-created' })),
-      h('p', { text: 'Press “Generate 5 candidates” after reviewing the research records.' }),
-    ));
-    return wrap;
-  }
-
-  wrap.append(h('div', { class: 'cand-grid' }, visible.map(renderCandidateCard)));
-  if (!visible.length) {
-    wrap.append(h('section', { class: 'notice' },
-      h('div', { class: 'notice-head' }, h('h2', { text: 'No candidate uses this source' })),
-      h('p', { text: 'The source is linked to research records, but none of the five ranked candidates came from it.' }),
-    ));
-  }
-  wrap.append(renderQueue());
-  return wrap;
-}
-
-/* ---------- Plan ---------- */
-
-function eligibleCandidates() {
-  return ui.state ? ui.state.candidates.filter((c) => c.status === 'SAVED' || c.status === 'QUEUED') : [];
-}
-
-function approachCard(approach, key, label) {
-  const selected = ui.approach === key;
-  return h('label', { class: `approach${selected ? ' is-selected' : ''}` },
-    h('div', { class: 'approach-head' },
-      h('input', {
-        type: 'radio', name: 'approach', value: key, checked: selected,
-        on: { change: () => { ui.approach = key; render(); } },
-      }),
-      h('div', null,
-        h('p', { class: 'approach-label', text: label }),
-        h('p', { class: 'cell-sub', text: approach.origin === 'USER' ? 'User-authored · stored separately' : 'AI draft · from fixture evidence' }),
-      ),
-    ),
-    h('p', { class: 'approach-angle', text: approach.angle }),
-    h('dl', { class: 'kv compact' },
-      approach.audience ? h('div', null, h('dt', { text: 'Audience' }), h('dd', { text: approach.audience })) : null,
-      approach.hook ? h('div', null, h('dt', { text: 'Hook' }), h('dd', { text: approach.hook })) : null,
-      approach.format ? h('div', null, h('dt', { text: 'Format' }), h('dd', { text: approach.format })) : null,
-      approach.cta ? h('div', null, h('dt', { text: 'CTA' }), h('dd', { text: approach.cta })) : null,
-      approach.rationale ? h('div', null, h('dt', { text: 'Rationale' }), h('dd', { text: approach.rationale })) : null,
-    ),
-    approach.claim_notes ? h('p', { class: 'note', text: approach.claim_notes }) : null,
-    approach.tradeoffs ? h('ul', { class: 'plain-list tight' }, approach.tradeoffs.map((text) => h('li', { text }))) : null,
-    approach.evidence_ids && approach.evidence_ids.length
-      ? h('p', { class: 'trace mono small', text: `evidence: ${approach.evidence_ids.join(' · ')}` })
-      : h('p', { class: 'trace small', text: 'No generated evidence mapping — verify claims manually.' }),
-    h('p', { class: 'gate-note', text: approach.gate_note }),
-  );
-}
-
-function renderCustomForm(draft) {
-  const saved = draft.approaches.user_custom;
-  if (saved) {
-    return h('div', null,
-      approachCard(saved, 'user_custom', 'User Custom'),
-      h('div', { class: 'toolbar' },
-        h('button', {
-          type: 'button', class: 'btn btn-ghost', disabled: ui.busy,
-          on: {
-            click: () => run(async () => {
-              const res = await api('/api/mvp/plan/custom', 'POST', {
-                draftId: draft.id,
-                angle: `${saved.angle} (revised)`,
-                audience: saved.audience || '',
-                hook: saved.hook || '',
-                format: saved.format || '',
-                rationale: saved.rationale || '',
-              });
-              ui.draft = res.draft;
-              applyState(res.state);
-            }, 'User custom approach updated'),
-          },
-        }, 'Edit (appends “revised”)'),
-      ),
-    );
-  }
-
-  const field = (name, label, rows) => h('label', { class: 'field' },
-    h('span', { class: 'field-label', text: label }),
-    rows
-      ? h('textarea', {
-        rows,
-        value: ui.custom[name],
-        on: { input: (event) => { ui.custom[name] = event.target.value; } },
-      })
-      : h('input', {
-        type: 'text',
-        value: ui.custom[name],
-        on: { input: (event) => { ui.custom[name] = event.target.value; } },
-      }),
-  );
-
-  return h('div', { class: 'custom-form' },
-    h('p', { class: 'approach-label', text: 'User Custom' }),
-    h('p', { class: 'cell-sub', text: 'Stored under approaches.user_custom — never merged into Personalized A/B or Exploration.' }),
-    field('angle', 'Angle (required, 10+ characters)', 3),
-    field('audience', 'Audience', 0),
-    field('hook', 'Hook', 0),
-    field('format', 'Format', 0),
-    field('rationale', 'Rationale', 2),
-    h('div', { class: 'toolbar' },
-      h('button', {
-        type: 'button', class: 'btn btn-primary', disabled: ui.busy,
-        on: {
-          click: () => run(async () => {
-            const res = await api('/api/mvp/plan/custom', 'POST', {
-              draftId: draft.id,
-              angle: ui.custom.angle,
-              audience: ui.custom.audience,
-              hook: ui.custom.hook,
-              format: ui.custom.format,
-              rationale: ui.custom.rationale,
-            });
-            ui.draft = res.draft;
-            ui.approach = 'user_custom';
-            applyState(res.state);
-          }, 'User custom approach saved separately'),
-        },
-      }, 'Save custom approach'),
-    ),
-  );
-}
-
-function renderImpactPreview(draft) {
-  const preview = draft.impact_preview;
-  return h('section', { class: 'mvp-card impact' },
-    h('div', { class: 'card-head' },
-      h('div', null,
-        h('p', { class: 'eyebrow', text: 'Impact preview · required before the next step' }),
-        h('h2', { text: 'What creating this plan changes' }),
-      ),
-      badge('THB 0 · no external calls', 'badge-neutral'),
-    ),
-    h('dl', { class: 'kv' },
-      h('div', null, h('dt', { text: 'Candidate' }), h('dd', { text: `${preview.candidate.id} · ${preview.candidate.title} · ${preview.candidate.status}` })),
-      h('div', null, h('dt', { text: 'Plan identity' }), h('dd', { class: 'mono', text: `${preview.plan_identity_preview.plan_id} → ${preview.plan_identity_preview.id}` })),
-      h('div', null, h('dt', { text: 'Spend' }), h('dd', { text: thb(preview.spend_thb) })),
-      h('div', null, h('dt', { text: 'External calls' }), h('dd', { text: String(preview.external_calls) })),
-    ),
-    h('div', { class: 'two-col' },
-      h('div', null,
-        h('h3', { text: 'Will happen' }),
-        h('ul', { class: 'plain-list' }, preview.changes.map((change) => h('li', null,
-          h('strong', { text: change.what }),
-          h('span', { class: 'cell-sub', text: ` → ${change.where} · ${change.effect}` }),
-        ))),
-      ),
-      h('div', null,
-        h('h3', { text: 'Will NOT happen' }),
-        h('ul', { class: 'plain-list' }, preview.not_done.map((text) => h('li', { text }))),
-      ),
-    ),
-    h('div', { class: 'table-scroll' },
-      h('table', { class: 'mvp-table compact' },
-        h('thead', null, h('tr', null, h('th', { text: 'Gate' }), h('th', { text: 'State after this action' }))),
-        h('tbody', null, Object.entries(preview.gates).map(([gate, status]) => h('tr', null,
-          h('td', { class: 'mono', text: gate }),
-          h('td', { text: status }),
-        ))),
-      ),
-    ),
-    h('ul', { class: 'limits' }, preview.limitations.map((text) => h('li', { text }))),
-    h('label', { class: 'confirm-row' },
-      h('input', {
-        type: 'checkbox', checked: ui.confirmImpact,
-        on: { change: (event) => { ui.confirmImpact = event.target.checked; render(); } },
-      }),
-      h('span', { text: 'I reviewed the impact preview. Create the fixture plan record only.' }),
-    ),
-  );
-}
-
-function renderCreatedPlan(plan) {
-  return h('section', { class: 'mvp-card plan-record' },
-    h('div', { class: 'card-head' },
-      h('div', null,
-        h('p', { class: 'eyebrow', text: 'Fixture plan record' }),
-        h('h2', { text: `${plan.plan_id} · ${APPROACH_LABEL[plan.approach] || plan.approach}` }),
-      ),
-      badge(plan.status, 'badge-mock'),
-    ),
-    h('dl', { class: 'kv' },
-      h('div', null, h('dt', { text: 'plan_id' }), h('dd', { class: 'mono', text: plan.plan_id })),
-      h('div', null, h('dt', { text: 'snapshot id' }), h('dd', { class: 'mono', text: plan.id })),
-      h('div', null, h('dt', { text: 'version' }), h('dd', { class: 'mono', text: plan.version })),
-      h('div', null, h('dt', { text: 'candidate' }), h('dd', { class: 'mono', text: plan.candidate_id })),
-      h('div', null, h('dt', { text: 'created' }), h('dd', { text: fmtDate(plan.created_at) })),
-    ),
-    h('p', { class: 'note' }, plan.selected_approach ? plan.selected_approach.angle : ''),
-    h('div', { class: 'boundary-box' },
-      h('p', { class: 'boundary-title', text: 'Boundary' }),
-      h('ul', { class: 'plain-list' },
-        h('li', { text: 'Written to MVP fixture state only; data/app/state.json was not touched.' }),
-        h('li', { text: 'Not a Plan Version contract record; nothing was posted to /api/plan-version.' }),
-        h('li', { text: 'No Experiment, CWI, script, video, publication or gate decision was created.' }),
-        h('li', { text: plan.foundation_handoff.reason }),
-      ),
-    ),
-    h('div', { class: 'toolbar' },
-      h('button', {
-        type: 'button', class: 'btn btn-primary', disabled: ui.busy,
-        on: {
-          click: () => run(async () => {
-            const res = await api('/api/mvp/content/draft', 'POST', {
-              planId: plan.plan_id,
-              approach: 'problem_first',
-            });
-            ui.contentId = res.project.content_id;
-            ui.sceneId = res.project.storyboard.scenes[0].id;
-            ui.contentTab = 'storyboard';
-            ui.contentApproach = 'problem_first';
-            applyState(res.state);
-            toast(`Content ${res.project.content_id} created from ${plan.plan_id}`);
-            go('production');
-          }, 'Content draft created from the plan'),
-        },
-      }, 'สร้าง Content จากแผนนี้ →'),
-    ),
-  );
-}
-
-function renderPlan() {
-  const state = ui.state;
-  const wrap = h('div', { class: 'stack' });
-
-  if (!state || !state.import) {
-    wrap.append(h('section', { class: 'notice' },
-      h('div', { class: 'notice-head' }, h('h2', { text: 'ยังไม่มีแคนดิเดตในพูล' })),
-      h('p', null, h('button', { type: 'button', class: 'link-btn', on: { click: () => go('research') } }, 'ไปที่ Research →')),
-    ));
-    return wrap;
-  }
-
-  const eligible = eligibleCandidates();
-  if (ui.createdPlan) wrap.append(renderCreatedPlan(ui.createdPlan));
-
-  if (!eligible.length) {
-    wrap.append(h('section', { class: 'notice' },
-      h('div', { class: 'notice-head' }, h('h2', { text: 'No selected candidate' })),
-      h('p', { text: 'Save a candidate or add it to the queue first — a plan is only created from a selected candidate.' }),
-      h('p', null, h('button', { type: 'button', class: 'link-btn', on: { click: () => go('research') } }, 'Open candidates →')),
-    ));
-    return wrap;
-  }
-
-  const selected = eligible.some((c) => c.id === ui.selectedCandidateId) ? ui.selectedCandidateId : eligible[0].id;
-  ui.selectedCandidateId = selected;
-
-  wrap.append(h('section', { class: 'mvp-card' },
-    h('div', { class: 'card-head' },
-      h('div', null,
-        h('p', { class: 'eyebrow', text: 'Step 4 · Plan' }),
-        h('h2', { text: ui.draft ? `Draft ${ui.draft.id} · 4 approaches` : 'Create a plan from a selected candidate' }),
-      ),
-      badge('fixture plan only', 'badge-neutral'),
-    ),
-    h('p', { class: 'lead' },
-      'The plan compares Personalized A, Personalized B, Exploration and User Custom. The user-custom approach is stored separately and is never merged into the generated three.'),
-    h('div', { class: 'toolbar' },
-      h('label', { class: 'field inline' },
-        h('span', { class: 'field-label', text: 'Candidate' }),
-        h('select', {
-          value: selected,
-          disabled: ui.busy,
-          on: { change: (event) => { ui.selectedCandidateId = event.target.value; } },
-        }, eligible.map((candidate) => h('option', {
-          value: candidate.id,
-          selected: candidate.id === selected,
-          text: `${candidate.id} · ${candidate.title} · ${candidate.status} · ${candidate.scores.ranking_score}/100`,
-        }))),
-      ),
-      h('button', {
-        type: 'button', class: 'btn btn-primary', disabled: ui.busy,
-        on: {
-          click: () => run(async () => {
-            const res = await api('/api/mvp/plan/draft', 'POST', { candidateId: ui.selectedCandidateId });
-            ui.draft = res.draft;
-            ui.approach = 'personalized_a';
-            ui.confirmImpact = false;
-            applyState(res.state);
-          }, 'Plan draft created with 4 approach slots'),
-        },
-      }, ui.draft ? 'Replace draft with a new one' : 'Generate plan draft'),
-    ),
-    ui.error ? h('p', { class: 'error-text', text: ui.error.message }) : null,
-  ));
-
-  if (!ui.draft) {
-    if ((state.plans || []).length > 1) {
-      wrap.append(h('div', { class: 'stack' }, [...state.plans].reverse().slice(1).map(renderCreatedPlan)));
-    }
-    return wrap;
-  }
-
-  const draft = ui.draft;
-  const candidate = candidateById(draft.candidate_id);
-
-  wrap.append(h('section', { class: 'mvp-card' },
-    h('div', { class: 'card-head' },
-      h('div', null,
-        h('p', { class: 'eyebrow', text: 'Draft basis' }),
-        h('h2', { text: candidate ? candidate.title : draft.candidate_id }),
-      ),
-      badge(draft.plan_identity_preview.plan_id, 'badge-neutral'),
-    ),
-    h('div', { class: 'score-row' },
-      h('div', { class: 'score' }, h('span', { class: 'score-val', text: String(draft.basis.ranking_score) }), h('span', { class: 'score-label', text: 'Ranking' })),
-      h('div', { class: 'score' }, h('span', { class: 'score-val', text: String(draft.basis.opportunity_score) }), h('span', { class: 'score-label', text: 'Opportunity' })),
-      h('div', { class: 'score' }, h('span', { class: 'score-val', text: draft.basis.confidence.level }), h('span', { class: 'score-label', text: 'Confidence' })),
-    ),
-    h('p', { class: 'note', text: draft.basis.confidence.basis }),
-  ));
-
-  wrap.append(h('div', { class: 'approach-grid' },
-    draft.approaches.generated.map((approach) => approachCard(approach, approach.key, approach.label)),
-  ));
-
-  wrap.append(h('section', { class: 'mvp-card custom-card' },
-    h('div', { class: 'card-head' },
-      h('div', null,
-        h('p', { class: 'eyebrow', text: 'Fourth approach' }),
-        h('h2', { text: 'User Custom' }),
-      ),
-      badge('separate field', 'badge-neutral'),
-    ),
-    renderCustomForm(draft),
-  ));
-
-  wrap.append(renderImpactPreview(draft));
-
-  const selectedApproach = ui.approach;
-  const customReady = selectedApproach !== 'user_custom' || Boolean(draft.approaches.user_custom);
-  const canCreate = ui.confirmImpact && customReady && !ui.busy;
-
-  wrap.append(h('section', { class: 'mvp-card' },
-    h('div', { class: 'card-head' },
-      h('div', null,
-        h('p', { class: 'eyebrow', text: 'Commit the draft' }),
-        h('h2', { text: `Selected: ${APPROACH_LABEL[selectedApproach]}` }),
-      ),
-      badge(`→ ${draft.plan_identity_preview.plan_id}`, 'badge-mock'),
-    ),
-    h('p', { class: 'muted' },
-      'The create action is blocked until the impact preview is confirmed. It writes one fixture plan record and nothing else.'),
-    ui.approach === 'user_custom' && !draft.approaches.user_custom
-      ? h('p', { class: 'warn', text: 'Save your custom approach first, or choose one of the generated approaches.' })
-      : null,
-    h('div', { class: 'toolbar' },
-      h('button', {
-        type: 'button', class: 'btn btn-primary', disabled: !canCreate,
-        on: {
-          click: () => run(async () => {
-            const res = await api('/api/mvp/plan', 'POST', {
-              draftId: draft.id,
-              approach: ui.approach,
-              confirmImpact: true,
-            });
-            ui.createdPlan = res.plan;
-            ui.draft = null;
-            ui.confirmImpact = false;
-            applyState(res.state);
-          }, 'Plan created in fixture state — no gate advanced'),
-        },
-      }, 'Create fixture plan'),
-      h('button', {
-        type: 'button', class: 'btn btn-ghost', disabled: ui.busy,
-        on: { click: () => go('research') },
-      }, 'Back to candidates'),
-    ),
-    !ui.confirmImpact ? h('p', { class: 'note', text: 'Confirm the impact preview above to enable this button.' }) : null,
-  ));
-
-  return wrap;
-}
-
-/* ---------- Content ---------- */
-
-const CONTENT_STATUS_BADGE = {
-  DRAFT: 'badge-neutral',
-  REVIEW: 'badge-defer',
-  FINALIZED: 'badge-select',
-  EXPORTED: 'badge-fact',
-  READY_TO_PUBLISH: 'badge-mock',
-};
-const CONTENT_STATUS_TEXT = {
-  DRAFT: 'ร่าง — แก้ไขได้อิสระ',
-  REVIEW: 'ส่งตรวจ — รอผลตรวจภาษาไทยและตรวจสอบ',
-  FINALIZED: 'ตรวจผ่าน — พร้อม export',
-  EXPORTED: 'ส่งออกแล้ว — มีไฟล์วิดีโอจริง',
-  READY_TO_PUBLISH: 'พร้อมเผยแพร่ — ยังไม่ได้กดเผยแพร่',
-};
-let contentDrafts = {};
-
-function allContents() {
-  return (ui.state && ui.state.contents) || [];
-}
-
-function contentById(id) {
-  return allContents().find((c) => c.content_id === id) || null;
-}
-
-function openContent() {
-  return ui.contentId ? contentById(ui.contentId) : null;
-}
-
-function contentEditable(project) {
-  return project && (project.status === 'DRAFT' || project.status === 'REVIEW');
-}
-
-function sceneDraft(scene, track) {
-  const key = `${scene.id}:${track}`;
-  if (!contentDrafts[key]) {
-    if (track === 'visual') {
-      contentDrafts[key] = {
-        preset: scene.visual.preset,
-        from: (scene.visual.background && scene.visual.background.from) || '#12151C',
-        accent: (scene.visual.background && scene.visual.background.accent) || '#2E7DF6',
-        asset_ref: scene.visual.asset_ref || '',
-        position: scene.visual.position,
-        duration_s: scene.duration_s,
-      };
-    } else if (track === 'text') {
-      contentDrafts[key] = {
-        badge: scene.overlay.badge || '',
-        headline: scene.overlay.headline || '',
-        subhead: scene.overlay.subhead || '',
-        fact: scene.overlay.fact || '',
-        cta: scene.overlay.cta || '',
-        position: scene.overlay.position,
-      };
+async function refreshAiStatus() {
+  const chip = document.getElementById('ai-status-chip');
+  if (!chip) return null;
+  try {
+    const response = await fetch('/api/mvp/settings/ai');
+    const data = await response.json();
+    const ai = data && data.ai ? data.ai : null;
+    if (ai && ai.configured) {
+      chip.textContent = '✨ AI พร้อม · ' + (ai.model || '');
+      chip.classList.remove('is-off');
     } else {
-      contentDrafts[key] = {
-        voiceover: scene.audio.voiceover || '',
-        music: scene.audio.music || 'none',
-        sfx: scene.audio.sfx || 'none',
-      };
+      chip.textContent = '✨ AI ยังไม่ได้ผูก Key — Settings ⚙️';
+      chip.classList.add('is-off');
     }
+    return data;
+  } catch (error) {
+    chip.textContent = '✨ AI: เชื่อมต่อเซิร์ฟเวอร์ไม่ได้';
+    chip.classList.add('is-off');
+    return null;
   }
-  return contentDrafts[key];
 }
 
-function contentField(draft, key, label, opts = {}) {
-  const { rows, type, options, placeholder } = opts;
-  let input;
-  if (options) {
-    const current = String(draft[key] == null ? '' : draft[key]);
-    input = h('select', { on: { change: (event) => { draft[key] = event.target.value; } } },
-      options.map((option) => h('option', {
-        value: option.value,
-        text: option.label,
-        selected: String(option.value) === current,
-      })));
-  } else if (rows) {
-    input = h('textarea', {
-      rows,
-      placeholder: placeholder || null,
-      on: { input: (event) => { draft[key] = event.target.value; } },
-      text: String(draft[key] == null ? '' : draft[key]),
-    });
-  } else {
-    input = h('input', {
-      type: type || 'text',
-      placeholder: placeholder || null,
-      value: String(draft[key] == null ? '' : draft[key]),
-      on: { input: (event) => { draft[key] = event.target.value; } },
-    });
-  }
-  return h('label', { class: 'field' },
-    h('span', { class: 'field-label', text: label }),
-    input);
-}
-
-function saveTrackBody(project, scene, track) {
-  const draft = sceneDraft(scene, track);
-  if (track === 'visual') {
-    return {
-      sceneId: scene.id,
-      visual: {
-        preset: draft.preset,
-        background: { from: draft.from, accent: draft.accent },
-        asset_ref: draft.asset_ref || null,
-        position: draft.position,
-      },
-      duration_s: Number(draft.duration_s),
-    };
-  }
-  if (track === 'text') {
-    return {
-      sceneId: scene.id,
-      overlay: {
-        badge: draft.badge,
-        headline: draft.headline,
-        subhead: draft.subhead,
-        fact: draft.fact,
-        cta: draft.cta,
-        position: draft.position,
-      },
-    };
-  }
+function toAiProduct(candidate) {
   return {
-    sceneId: scene.id,
-    audio: { voiceover: draft.voiceover, music: draft.music, sfx: draft.sfx },
+    id: candidate.id,
+    name: candidate.name,
+    price: candidate.price === undefined ? null : candidate.price,
+    commissionRate: candidate.commissionRate === undefined ? null : candidate.commissionRate,
+    rating: candidate.rating === undefined ? null : candidate.rating,
+    sold: candidate.sold === undefined ? null : candidate.sold,
+    shopName: candidate.shopName === undefined ? null : candidate.shopName,
+    promo: candidate.promo === undefined ? null : candidate.promo,
+    affiliateLink: candidate.affiliateLink || null,
   };
 }
 
-function saveTrack(project, scene, track) {
-  return run(async () => {
-    const res = await api(`/api/mvp/content/${project.content_id}/track/${track}`, 'POST', saveTrackBody(project, scene, track));
-    delete contentDrafts[`${scene.id}:${track}`];
-    applyState(res.state);
-    toast(`บันทึก${track === 'visual' ? 'ภาพ' : track === 'text' ? 'ตัวหนังสือ' : 'เสียง'}ฉาก ${scene.id} แล้ว (Script v${res.project.script_version})`);
+function toggleNewOfferMenu() {
+  const menu = document.getElementById('new-offer-menu');
+  if (menu) menu.classList.toggle('hidden');
+}
+
+function closeNewOfferMenu() {
+  const menu = document.getElementById('new-offer-menu');
+  if (menu) menu.classList.add('hidden');
+}
+
+function bindNewOfferMenu() {
+  const menu = document.getElementById('new-offer-menu');
+  if (!menu || menu.dataset.bound === '1') return;
+  menu.dataset.bound = '1';
+  menu.querySelectorAll('[data-mode]').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      const mode = btn.dataset.mode;
+      closeNewOfferMenu();
+      if (mode === 'top5-add') {
+        runAiShortlist({ maxPicks: 5, mode: 'add' });
+      } else if (mode === 'top5-replace') {
+        if (!window.confirm('แทนที่คลังสินค้าด้วย 5 รายการที่ AI เลือก? รายการเดิมในคลังจะถูกถอนออกทั้งหมด')) return;
+        runAiShortlist({ maxPicks: 5, mode: 'replace' });
+      } else if (mode === 'top1') {
+        runAiShortlist({ maxPicks: 1, mode: 'add' });
+      }
+    });
+  });
+  const fetchBtn = document.getElementById('new-offer-link-fetch');
+  if (fetchBtn) fetchBtn.addEventListener('click', loadOfferFromLink);
+  document.addEventListener('click', function(event) {
+    const host = document.getElementById('new-offer-menu');
+    if (!host || host.classList.contains('hidden')) return;
+    if (event.target.closest('#new-offer-menu') || event.target.closest('#quick-start')) return;
+    host.classList.add('hidden');
   });
 }
 
-function renderSceneEditor(project, scene) {
-  const track = ui.sceneTab;
-  const draft = sceneDraft(scene, track);
-  const assetOptions = [
-    { value: '', label: '— ไม่ใช้ภาพ (ใช้สีพื้น) —' },
-    ...(project.asset_order || []).map((id) => ({ value: id, label: `${id} · ${project.assets[id].filename}` })),
-  ];
-  let fields;
-  if (track === 'visual') {
-    fields = [
-      contentField(draft, 'preset', 'โทนฉาก (preset)', {
-        options: VISUAL_PRESET_KEYS.map((key) => ({ value: key, label: key })),
-      }),
-      contentField(draft, 'from', 'สีพื้นจาก (from, hex)'),
-      contentField(draft, 'accent', 'สีเน้น (accent, hex)'),
-      contentField(draft, 'asset_ref', 'ภาพที่ใช้ (asset_ref)', { options: assetOptions }),
-      contentField(draft, 'position', 'ตำแหน่งข้อความ', {
-        options: [
-          { value: 'center', label: 'กลางจอ' },
-          { value: 'bottom', label: 'ล่างจอ' },
-        ],
-      }),
-      contentField(draft, 'duration_s', `ความยาว (วินาที 0.5–30, ปัจจุบัน ${scene.duration_s})`, { type: 'number' }),
-    ];
-  } else if (track === 'text') {
-    fields = [
-      contentField(draft, 'badge', 'แถบหัวฉาก (badge)', { rows: 2 }),
-      contentField(draft, 'headline', 'หัวข้อใหญ่ (headline)'),
-      contentField(draft, 'subhead', 'หัวข้อรอง (subhead)'),
-      contentField(draft, 'fact', 'ข้อเท็จจริงบนจอ (fact)', { rows: 2 }),
-      contentField(draft, 'cta', 'CTA ของฉากนี้ (ว่าง = ไม่มี)'),
-      contentField(draft, 'position', 'ตำแหน่งข้อความ', {
-        options: [
-          { value: 'center', label: 'กลางจอ' },
-          { value: 'bottom', label: 'ล่างจอ' },
-        ],
-      }),
-    ];
-  } else {
-    fields = [
-      contentField(draft, 'voiceover', 'บทพูด (voiceover / script)', { rows: 4 }),
-      contentField(draft, 'music', 'เพลง (music)'),
-      contentField(draft, 'sfx', 'เสียงเอฟเฟกต์ (sfx)'),
-    ];
+/**
+ * Where the AI reads REAL data from, in priority order: the Product Offer text
+ * still in the paste box, the parsed offer preview, or the real pool itself.
+ * Capture items live in the pool, so they are covered by the last source.
+ */
+async function resolvePickSource() {
+  const input = document.getElementById('offers-text');
+  const pasted = input && input.value.trim().length >= 30 ? input.value.trim() : '';
+  if (pasted) {
+    setOffersStatus('เตรียมอ่านข้อเสนอจากข้อความที่วางไว้…', 'info');
+    let list = [];
+    try {
+      let response = await fetch('/api/mvp/offers/parse', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text: pasted }),
+      });
+      let data = await response.json().catch(function() { return null; });
+      if (!data || !Array.isArray(data.offers) || !data.offers.length) {
+        response = await fetch('/api/mvp/snap/offers', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ text: pasted }),
+        });
+        data = await response.json().catch(function() { return null; });
+      }
+      list = (data && Array.isArray(data.offers) ? data.offers : []).map(normalizeOffer).filter(function(o) { return o.name; });
+    } catch (error) {
+      setOffersStatus('เชื่อมต่อเซิร์ฟเวอร์ไม่ได้: ' + error.message, 'error');
+      return null;
+    }
+    if (list.length) {
+      setOffersStatus('อ่านได้ ' + list.length + ' รายการ — ให้ AI คัดเลือกจากข้อความที่วางไว้', 'success');
+      return { kind: 'offers', items: list, label: 'ข้อความ Product Offer ที่วางไว้' };
+    }
+    setOffersStatus('อ่านข้อเสนอจากข้อความไม่สำเร็จ — เปลี่ยนไปใช้สินค้าจริงในคลังแทน', 'warning');
   }
-
-  return h('div', { class: 'scene-editor' },
-    h('div', { class: 'track-tabs' }, SCENE_TABS.map((tab) => h('button', {
-      type: 'button',
-      class: `track-tab${ui.sceneTab === tab.key ? ' is-active' : ''}`,
-      disabled: ui.busy,
-      on: { click: () => { ui.sceneTab = tab.key; render(); } },
-    }, tab.label))),
-    fields,
-    h('div', { class: 'toolbar' },
-      h('button', {
-        type: 'button', class: 'btn btn-primary', disabled: ui.busy,
-        on: { click: () => saveTrack(project, scene, track) },
-      }, `บันทึก${SCENE_TABS.find((t) => t.key === track).label}`),
-      h('button', {
-        type: 'button', class: 'btn btn-ghost', disabled: ui.busy,
-        on: {
-          click: () => {
-            delete contentDrafts[`${scene.id}:${track}`];
-            render();
-          },
-        },
-      }, 'ยกเลิกการแก้ไข'),
-    ),
-    h('p', { class: 'note small', text: 'การแก้ไขเสียงจะเพิ่ม Script version ใหม่ทุกครั้ง; แก้ไขตัวหนังสือในฉากสุดท้ายจะซิงก์ CTA ของโปรเจกต์ด้วย' }),
-  );
-}
-
-function renderStoryboardTab(project) {
-  const scenes = project.storyboard.scenes || [];
-  const wrap = h('div', { class: 'stack' });
-
-  wrap.append(renderApproachPicker(project));
-
-  wrap.append(h('section', { class: 'mvp-card' },
-    h('div', { class: 'card-head' },
-      h('div', null,
-        h('p', { class: 'eyebrow', text: 'Script / CTA' }),
-        h('h2', { text: `บทพูดและ CTA · Script v${project.script_version}` }),
-      ),
-      badge(`checksum ${String((project.script && project.script.checksum) || '').slice(0, 8)}…`, 'badge-neutral'),
-    ),
-    h('div', { class: 'table-scroll' },
-      h('table', { class: 'mvp-table compact' },
-        h('thead', null, h('tr', null,
-          h('th', { text: '#' }), h('th', { text: 'ฉาก' }),
-          h('th', { text: 'วินาที' }), h('th', { text: 'บทพูด (บนจอ)' }),
-        )),
-        h('tbody', null, (project.script && project.script.lines || []).map((line) => h('tr', null,
-          h('td', { class: 'mono', text: String(line.order) }),
-          h('td', { class: 'mono', text: `${line.scene_id} · ${line.role}` }),
-          h('td', { text: String(line.duration_s) }),
-          h('td', null,
-            h('div', { class: 'cell-title', text: line.voiceover }),
-            h('div', { class: 'cell-sub', text: (line.on_screen || []).join(' · ') }),
-          ),
-        ))),
-      ),
-    ),
-    h('p', { class: 'note' }, project.cta && project.cta.text ? `CTA: ${project.cta.text}` : 'ยังไม่มี CTA'),
-    h('p', { class: 'trace mono small', text: `script versions: ${(project.script_version_history || []).map((v) => `v${v.version}`).join(' → ')}` }),
-  ));
-
-  for (const scene of scenes) {
-    const selected = ui.sceneId === scene.id;
-    wrap.append(h('section', { class: `mvp-card scene-card${selected ? ' is-selected' : ''}` },
-      h('div', { class: 'card-head' },
-        h('button', {
-          type: 'button', class: 'link-btn',
-          on: { click: () => { ui.sceneId = scene.id; ui.sceneTab = 'visual'; render(); } },
-        }, `${scene.id} · ${scene.role} · ${scene.duration_s}s`),
-        h('span', { class: 'trace mono small', text: `evidence: ${(scene.evidence_ids || []).length ? scene.evidence_ids.join(' · ') : '—'}` }),
-      ),
-      h('p', { class: 'cell-sub', text: `ภาพ: ${scene.visual.preset}${scene.visual.asset_ref ? ` · asset ${scene.visual.asset_ref}` : ''} | หัวข้อ: ${scene.overlay.headline || '—'} | บทพูด: ${scene.audio.voiceover || '—'}` }),
-      selected ? renderSceneEditor(project, scene) : null,
-    ));
+  if (typeof importedOffers !== 'undefined' && importedOffers && importedOffers.length) {
+    return { kind: 'offers', items: importedOffers, label: 'รายการจากหน้า Product Offer (พรีวิว)' };
   }
-
-  if (contentEditable(project)) {
-    const order = scenes.map((s) => s.id);
-    wrap.append(h('section', { class: 'mvp-card' },
-      h('div', { class: 'card-head' },
-        h('div', null,
-          h('p', { class: 'eyebrow', text: 'จัดการฉาก' }),
-          h('h2', { text: `${scenes.length} ฉาก` }),
-        ),
-        badge(`${project.preview ? project.preview.total_duration_s : '—'}s`, 'badge-neutral'),
-      ),
-      h('div', { class: 'toolbar' },
-        h('button', {
-          type: 'button', class: 'btn btn-ghost', disabled: ui.busy,
-          on: {
-            click: () => run(async () => {
-              const res = await api(`/api/mvp/content/${project.content_id}/scenes`, 'POST', { role: 'BODY', duration_s: 4 });
-              applyState(res.state);
-              ui.sceneId = res.project.storyboard.scenes[res.project.storyboard.scenes.length - 1].id;
-            }, 'เพิ่มฉากใหม่แล้ว'),
-          },
-        }, 'เพิ่มฉากท้าย'),
-      ),
-      scenes.map((scene, index) => h('div', { class: 'toolbar' },
-        h('span', { class: 'mono small', text: `${index + 1}. ${scene.id} · ${scene.role}` }),
-        h('button', {
-          type: 'button', class: 'btn btn-ghost', disabled: ui.busy || index === 0,
-          on: { click: () => run(async () => {
-            const next = [...scenes.map((s) => s.id)];
-            const [moved] = next.splice(index, 1);
-            next.splice(index - 1, 0, moved);
-            const res = await api(`/api/mvp/content/${project.content_id}/scenes/reorder`, 'POST', { order: next });
-            applyState(res.state);
-          }) },
-        }, '↑'),
-        h('button', {
-          type: 'button', class: 'btn btn-ghost', disabled: ui.busy || index === scenes.length - 1,
-          on: { click: () => run(async () => {
-            const next = [...scenes.map((s) => s.id)];
-            const [moved] = next.splice(index, 1);
-            next.splice(index + 1, 0, moved);
-            const res = await api(`/api/mvp/content/${project.content_id}/scenes/reorder`, 'POST', { order: next });
-            applyState(res.state);
-          }) },
-        }, '↓'),
-        h('button', {
-          type: 'button', class: 'btn btn-ghost danger', disabled: ui.busy || scenes.length <= 2,
-          on: { click: () => run(async () => {
-            const res = await api(`/api/mvp/content/${project.content_id}/scenes/${scene.id}`, 'DELETE');
-            applyState(res.state);
-          }, `ลบฉาก ${scene.id} แล้ว`) },
-        }, 'ลบ'),
-      )),
-    ));
+  if (candidatePool.length) {
+    return { kind: 'pool', items: candidatePool, label: 'สินค้าจริงในคลัง (รวม Capture)' };
   }
-
-  return wrap;
+  showToast('ยังไม่มีข้อมูลจริง — วางข้อความจากหน้า Product Offer, ใช้ Capture bookmarklet หรือเพิ่มด้วยลิงก์ก่อน', 'warning');
+  return null;
 }
 
-function renderApproachPicker(project) {
-  const generated = (project.approaches && project.approaches.generated) || [];
-  const custom = project.approaches && project.approaches.user_custom;
-  const editableState = contentEditable(project);
-  if (!editableState) {
-    return h('section', { class: 'mvp-card' },
-      h('p', { class: 'note small', text: `โปรเจกต์นี้อยู่ที่สถานะ ${project.status} — เปลี่ยนแนวทางได้เฉพาะช่วง DRAFT / REVIEW` }));
+function toAiProductFromOffer(offer, index) {
+  return {
+    id: 'off-' + index,
+    name: offer.name,
+    price: offer.price === undefined ? null : offer.price,
+    commissionRate: offer.commission_rate === undefined ? null : offer.commission_rate,
+    rating: null,
+    sold: offer.sold === undefined ? null : offer.sold,
+    shopName: null,
+    promo: null,
+    affiliateLink: offer.link || null,
+  };
+}
+
+async function runAiShortlist(options) {
+  const opts = options || {};
+  const maxPicks = Number(opts.maxPicks) > 0 ? Math.min(5, Number(opts.maxPicks)) : 5;
+  const mode = opts.mode === 'replace' ? 'replace' : 'add';
+  const button = dom.quickStart;
+  if (button) button.disabled = true;
+  try {
+    const source = await resolvePickSource();
+    if (!source) return;
+    const items = source.items.slice(0, AI_SHORTLIST_MAX);
+    source.considered = items.length;
+    source.byId = {};
+    items.forEach(function(item, index) {
+      source.byId[String(source.kind === 'pool' ? item.id : 'off-' + index)] = item;
+    });
+    const products = items.map(function(item, index) {
+      return source.kind === 'pool' ? toAiProduct(item) : toAiProductFromOffer(item, index);
+    });
+    showToast('AI กำลังคัดสินค้าจาก: ' + source.label + ' (' + items.length + ' รายการ → เลือก ' + maxPicks + ')…', 'info');
+    const response = await fetch('/api/mvp/ai/research', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ products: products, maxPicks: maxPicks }),
+    });
+    const data = await response.json().catch(function() { return null; });
+    if (!response.ok) {
+      showToast(data && data.error ? String(data.error) : ('เซิร์ฟเวอร์ปฏิเสธคำขอ (HTTP ' + response.status + ')'), 'error');
+      return;
+    }
+    const result = data && data.result ? data.result : null;
+    if (!result || result.ok !== true) {
+      showToast(aiFailureMessage(result && result.status, result && result.message), 'error');
+      return;
+    }
+    applyAnalysisToPool(result.analysis, result.model, source, mode, maxPicks);
+  } catch (error) {
+    showToast('เชื่อมต่อเซิร์ฟเวอร์ไม่ได้: ' + error.message, 'error');
+  } finally {
+    if (button) button.disabled = false;
   }
-  if (ui.contentApproach === 'user_custom') {
-    const draft = ui.contentCustom;
-    return h('section', { class: 'mvp-card custom-card' },
-      h('div', { class: 'card-head' },
-        h('div', null,
-          h('p', { class: 'eyebrow', text: 'แนวทาง 4' }),
-          h('h2', { text: 'User Custom — เขียนเอง' }),
-        ),
-        badge('USER', 'badge-neutral'),
-      ),
-      h('p', { class: 'cell-sub', text: custom ? `บันทึกไว้: ${custom.angle}` : 'ยังไม่มีแนวทางที่ผู้ใช้บันทึกไว้ในโปรเจกต์นี้' }),
-      contentField(draft, 'angle', 'มุมมองเนื้อหา (angle) — ต้องมี 10+ ตัวอักษร', { rows: 3 }),
-      contentField(draft, 'audience', 'กลุ่มเป้าหมาย (audience)'),
-      contentField(draft, 'hook', 'Hook'),
-      contentField(draft, 'format', 'รูปแบบ (format)'),
-      contentField(draft, 'cta', 'CTA'),
-      h('div', { class: 'toolbar' },
-        h('button', {
-          type: 'button', class: 'btn btn-primary', disabled: ui.busy,
-          on: {
-            click: () => run(async () => {
-              const res = await api(`/api/mvp/content/${project.content_id}/approach`, 'POST', {
-                approach: 'user_custom',
-                custom: {
-                  angle: draft.angle,
-                  audience: draft.audience || undefined,
-                  hook: draft.hook || undefined,
-                  format: draft.format || undefined,
-                  cta: draft.cta || undefined,
-                },
-              });
-              contentDrafts = {};
-              applyState(res.state);
-            }, 'เปลี่ยนเป็นแนวทาง User Custom แล้ว'),
-          },
-        }, 'สร้าง Storyboard จากแนวทางนี้'),
-        h('button', {
-          type: 'button', class: 'btn btn-ghost', disabled: ui.busy,
-          on: { click: () => { ui.contentApproach = project.approach; render(); } },
-        }, 'ย้อนกลับ'),
-      ),
-    );
+}
+
+// ----- "1 รายการจาก Link": read the public Shopee page (no API, no login) -----
+
+async function loadOfferFromLink() {
+  const input = document.getElementById('new-offer-link-input');
+  const previewHost = document.getElementById('new-offer-link-preview');
+  if (!input || !previewHost) return;
+  const url = input.value.trim();
+  if (!url) {
+    showToast('วางลิงก์สินค้าก่อน (เช่น https://s.shopee.co.th/…)', 'warning');
+    input.focus();
+    return;
   }
-  const rows = generated.filter(Boolean).concat(custom ? [custom] : []);
-  return h('section', { class: 'mvp-card approach-card' },
-    h('div', { class: 'card-head' },
-      h('div', null,
-        h('p', { class: 'eyebrow', text: 'แนวทางเนื้อหา' }),
-        h('h2', { text: `เลือกได้ ${generated.length} แบบ + แบบกำหนดเอง (ปัจจุบัน: ${project.approach})` }),
-      ),
-      badge('3 GENERATATED + 1 USER', 'badge-neutral'),
-    ),
-    h('div', { class: 'approach-grid' }, rows.map((approach) =>
-      h('label', { class: `approach${project.approach === approach.key ? ' is-selected' : ''}` },
-        h('div', { class: 'approach-head' },
-          h('input', {
-            type: 'radio', name: 'content-approach', value: approach.key,
-            checked: ui.contentApproach === approach.key,
-            on: { change: () => { ui.contentApproach = approach.key; render(); } },
-          }),
-          h('div', null,
-            h('p', { class: 'approach-label', text: approach.label }),
-            h('p', { class: 'cell-sub', text: approach.origin === 'USER' ? 'ผู้ใช้เขียนเอง' : 'สร้างจากหลักฐานในไฟล์ส่งออก' }),
-          ),
-        ),
-        h('p', { class: 'approach-angle', text: approach.angle }),
-        h('dl', { class: 'kv compact' },
-          approach.audience ? h('div', null, h('dt', { text: 'กลุ่มเป้าหมาย' }), h('dd', { text: approach.audience })) : null,
-          approach.hook ? h('div', null, h('dt', { text: 'Hook' }), h('dd', { text: approach.hook })) : null,
-          approach.format ? h('div', null, h('dt', { text: 'รูปแบบ' }), h('dd', { text: approach.format })) : null,
-          approach.cta ? h('div', null, h('dt', { text: 'CTA' }), h('dd', { text: approach.cta })) : null,
-        ),
-        (approach.tradeoffs || []).length ? h('ul', { class: 'plain-list tight' }, approach.tradeoffs.map((text) => h('li', { text }))) : null,
-        (approach.evidence_ids || []).length
-          ? h('p', { class: 'trace mono small', text: `evidence: ${approach.evidence_ids.join(' · ')}` })
-          : h('p', { class: 'trace small', text: 'ไม่มีการอ้าง evidence อัตโนมัติ — ตรวจข้อเท็จจริงเองก่อนใช้' }),
-        h('p', { class: 'gate-note', text: approach.gate_note }),
-      ))),
-    h('div', { class: 'toolbar' },
-      h('button', {
-        type: 'button',
-        class: 'btn btn-primary',
-        disabled: ui.busy || ui.contentApproach === project.approach,
-        on: {
-          click: () => run(async () => {
-            const res = await api(`/api/mvp/content/${project.content_id}/approach`, 'POST', { approach: ui.contentApproach });
-            contentDrafts = {};
-            applyState(res.state);
-          }, 'เปลี่ยนแนวทางแล้ว — Storyboard / Script สร้างใหม่'),
-        },
-      }, 'สร้าง Storyboard ใหม่จากแนวทางนี้'),
-    ),
-  );
-}
-
-function renderPreviewTab(project) {
-  const preview = project.preview;
-  const scenes = project.storyboard.scenes || [];
-  return h('section', { class: 'mvp-card' },
-    h('div', { class: 'card-head' },
-      h('div', null,
-        h('p', { class: 'eyebrow', text: 'ตัวอย่างก่อน export' }),
-        h('h2', { text: `Preview · ${scenes.length} ฉาก` }),
-      ),
-      badge(preview ? `${preview.total_duration_s}s` : 'ยังไม่มี', 'badge-neutral'),
-    ),
-    h('p', { class: 'lead' },
-      'คือภาพจำลองตามลำดับเวลาของแต่ละฉาก (9:16, 1080×1920) ใช้ตรวจก่อนกด export ไฟล์จริง'),
-    scenes.map((scene) => h('div', { class: 'frame-row' },
-      h('div', { class: `frame-frame preset-${scene.visual.preset}` },
-        h('span', { class: 'frame-badge', text: scene.overlay.badge || '' }),
-        h('span', { class: 'frame-headline', text: scene.overlay.headline || '' }),
-        h('span', { class: 'frame-sub', text: scene.overlay.subhead || '' }),
-        h('span', { class: 'frame-fact', text: scene.overlay.fact || '' }),
-        scene.overlay.cta ? h('span', { class: 'frame-cta', text: scene.overlay.cta }) : null,
-      ),
-      h('div', { class: 'frame-meta' },
-        h('p', { class: 'mono small', text: `${scene.id} · ${scene.role} · ${scene.duration_s}s` }),
-        h('p', { class: 'cell-sub', text: `ภาพ: ${scene.visual.preset} · เสียง: ${scene.audio.voiceover || '—'}` }),
-        (scene.evidence_ids || []).length
-          ? h('p', { class: 'trace mono small', text: `evidence: ${scene.evidence_ids.join(' · ')}` })
-          : null,
-      ),
-    )),
-  );
-}
-
-function qaList(title, items) {
-  if (!items || !items.length) return null;
-  const badgeFor = { PASS: 'badge-fact', WARN: 'badge-defer', FAIL: 'badge-reject' };
-  return h('details', { class: 'issue-block' },
-    h('summary', null,
-      h('span', { class: 'evidence-summary-title', text: `${title} (${items.length})` }),
-    ),
-    h('ul', { class: 'claim-list' }, items.map((item) => h('li', { class: 'claim' },
-      badge(item.status, badgeFor[item.status] || 'badge-neutral'),
-      h('div', null,
-        h('p', { class: 'claim-text', text: item.label }),
-        h('p', { class: 'claim-meta', text: `${item.id} · ${item.message}` }),
-      ),
-    ))),
-  );
-}
-
-function renderQaTab(project) {
-  const report = project.qa;
-  const canRun = contentEditable(project);
-  const summary = report ? report.summary : { PASS: 0, WARN: 0, FAIL: 0 };
-  return h('section', { class: 'mvp-card' },
-    h('div', { class: 'card-head' },
-      h('div', null,
-        h('p', { class: 'eyebrow', text: 'ตรวจภาษาไทยและข้อมูลสำคัญ' }),
-        h('h2', { text: report ? `ผลตรวจล่าสุด ${fmtDate(report.ran_at)}` : 'ยังไม่ได้รันการตรวจ' }),
-      ),
-      badge(report ? (report.passed ? 'PASS' : 'BLOCKED') : 'not run', report ? (report.passed ? 'badge-fact' : 'badge-reject') : 'badge-neutral'),
-    ),
-    h('p', { class: 'lead' },
-      'ตรวจการสะกด (คลังคำที่กำหนดไว้), ราคา, โปรโมชัน, ชื่อสินค้า, CTA และขอบเขตเฟสนี้'),
-    h('div', { class: 'counts' },
-      h('div', { class: 'count' }, h('span', { class: 'count-val', text: String(summary.PASS) }), h('span', { class: 'count-label', text: 'PASS' })),
-      h('div', { class: 'count' }, h('span', { class: 'count-val', text: String(summary.WARN) }), h('span', { class: 'count-label', text: 'WARN' })),
-      h('div', { class: 'count' }, h('span', { class: 'count-val', text: String(summary.FAIL) }), h('span', { class: 'count-label', text: 'FAIL' })),
-    ),
-    h('div', { class: 'toolbar' },
-      h('button', {
-        type: 'button', class: 'btn btn-primary', disabled: ui.busy || !canRun,
-        on: {
-          click: () => run(async () => {
-            const res = await api(`/api/mvp/content/${project.content_id}/qa`, 'POST');
-            applyState(res.state);
-            toast(`ตรวจแล้ว: PASS ${res.qa.summary.PASS} · WARN ${res.qa.summary.WARN} · FAIL ${res.qa.summary.FAIL}`); 
-          }),
-        },
-      }, canRun ? 'รันตรวจภาษาไทย' : 'รันตรวจได้เฉพาะช่วง DRAFT / REVIEW'),
-    ),
-    report ? h('div', null,
-      qaList('ข้อผิดพลาดที่ต้องแก้ (FAIL)', report.blocking),
-      qaList('ข้อควรระวัง (WARN)', report.warnings),
-      h('div', { class: 'table-scroll' },
-        h('table', { class: 'mvp-table compact' },
-          h('thead', null, h('tr', null, h('th', { text: 'หมวด' }), h('th', { text: 'PASS' }), h('th', { text: 'WARN' }), h('th', { text: 'FAIL' }))),
-          h('tbody', null, Object.entries(report.by_category).map(([category, counts]) => h('tr', null,
-            h('td', { class: 'mono', text: category }),
-            h('td', { text: String(counts.PASS) }),
-            h('td', { text: String(counts.WARN) }),
-            h('td', { text: String(counts.FAIL) }),
-          ))),
-        ),
-      ),
-      h('p', { class: 'note', text: report.scope_note }),
-    ) : null,
-  );
-}
-
-function checklistTable(items) {
-  return h('div', { class: 'table-scroll' },
-    h('table', { class: 'mvp-table compact' },
-      h('thead', null, h('tr', null, h('th', { text: 'รายการตรวจ' }), h('th', { text: 'ผล' }), h('th', { text: 'รายละเอียด' }))),
-      h('tbody', null, items.map((item) => h('tr', null,
-        h('td', { text: item.label }),
-        h('td', null, badge(item.ok ? 'PASS' : 'ไม่ผ่าน', item.ok ? 'badge-fact' : 'badge-reject')),
-        h('td', { class: 'cell-sub', text: item.detail }),
-      ))),
-    ),
-  );
-}
-
-function renderFinalizeTab(project) {
-  const checklist = project.finalize && project.finalize.checklist;
-  const blockedChecklist = ui.error && ui.error.details && ui.error.details.checklist;
-  const scriptText = project.script && typeof project.script.text === 'string' ? project.script.text : '';
-  const scriptChecksum = project.script && typeof project.script.checksum === 'string' ? project.script.checksum : null;
-  const scriptSource = project.script && typeof project.script.source === 'string' ? project.script.source : null;
-  return h('section', { class: 'mvp-card' },
-    h('div', { class: 'card-head' },
-      h('div', null,
-        h('p', { class: 'eyebrow', text: 'ตรวจก่อน export' }),
-        h('h2', { text: checklist ? `Finalized · ${checklist.ok}/${checklist.total} ผ่าน` : 'รายการตรวจก่อนถึง FINALIZED' }),
-      ),
-      badge(project.status, CONTENT_STATUS_BADGE[project.status] || 'badge-neutral'),
-    ),
-    h('p', { class: 'lead' },
-      'Finalize ต้องมี Preview ครบทุกฉาก และผ่านรายการตรวจทั้งหมด: ตรวจภาษาไทย, CTA, หลักฐาน, ความยาว, Script version และ IDs'),
-    project.status === 'DRAFT' ? h('div', { class: 'toolbar' },
-      h('button', {
-        type: 'button', class: 'btn btn-primary', disabled: ui.busy,
-        on: {
-          click: () => run(async () => {
-            const res = await api(`/api/mvp/content/${project.content_id}/review`, 'POST');
-            ui.error = null;
-            applyState(res.state);
-          }, 'ส่งเข้าการตรวจแล้ว (REVIEW) — รันตรวจภาษาไทยก่อน Finalize'),
-        },
-      }, 'ส่งตรวจ (DRAFT → REVIEW)'),
-    ) : null,
-    project.status === 'REVIEW' ? h('div', null,
-      h('div', { class: 'mvp-card' },
-        h('div', { class: 'card-head' },
-          h('div', null,
-            h('p', { class: 'eyebrow', text: 'Human-in-the-loop' }),
-            h('h2', { text: 'อ่านบทพูดภาษาไทยด้วยตาก่อนยืนยัน' }),
-          ),
-          badge(scriptSource === 'LIVE_LLM' ? 'LIVE_LLM' : 'TEMPLATE', scriptSource === 'LIVE_LLM' ? 'badge-fact' : 'badge-neutral'),
-        ),
-        h('p', { class: 'lead', text: 'ระบบจะไม่ยอมเปลี่ยนสถานะเป็น FINALIZED จนกว่าจะยืนยันว่าอ่านบทนี้ด้วยตาแล้ว และการยืนยันผูกกับ checksum ของบท ถ้าบทเปลี่ยนหลังจากนี้ต้องยืนยันใหม่' }),
-        h('p', { class: 'mono small', text: scriptText || '(ไม่มีบทพูด)' }),
-        h('p', { class: 'note', text: `checksum: ${scriptChecksum || '-'}` }),
-        h('label', { class: 'check-row' },
-          h('input', {
-            id: 'draft-review-confirm', type: 'checkbox', checked: ui.draftReviewConfirmed,
-            on: { change: (event) => { ui.draftReviewConfirmed = event.target.checked; } },
-          }),
-          h('span', { text: 'ข้าพเจ้าได้อ่านบทพูดภาษาไทยข้างต้นด้วยตาทั้งหมดแล้ว' }),
-        ),
-        h('div', { class: 'field-grid' },
-          h('label', { class: 'field' },
-            h('span', { class: 'field-label', text: 'ผู้ตรวจรับ' }),
-            h('input', {
-              id: 'draft-review-by', type: 'text', value: ui.draftReviewBy || '',
-              on: { input: (event) => { ui.draftReviewBy = event.target.value; } },
-            }),
-          ),
-        ),
-        h('div', { class: 'toolbar' },
-          h('button', {
-            type: 'button', class: 'btn btn-primary',
-            disabled: ui.busy || !ui.draftReviewConfirmed || String(ui.draftReviewBy || '').trim() === '',
-            on: {
-              click: () => run(async () => {
-                const res = await api(`/api/mvp/content/${project.content_id}/finalize`, 'POST', {
-                  draft_review: {
-                    confirmed: true,
-                    reviewed_by: String(ui.draftReviewBy || '').trim(),
-                    script_checksum: scriptChecksum,
-                  },
-                });
-                ui.error = null;
-                ui.draftReviewConfirmed = false;
-                applyState(res.state);
-              }, 'Finalize ผ่าน — พร้อม export'),
-            },
-          }, 'ยืนยันตรวจรับแล้ว Finalize (REVIEW → FINALIZED)'),
-        ),
-      ),
-    ) : null,
-    blockedChecklist ? h('div', null,
-      h('p', { class: 'error-text', text: `ยัง finalize ไม่ได้: ${ui.error.message.replace(/^finalize blocked: /, '')}` }),
-      checklistTable(blockedChecklist.items || []),
-    ) : null,
-    checklist ? checklistTable(checklist.items) : null,
-  );
-}
-
-function renderExportTab(project) {
-  const exp = project.export;
-  return h('section', { class: 'mvp-card' },
-    h('div', { class: 'card-head' },
-      h('div', null,
-        h('p', { class: 'eyebrow', text: 'ไฟล์วิดีโอ' }),
-        h('h2', { text: exp ? `${exp.filename} · v${exp.script_version}` : 'ยังไม่ได้ export' }),
-      ),
-      exp ? badge('9:16 · 1080×1920', 'badge-fact') : badge('BLOCKED', 'badge-neutral'),
-    ),
-    h('p', { class: 'lead' },
-      'export ไฟล์ MP4 (H.264) แนวตั้ง 9:16 ด้วย ffmpeg ในเครื่องเท่านั้น — บทพูดไปอยู่ในคำบรรยายใต้ภาพ, เสียงเป็นฐานเงียบ'),
-    project.status === 'FINALIZED' ? h('div', { class: 'toolbar' },
-      h('button', {
-        type: 'button', class: 'btn btn-primary', disabled: ui.busy,
-        on: {
-          click: () => run(async () => {
-            const res = await api(`/api/mvp/content/${project.content_id}/export`, 'POST');
-            applyState(res.state);
-            toast(`export สำเร็จ: ${res.export.filename} (${Math.round(res.export.bytes / 1024)} KB)`);
-          }),
-        },
-      }, 'Export วิดีโอ 9:16'),
-    ) : null,
-    project.status !== 'FINALIZED' && !exp
-      ? h('p', { class: 'warn', text: `ต้องผ่าน FINALIZED ก่อน (ปัจจุบัน ${project.status})` })
-      : null,
-    exp ? h('div', null,
-      h('div', { class: 'content-media' },
-        exp.still ? h('img', { src: `/api/mvp/content/${project.content_id}/export/still`, alt: 'ภาพตัวแทนเฟรมแรกของวิดีโอ' }) : null,
-        h('video', {
-          controls: true, preload: 'metadata',
-          src: `/api/mvp/content/${project.content_id}/export/video`,
-        }),
-      ),
-      h('dl', { class: 'kv' },
-        h('div', null, h('dt', { text: 'ไฟล์' }), h('dd', { class: 'mono', text: exp.file })),
-        h('div', null, h('dt', { text: 'ขนาด' }), h('dd', { text: `${Math.round(exp.bytes / 1024)} KB (${exp.width}×${exp.height} @ ${exp.fps}fps)` })),
-        h('div', null, h('dt', { text: 'ความยาว' }), h('dd', { text: `${exp.duration_s}s` })),
-        h('div', null, h('dt', { text: 'checksum' }), h('dd', { class: 'mono small', text: exp.sha256 })),
-        h('div', null, h('dt', { text: 'pipeline' }), h('dd', { text: `${exp.pipeline} · font ${exp.font}` })),
-        h('div', null, h('dt', { text: 'script' }), h('dd', { class: 'mono', text: `v${exp.script_version} · ${String(exp.script_checksum || '').slice(0, 12)}…` })),
-      ),
-      (exp.asset_refs || []).length ? h('p', { class: 'trace mono small', text: `assets: ${exp.asset_refs.map((a) => `${a.id}(${a.sha256.slice(0, 8)}…)`).join(', ')}` }) : null,
-      h('ul', { class: 'limits' }, (exp.limitations || []).map((text) => h('li', { text }))),
-    ) : null,
-  );
-}
-
-function renderPublishTab(project) {
-  const prep = project.publish_prep;
-  return h('section', { class: 'mvp-card' },
-    h('div', { class: 'card-head' },
-      h('div', null,
-        h('p', { class: 'eyebrow', text: 'ข้อมูลพร้อมส่งต่อ (ไม่เผยแพร่จริง)' }),
-        h('h2', { text: prep ? `พร้อมเผยแพร่ · ${prep.generated_at.slice(0, 16)}Z` : 'สร้างข้อมูลพร้อมเผยแพร่' }),
-      ),
-      badge('NOT_PUBLISHED', 'badge-mock'),
-    ),
-    h('p', { class: 'lead' },
-      'สร้างแคปชัน แฮชแท็ก ข้อมูลสินค้า ไฟล์และรายการตรวจให้พร้อมส่งต่อ — ยังไม่มีการกดเผยแพร่ ไม่ได้เข้าสู่ระบบผู้ขาย ไม่มี external calls'),
-    project.status === 'EXPORTED' ? h('div', { class: 'toolbar' },
-      h('button', {
-        type: 'button', class: 'btn btn-primary', disabled: ui.busy,
-        on: {
-          click: () => run(async () => {
-            const res = await api(`/api/mvp/content/${project.content_id}/publish-prep`, 'POST');
-            applyState(res.state);
-            toast('สร้างข้อมูลพร้อมเผยแพร่แล้ว — READY_TO_PUBLISH (ยังไม่ได้เผยแพร่จริง)');
-          }),
-        },
-      }, 'สร้าง Publish Preparation'),
-    ) : null,
-    project.status !== 'EXPORTED' && !prep
-      ? h('p', { class: 'warn', text: `ต้อง export สำเร็จก่อน (ปัจจุบัน ${project.status})` })
-      : null,
-    prep ? h('div', null,
-      h('dl', { class: 'kv' },
-        h('div', null, h('dt', { text: 'content_id' }), h('dd', { class: 'mono', text: prep.content_id })),
-        h('div', null, h('dt', { text: 'product_id' }), h('dd', { class: 'mono', text: prep.product_id })),
-        h('div', null, h('dt', { text: 'candidate_id' }), h('dd', { class: 'mono', text: prep.candidate_id })),
-        h('div', null, h('dt', { text: 'shop_id' }), h('dd', { class: 'mono', text: prep.shop_id })),
-        h('div', null, h('dt', { text: 'plan_id' }), h('dd', { class: 'mono', text: prep.plan_id || 'ไม่มีแผน' })),
-        h('div', null, h('dt', { text: 'script' }), h('dd', { class: 'mono', text: `v${prep.script_version} · ${String(prep.script_checksum || '').slice(0, 12)}…` })),
-      ),
-      h('p', { class: 'sub-head' }, 'Caption draft'),
-      h('pre', { class: 'caption-pre' }, prep.caption_draft),
-      h('p', { class: 'trace mono small', text: (prep.hashtags || []).join(' ') }),
-      h('p', { class: 'note', text: prep.disclosure }),
-      prep.publish ? h('div', { class: 'boundary-box' },
-        h('p', { class: 'boundary-title', text: 'Publish boundary' }),
-        h('ul', { class: 'plain-list' },
-          h('li', { text: `status: ${prep.publish.status}` }),
-          h('li', { text: `executed: ${prep.publish.executed} · external_calls: ${prep.publish.external_calls} · spend: THB ${prep.publish.spend_thb}` }),
-          h('li', { text: prep.publish.note }),
-        ),
-      ) : null,
-      checklistTable((prep.checklist || []).map((item) => ({ ...item, ok: item.ok }))),
-      h('p', { class: 'sub-head' }, 'ขั้นตอนต่อไปสำหรับคน'),
-      h('ul', { class: 'plain-list' }, (prep.next_steps_for_a_human || []).map((text) => h('li', { text }))),
-    ) : null,
-  );
-}
-
-function renderContentIdentity(project) {
-  const snap = project.offer_snapshot || {};
-  return h('section', { class: 'mvp-card' },
-    h('div', { class: 'card-head' },
-      h('div', null,
-        h('p', { class: 'eyebrow', text: 'ข้อมูลอ้างอิงและ IDs' }),
-        h('h2', { text: snap.product_name || project.content_id }),
-      ),
-      badge(snap.synthetic === false ? 'ผู้ใช้กรอก' : 'SYNTHETIC', 'badge-mock'),
-    ),
-    h('dl', { class: 'kv compact' },
-      h('div', null, h('dt', { text: 'content_id' }), h('dd', { class: 'mono', text: project.content_id })),
-      h('div', null, h('dt', { text: 'product_id' }), h('dd', { class: 'mono', text: project.product_id })),
-      h('div', null, h('dt', { text: 'candidate_id' }), h('dd', { class: 'mono', text: project.candidate_id })),
-      h('div', null, h('dt', { text: 'offer_id' }), h('dd', { class: 'mono', text: project.offer_id })),
-      h('div', null, h('dt', { text: 'shop_id' }), h('dd', { class: 'mono', text: project.shop_id })),
-      h('div', null, h('dt', { text: 'plan_id' }), h('dd', { class: 'mono', text: project.plan_id || '—' })),
-      h('div', null, h('dt', { text: 'item/shop' }), h('dd', { class: 'mono', text: `${snap.item_id} · ${snap.shop_name || ''}` })),
-      h('div', null, h('dt', { text: 'ราคา' }), h('dd', { text: `THB ${snap.price_thb} (ปกติ THB ${snap.list_price_thb})` })),
-      h('div', null, h('dt', { text: 'โปรโมชัน' }), h('dd', { text: snap.promo ? snap.promo.label : '—' })),
-      h('div', null, h('dt', { text: 'รีวิว' }), h('dd', { text: `${snap.rating}/5 · ${snap.rating_count} รีวิว` })),
-      h('div', null, h('dt', { text: 'script' }), h('dd', { class: 'mono', text: `v${project.script_version}` })),
-      h('div', null, h('dt', { text: 'อัปเดต' }), h('dd', { text: fmtDate(project.updated_at) })),
-    ),
-  );
-}
-
-function renderContentProject(project) {
-  const wrap = h('div', { class: 'stack' });
-  wrap.append(h('section', { class: 'mvp-card plan-record' },
-    h('div', { class: 'card-head' },
-      h('div', null,
-        h('p', { class: 'eyebrow', text: 'Content project' }),
-        h('h2', { text: `${project.content_id} · ${CONTENT_STATUS_TEXT[project.status] || project.status}` }),
-      ),
-      badge(project.status, CONTENT_STATUS_BADGE[project.status] || 'badge-neutral'),
-    ),
-    h('div', { class: 'status-rail' }, CONTENT_STATUSES.map((status) => h('div', {
-      class: `status-step${status === project.status ? ' is-current' : CONTENT_STATUSES.indexOf(status) < CONTENT_STATUSES.indexOf(project.status) ? ' is-done' : ''}`,
-    }, h('span', { class: 'status-dot' }), h('span', { class: 'status-label', text: status })))),
-  ));
-  // Each pipeline step shows only the tools it owns, so the screen matches the
-  // stage instead of repeating every tab everywhere.
-  const allowed = SECTION_CONTENT_TABS[ui.section] || CONTENT_TABS.map((tab) => tab.key);
-  const tabs = CONTENT_TABS.filter((tab) => allowed.includes(tab.key));
-  const activeTab = tabs.some((tab) => tab.key === ui.contentTab) ? ui.contentTab : tabs[0].key;
-  wrap.append(renderContentIdentity(project));
-  if (ui.section === 'production') wrap.append(renderVoiceoverPanel(project));
-  if (ui.section === 'production') wrap.append(renderRevisePanel(project));
-  if (ui.section === 'schedule') wrap.append(renderPublishPanel(project));
-  wrap.append(h('nav', { class: 'content-tabs', 'aria-label': 'Content tabs' },
-    tabs.map((tab) => h('button', {
-      type: 'button',
-      class: `content-tab${activeTab === tab.key ? ' is-active' : ''}`,
-      disabled: ui.busy,
-      on: { click: () => { ui.contentTab = tab.key; render(); } },
-    }, tab.label)),
-  ));
-  const section = renderers[activeTab] || renderStoryboardTab;
-  wrap.append(section(project));
-  return wrap;
-}
-
-/* ---------- Mini loop: targeted revision ---------- */
-
-const REVISE_TARGET_LABEL = {
-  HOOK: 'Hook (ฉากแรก)',
-  SCENE_TEXT: 'บท/ตัวหนังสือของฉาก',
-  SCENE_VISUAL: 'ภาพ/จังหวะของฉาก',
-};
-
-// The form is read synchronously: run() re-renders the panel to show the busy
-// state, which rebuilds these inputs and would otherwise discard what the human
-// just typed.
-function collectRevisionPayload() {
-  const target = document.getElementById('revise-target').value;
-  const sceneId = document.getElementById('revise-scene').value;
-  const payload = { target };
-  if (target !== 'HOOK') payload.scene_id = sceneId;
-  if (target === 'HOOK') {
-    payload.text = document.getElementById('revise-text').value;
-    payload.speak = document.getElementById('revise-speak').checked;
-  } else if (target === 'SCENE_TEXT') {
-    const headline = document.getElementById('revise-text').value.trim();
-    const voice = document.getElementById('revise-voice').value.trim();
-    if (headline) payload.headline = headline;
-    if (voice) payload.voiceover = voice;
-    if (!headline && !voice) throw new Error('ใส่ข้อความหรือบทพูดของฉากที่จะแก้ก่อน');
-  } else {
-    const preset = document.getElementById('revise-preset').value;
-    const duration = document.getElementById('revise-duration').value.trim();
-    if (preset) payload.preset = preset;
-    if (duration) payload.duration_s = Number(duration);
-    if (!preset && !duration) throw new Error('เลือกภาพหรือใส่ความยาวฉากใหม่ก่อน');
+  previewHost.innerHTML = '<p class="muted small">กำลังโหลดข้อมูลจากลิงก์… (อ่านหน้าเว็บสาธารณะ — Shopee อาจบล็อก จะได้ไอดีร้าน/สินค้าไว้เติมข้อมูลจาก Capture ทีหลัง)</p>';
+  try {
+    const response = await fetch('/api/mvp/products/preview', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ url: url }),
+    });
+    const data = await response.json().catch(function() { return null; });
+    if (!response.ok) {
+      previewHost.innerHTML = '<p class="muted small">❌ ' + escapeHtml((data && data.error) ? String(data.error) : ('HTTP ' + response.status)) + '</p>';
+      return;
+    }
+    renderLinkPreview(previewHost, data && data.preview ? data.preview : data, url);
+  } catch (error) {
+    previewHost.innerHTML = '<p class="muted small">❌ เชื่อมต่อเซิร์ฟเวอร์ไม่ได้: ' + escapeHtml(error.message) + '</p>';
   }
-  return payload;
 }
 
-async function applyRevision(project, payload) {
-  const res = await api(`/api/mvp/content/${project.content_id}/revise`, 'POST', payload);
-  ui.lastRevision = res;
-  applyState(res.state);
-  return res;
-}
-
-function renderRevisePanel(project) {
-  const scenes = (project.storyboard && project.storyboard.scenes) || [];
-  const locked = project.status === 'READY_TO_PUBLISH'
-    || (project.publish_schedule && project.publish_schedule.status === 'PUBLISHED');
-  const wrap = h('div', { class: 'stack' });
-
-  const form = h('div', { class: 'toolbar' },
-    h('label', { class: 'small' }, 'แก้เฉพาะ ',
-      h('select', { id: 'revise-target' },
-        h('option', { value: 'HOOK' }, REVISE_TARGET_LABEL.HOOK),
-        h('option', { value: 'SCENE_TEXT' }, REVISE_TARGET_LABEL.SCENE_TEXT),
-        h('option', { value: 'SCENE_VISUAL' }, REVISE_TARGET_LABEL.SCENE_VISUAL))),
-    h('label', { class: 'small' }, ' ฉาก ',
-      h('select', { id: 'revise-scene' }, scenes.map((scene, index) =>
-        h('option', { value: scene.id }, `#${index + 1} ${scene.id}`)))),
-  );
-  const fields = h('div', { class: 'stack' },
-    h('label', { class: 'small' }, 'Hook / ตัวหนังสือฉากใหม่',
-      h('input', { type: 'text', id: 'revise-text', placeholder: 'เช่น 3 อย่างที่ต้องดู ก่อนซื้อกระเป๋าใบนี้' })),
-    h('label', { class: 'small' },
-      h('input', { type: 'checkbox', id: 'revise-speak', checked: true }),
-      ' ให้พากย์เสียงตามข้อความใหม่ (เฉพาะฉากนี้)'),
-    h('label', { class: 'small' }, 'บทพากย์ของฉาก (เว้นว่าง = ไม่แตะเสียง)',
-      h('textarea', { id: 'revise-voice', rows: 2, placeholder: 'แก้เฉพาะประโยคที่ต้องการ' })),
-    h('div', { class: 'toolbar' },
-      h('label', { class: 'small' }, 'ภาพ/โทนฉาก ',
-        h('select', { id: 'revise-preset' },
-          h('option', { value: '' }, '(ไม่เปลี่ยน)'),
-          h('option', { value: 'dark' }, 'dark'),
-          h('option', { value: 'warm' }, 'warm'),
-          h('option', { value: 'cool' }, 'cool'),
-          h('option', { value: 'light' }, 'light'))),
-      h('label', { class: 'small' }, ' ความยาวฉาก (วินาที) ',
-        h('input', { type: 'number', id: 'revise-duration', min: '1.5', max: '12', step: '0.5' })),
-    ),
-    h('button', {
-      type: 'button', class: 'btn btn-primary', disabled: ui.busy || locked,
-      on: {
-        click: () => {
-          let payload = null;
-          try {
-            payload = collectRevisionPayload();
-          } catch (err) {
-            ui.error = { message: err.message };
-            render();
-            return;
-          }
-          run(() => applyRevision(project, payload), 'แก้เฉพาะจุดแล้ว — เรนเดอร์ใหม่เฉพาะฉากที่แก้');
-        },
-      },
-    }, 'Revise (แก้ไขเฉพาะจุด)'),
-    h('p', { class: 'note' }, 'ระบบจะเขียนทับเฉพาะเลเยอร์ที่เลือก ฉากอื่นยังใช้เสียงและภาพเดิม '
-      + 'และบังคับให้ finalize ใหม่เพราะการอนุมัติผูกกับ checksum ของสคริปต์'),
-  );
-
-  const last = ui.lastRevision && ui.lastRevision.project && ui.lastRevision.project.content_id === project.content_id
-    ? ui.lastRevision
-    : null;
-  let resultBlock = null;
-  if (last) {
-    const clip = last.clip && last.clip.file
-      ? h('div', null,
-        h('p', { class: 'note', text: `เรนเดอร์ใหม่: ${last.clip.scene_ids.join(', ')} · `
-          + `${Number(last.clip.duration_s || 0).toFixed(1)}s · ${last.clip.width}x${last.clip.height} · v${last.clip.script_version}` }),
-        h('a', {
-          class: 'btn btn-primary',
-          href: `/api/mvp/content/${project.content_id}/revise/file?name=${encodeURIComponent(last.clip.file_name || '')}`,
-          target: '_blank', rel: 'noreferrer',
-        }, 'เปิดวิดีโอที่เรนเดอร์ใหม่ (เต็มจอ)'))
-      : h('p', { class: 'note', text: `เรนเดอร์ใหม่ไม่สำเร็จ: ${(last.clip && last.clip.error) || 'unknown error'}` });
-    const voiceNote = !last.voice
-      ? null
-      : last.voice.error
-        ? h('p', { class: 'note', text: `เสียง: ${last.voice.error}` })
-        : h('p', { class: 'note', text: `เสียงที่สังเคราะห์ใหม่: ${(last.voice.scenes || []).map((scene) => scene.scene_id || scene.id).join(', ') || 'ไม่มี'}` });
-    resultBlock = h('section', { class: 'mvp-card' },
-      h('div', { class: 'card-head' },
-        h('div', null,
-          h('p', { class: 'eyebrow', text: 'Mini Loop · ผลลัพธ์' }),
-          h('h2', { text: `${REVISE_TARGET_LABEL[last.revision.target] || last.revision.target}${last.revision.scene_id ? ` · ${last.revision.scene_id}` : ''}` }),
-        ),
-        badge(last.revision.reopened_finalize ? 'กลับไป REVIEW' : `v${last.revision.script_version_after}`,
-          last.revision.reopened_finalize ? 'badge-reject' : 'badge-neutral'),
-      ),
-      last.revision.reopened_finalize
-        ? h('p', { class: 'note' }, 'งานนี้เคย finalize แล้ว — การแก้ทำให้ approval เดิมถูกแทนที่ '
-          + 'ต้องตรวจแล้วกด Finalize ใหม่ (ประวัติเดิมยังอยู่ใน revisions)')
-        : null,
-      clip, voiceNote,
-    );
+function renderLinkPreview(host, preview, url) {
+  const previewData = preview || {};
+  const title = previewData.title || null;
+  const price = previewData.price !== null && previewData.price !== undefined && Number.isFinite(Number(previewData.price)) ? Number(previewData.price) : null;
+  const ids = previewData.shopId && previewData.itemId ? (previewData.shopId + '.' + previewData.itemId) : (previewData.itemId || null);
+  const hasData = Boolean(title) || price !== null;
+  let html = '<div class="new-offer-preview-card">';
+  if (previewData.image) html += '<img class="new-offer-thumb" src="' + escapeHtml(previewData.image) + '" alt="">';
+  html += '<div class="new-offer-meta">';
+  html += '<strong>' + escapeHtml(title || (ids ? 'สินค้า ' + ids : 'ยังไม่ทราบชื่อสินค้า — กรอกด้านล่าง')) + '</strong>';
+  html += '<div class="muted small">' + (price !== null ? '฿' + price.toLocaleString('th-TH') : 'ยังไม่พบราคา') +
+    (previewData.shopName ? ' · ' + escapeHtml(previewData.shopName) : '') +
+    (ids ? ' · ร้าน/สินค้า ' + escapeHtml(ids) : '') + '</div>';
+  html += '<div class="muted small">' + (previewData.fetched === true && hasData
+    ? '✅ อ่านหน้าเว็บจริงสำเร็จ — ตรวจชื่อ/ราคาก่อนเพิ่ม'
+    : '⚠ Shopee ไม่ส่งข้อมูลสินค้ากลับมา' + (previewData.fetched === true ? ' (หน้าเว็บต้องใช้ JavaScript/บล็อกบอต)' : ' (' + escapeHtml(String(previewData.reason || 'blocked')) + ')') + ' — เปิดลิงก์ดูเองหรือกรอกชื่อ/ราคาด้านล่างได้เลย (Capture เติมรูป/ข้อมูลครบทีหลัง)') + '</div>';
+  if (!hasData) {
+    html += '<div class="new-offer-manual">' +
+      '<input id="new-offer-manual-name" type="text" placeholder="ชื่อสินค้า (จากหน้าที่คุณเปิดดู)">' +
+      '<input id="new-offer-manual-price" type="number" min="0" step="0.01" placeholder="ราคา (บาท)">' +
+      '</div>';
   }
-
-  const history = (project.revisions || []).slice(-4).reverse();
-  wrap.append(h('section', { class: 'mvp-card' },
-    h('div', { class: 'card-head' },
-      h('div', null,
-        h('p', { class: 'eyebrow', text: 'Mini Loop · Targeted Revision' }),
-        h('h2', { text: 'แก้เฉพาะจุด แล้วเรนเดอร์เฉพาะซีนที่แก้' }),
-      ),
-      h('div', { class: 'head-meta' },
-        badge(`${(project.revisions || []).length} revisions`, 'badge-neutral'),
-        badge(`script v${project.script_version}`, 'badge-neutral'),
-      ),
-    ),
-    locked
-      ? h('p', { class: 'note' }, 'คอนเทนต์นี้ถูกจัดคิว/เผยแพร่แล้ว — Revision ปิด เพื่อไม่ให้ artifact ที่เผยแพร่แล้วเพี้ยน')
-      : null,
-    locked ? null : h('div', { class: 'stack' }, form, fields),
-    history.length === 0
-      ? h('p', { class: 'note' }, 'ยังไม่มี Revision — ทุกอย่างยังเป็นเวอร์ชันแรก')
-      : h('ul', { class: 'list' }, history.map((revision) => h('li', { class: 'cell' },
-        h('div', null,
-          h('p', { class: 'cell-title', text: `${REVISE_TARGET_LABEL[revision.target] || revision.target}${revision.scene_id ? ` · ${revision.scene_id}` : ''}` }),
-          h('p', { class: 'cell-sub', text: `${new Date(revision.at).toLocaleString('th-TH')} · v${revision.script_version_before}→v${revision.script_version_after}`
-            + (revision.reopened_finalize ? ' · ต้อง finalize ใหม่' : '') }),
-        ),
-      ))),
-  ));
-  if (resultBlock) wrap.append(resultBlock);
-  return wrap;
-}
-
-const PUBLISH_STATUS_TEXT = {
-  SCHEDULED: 'ตั้งเวลาไว้',
-  QUEUED: 'อยู่ใน Publish Queue',
-  PUBLISHED: 'เผยแพร่แล้ว',
-  CANCELLED: 'ยกเลิก',
-};
-
-async function schedulePublish(contentId) {
-  const at = document.getElementById('publish-at');
-  const channel = (document.getElementById('publish-channel') || {}).value || 'SHOPEE';
-  if (!at || !at.value) throw new Error('เลือกวันและเวลาที่จะเผยแพร่ก่อน');
-  const res = await api(`/api/mvp/content/${contentId}/schedule`, 'POST', {
-    channel,
-    scheduled_at: new Date(at.value).toISOString(),
+  html += '<div class="new-offer-link-actions">' +
+    '<a class="btn btn-sm btn-ghost" href="' + escapeHtml(url) + '" target="_blank" rel="noopener noreferrer">เปิดลิงก์ ↗</a>' +
+    '<button type="button" class="btn btn-sm btn-primary" id="new-offer-link-add">เพิ่มเข้าคลัง (1 รายการ)</button>' +
+    '</div>';
+  html += '</div></div>';
+  host.innerHTML = html;
+  const addBtn = document.getElementById('new-offer-link-add');
+  if (addBtn) addBtn.addEventListener('click', function() {
+    const nameInput = document.getElementById('new-offer-manual-name');
+    const priceInput = document.getElementById('new-offer-manual-price');
+    const manualName = nameInput ? nameInput.value.trim() : '';
+    const manualPrice = priceInput && priceInput.value.trim() !== '' ? Number(priceInput.value) : null;
+    if (!title && !manualName) {
+      showToast('Shopee ไม่ให้ข้อมูล — เปิดลิงก์ดูแล้วกรอกชื่อสินค้าก่อนเพิ่ม (หรือใช้ Capture)', 'warning');
+      if (nameInput) nameInput.focus();
+      return;
+    }
+    addLinkCandidate(previewData, url, title, price, manualName, Number.isFinite(manualPrice) ? manualPrice : null);
   });
-  applyState(res.state);
-  return res;
 }
 
-async function approvePublish(contentId) {
-  const by = String(((document.getElementById('publish-approver') || {}).value || 'Owner')).trim();
-  const res = await api(`/api/mvp/content/${contentId}/schedule/approve`, 'POST', { approved_by: by });
-  applyState(res.state);
-  return res;
+function addLinkCandidate(preview, url, title, price, manualName, manualPrice) {
+  const ids = preview.shopId && preview.itemId ? preview.shopId + '.' + preview.itemId : null;
+  const typedName = typeof manualName === 'string' ? manualName.trim() : '';
+  const name = title || typedName || (ids ? 'สินค้า Shopee ' + ids : 'สินค้าจากลิงก์');
+  const finalPrice = price !== null && price !== undefined ? price : (manualPrice !== null && manualPrice !== undefined ? manualPrice : 0);
+  const fetchedOk = preview.fetched === true && (Boolean(title) || price !== null);
+  const manual = !title && Boolean(typedName);
+  const duplicate = candidatePool.some(function(c) {
+    if (preview.shopId && preview.itemId && String(c.shopId) === String(preview.shopId) && String(c.itemId) === String(preview.itemId)) return true;
+    if (ids && String(c.affiliateLink || '').indexOf(ids) !== -1) return true;
+    return c.name === name && Number(c.price) === Number(finalPrice || 0);
+  });
+  if (duplicate) {
+    showToast('สินค้านี้อยู่ในคลังแล้ว', 'warning');
+    return;
+  }
+  candidatePool.push({
+    id: nextCandidateId(),
+    name: name,
+    platform: 'Shopee',
+    price: finalPrice || 0,
+    commission: null,
+    commissionRate: null,
+    rating: null,
+    sold: null,
+    shopName: preview.shopName || null,
+    image: preview.image || null,
+    shopId: preview.shopId || null,
+    itemId: preview.itemId || null,
+    affiliateLink: url,
+    subIds: { 1: '', 2: '', 3: '', 4: '', 5: '' },
+    channels: ['shopee_video'],
+    quality: 'Medium',
+    status: 'DRAFT',
+    views: 0,
+    clicks: 0,
+    estimatedSale: 0,
+    evidence: 'จากลิงก์ Shopee (' + (fetchedOk ? 'อ่านหน้าเว็บสาธารณะสำเร็จ' : manual ? 'Shopee บล็อกการอ่าน — กรอกชื่อ/ราคาเอง ควร Capture เติมรูปทีหลัง' : 'Shopee บล็อกการอ่าน — เติมข้อมูลจาก Capture ทีหลัง') + ')',
+  });
+  renderCandidatePool();
+  // Bind the Shopee Affiliate link immediately: select the new card so the
+  // hero + affiliate panel show the pasted link as this candidate's link.
+  selectCandidate(Number(candidatePool[candidatePool.length - 1].id));
+  ensureCandidateSettings(candidatePool[candidatePool.length - 1]);
+  renderAffiliatePanel();
+  const affInput = document.getElementById('aff-link');
+  const badge = document.getElementById('hero-link-state');
+  if (affInput) affInput.value = url;
+  if (badge) badge.textContent = 'มีลิงก์แล้ว';
+  closeNewOfferMenu();
+  const linkInput = document.getElementById('new-offer-link-input');
+  const previewHost = document.getElementById('new-offer-link-preview');
+  if (linkInput) linkInput.value = '';
+  if (previewHost) previewHost.innerHTML = '';
+  showToast('เพิ่ม “' + name + '” เข้าคลังแล้ว — ผูกลิงก์ Shopee Affiliate ให้การ์ดเรียบร้อย (' + url + ')', 'success');
 }
 
-async function publishNow(contentId, force) {
-  const res = await api(`/api/mvp/content/${contentId}/publish`, 'POST', force ? { force: true } : {});
-  applyState(res.state);
-  return res;
+function buildCandidateFromSource(item, pick) {
+  const price = Number(item.price) || 0;
+  const rate = Number(item.commissionRate !== undefined && item.commissionRate !== null ? item.commissionRate : item.commission_rate) || null;
+  const commission = Number.isFinite(Number(item.commission)) && item.commission !== null && item.commission !== undefined
+    ? Math.round(Number(item.commission) * 100) / 100
+    : (rate ? Math.round(price * rate) / 100 : 0);
+  return {
+    id: nextCandidateId(),
+    name: item.name,
+    platform: 'Shopee',
+    price: price,
+    commission: commission,
+    commissionRate: rate,
+    rating: item.rating === undefined ? null : item.rating,
+    sold: item.sold === undefined ? null : item.sold,
+    shopName: item.shopName === undefined ? null : item.shopName,
+    image: item.image || null,
+    affiliateLink: item.affiliateLink || item.link || '',
+    subIds: { 1: '', 2: '', 3: '', 4: '', 5: '' },
+    channels: ['shopee_video'],
+    quality: offerQuality(commission),
+    status: 'DRAFT',
+    views: 0,
+    clicks: 0,
+    estimatedSale: 0,
+    evidence: 'AI คัดเลือกจากข้อมูลจริง — เป็นคำแนะนำ รอคุณยืนยัน',
+  };
 }
 
-async function cancelPublishSchedule(contentId) {
-  const res = await api(`/api/mvp/content/${contentId}/schedule/cancel`, 'POST', {});
-  applyState(res.state);
-  return res;
-}
-
-function renderPublishPanel(project) {
-  const schedule = project.publish_schedule || null;
-  const ready = project.status === 'READY_TO_PUBLISH';
-  const wrap = h('div', { class: 'stack' });
-
-  const controls = h('div', { class: 'toolbar' });
-  if (!schedule) {
-    controls.append(
-      h('label', { class: 'small' }, 'ช่องทาง ',
-        h('select', { id: 'publish-channel' },
-          h('option', { value: 'SHOPEE' }, 'Shopee'))),
-      h('label', { class: 'small' }, ' เวลา ',
-        h('input', { type: 'datetime-local', id: 'publish-at' })),
-      h('button', {
-        type: 'button', class: 'btn btn-primary', disabled: ui.busy || !ready,
-        on: { click: () => run(() => schedulePublish(project.content_id), 'ตั้งเวลาเผยแพร่แล้ว') },
-      }, 'ตั้งเวลเผยแพร่'),
-    );
+function applyAnalysisToPool(analysis, model, source, mode, maxPicks) {
+  if (!analysis || !Array.isArray(analysis.picks) || !analysis.picks.length) {
+    showToast('AI ไม่สามารถเลือกรายการได้จากข้อมูลนี้ — ลองเพิ่มข้อมูลจริงก่อน', 'warning');
+    return;
+  }
+  function markAi(candidate, pick) {
+    candidate.ai = {
+      picked: true,
+      fit_score: pick.fit_score,
+      why: pick.why,
+      risks: pick.risks,
+      hook: pick.hook,
+      script: pick.script,
+      model: model || null,
+      ran_at: new Date().toISOString(),
+    };
+  }
+  let added = 0;
+  let marked = 0;
+  if (mode === 'replace') {
+    const fresh = [];
+    analysis.picks.forEach(function(pick) {
+      const item = source.byId[String(pick.candidate_id)];
+      if (!item) return;
+      const candidate = buildCandidateFromSource(item, pick);
+      markAi(candidate, pick);
+      fresh.push(candidate);
+    });
+    candidatePool = fresh;
+    added = fresh.length;
   } else {
-    controls.append(
-      h('label', { class: 'small' }, 'ผู้อนุมัติ ',
-        h('input', { type: 'text', id: 'publish-approver', value: schedule.approved_by || 'Owner', size: 10 })),
-      h('button', {
-        type: 'button', class: 'btn btn-primary', disabled: ui.busy || schedule.status === 'PUBLISHED' || schedule.status === 'CANCELLED',
-        on: { click: () => run(() => approvePublish(project.content_id), 'อนุมัติเผยแพร่แล้ว') },
-      }, schedule.approved ? 'อนุมัติซ้ำ (อัปเดตชื่อ)' : 'อนุมัติเผยแพร่'),
-      h('button', {
-        type: 'button', class: 'btn btn-ghost', disabled: ui.busy || schedule.status === 'PUBLISHED' || schedule.status === 'CANCELLED',
-        on: { click: () => run(() => publishNow(project.content_id, false), 'เผยแพร่แล้ว (จำลอง) — Library อัปเดตแล้ว') },
-      }, 'ยืนยันเผยแพร่ตอนนี้ (จำลอง)'),
-      h('button', {
-        type: 'button', class: 'btn btn-ghost', disabled: ui.busy || schedule.status === 'PUBLISHED' || schedule.status === 'CANCELLED',
-        on: { click: () => run(() => cancelPublishSchedule(project.content_id), 'ยกเลิกกำหนดการแล้ว') },
-      }, 'ยกเลิกกำหนดการ'),
-    );
+    analysis.picks.forEach(function(pick) {
+      const item = source.byId[String(pick.candidate_id)];
+      if (!item) return;
+      if (source.kind === 'pool') {
+        const existing = candidatePool.find(function(c) { return String(c.id) === String(pick.candidate_id); });
+        if (existing) { markAi(existing, pick); marked += 1; }
+        return;
+      }
+      const price = Number(item.price) || 0;
+      const existing = candidatePool.find(function(c) {
+        return c.name === item.name && Number(c.price) === price;
+      });
+      if (existing) { markAi(existing, pick); marked += 1; return; }
+      const candidate = buildCandidateFromSource(item, pick);
+      markAi(candidate, pick);
+      candidatePool.push(candidate);
+      added += 1;
+    });
   }
 
-  const summary = schedule
-    ? h('p', { class: 'note' },
-      `${PUBLISH_STATUS_TEXT[schedule.status] || schedule.status} · ${schedule.channel} · ${new Date(schedule.scheduled_at).toLocaleString('th-TH')}`
-      + (schedule.approved ? ` · อนุมัติโดย ${schedule.approved_by}` : ' · ยังไม่อนุมัติ')
-      + (schedule.fallback ? ` · เข้าคิวเมื่อ ${new Date(schedule.fallback.at).toLocaleString('th-TH')} (เลยกำหนดโดยยังไม่อนุมัติ)` : '')
-      + (schedule.published_at ? ` · เผยแพร่ ${new Date(schedule.published_at).toLocaleString('th-TH')} โดย ${schedule.published_by}` : ''))
-    : h('p', { class: 'note' }, ready
-      ? 'ยังไม่มีกำหนดการ — เลือกช่องทางและเวลาที่จะเผยแพร่'
-      : 'ต้อง Export วิดีโอและทำ Publish prep ให้ถึง READY_TO_PUBLISH ก่อนจึงจะตั้งเวลาได้');
-
-  wrap.append(h('section', { class: 'mvp-card' },
-    h('div', { class: 'card-head' },
-      h('div', null,
-        h('p', { class: 'eyebrow', text: 'Publish · Queue & Scheduling' }),
-        h('h2', { text: `${project.content_id} · กำหนดการเผยแพร่` }),
-      ),
-      schedule ? badge(schedule.status, schedule.status === 'PUBLISHED' ? 'badge-select' : schedule.status === 'QUEUED' ? 'badge-reject' : 'badge-neutral') : null,
-    ),
-    summary,
-    controls,
-    h('p', { class: 'note' }, 'ถ้าถึงเวลาที่ตั้งไว้แล้วยังไม่มีใครอนุมัติ ระบบจะย้ายรายการเข้า Publish Queue '
-      + 'โดยไม่ทิ้งงาน และยังอนุมัติ/เผยแพร่ย้อนหลังได้'),
-  ));
-
-  const queue = (ui.state && ui.state.contents ? ui.state.contents : [])
-    .filter((item) => item.publish_schedule)
-    .sort((a, b) => String(a.publish_schedule.scheduled_at).localeCompare(String(b.publish_schedule.scheduled_at)));
-  wrap.append(h('section', { class: 'mvp-card' },
-    h('div', { class: 'card-head' },
-      h('div', null,
-        h('p', { class: 'eyebrow', text: 'Publish Queue' }),
-        h('h2', { text: `${queue.length} รายการในคิว` }),
-      ),
-      h('div', { class: 'head-meta' },
-        badge(`${queue.filter((i) => i.publish_schedule.status === 'QUEUED').length} รออนุมัติ`, 'badge-reject'),
-        badge(`${queue.filter((i) => i.publish_schedule.status === 'PUBLISHED').length} เผยแพร่แล้ว`, 'badge-select'),
-      ),
-    ),
-    queue.length === 0
-      ? h('p', { class: 'note' }, 'ยังไม่มีรายการที่ตั้งเวลาไว้')
-      : h('ul', { class: 'list' }, queue.map((item) => h('li', { class: 'cell' },
-        h('div', null,
-          h('p', { class: 'cell-title', text: `${item.content_id} · ${(item.offer_snapshot || {}).product_name || ''}` }),
-          h('p', { class: 'cell-sub', text: `${PUBLISH_STATUS_TEXT[item.publish_schedule.status] || item.publish_schedule.status} · `
-            + `${item.publish_schedule.channel} · ${new Date(item.publish_schedule.scheduled_at).toLocaleString('th-TH')}`
-            + (item.publish_schedule.approved ? ` · อนุมัติ: ${item.publish_schedule.approved_by}` : '') }),
-        ),
-      ))),
-  ));
-  return wrap;
+  lastAiResearch = {
+    summary: analysis.summary || '',
+    notes: Array.isArray(analysis.notes) ? analysis.notes : [],
+    picks: analysis.picks,
+    model: model || null,
+    considered: source.considered,
+    pool_size: candidatePool.length,
+    mode: mode,
+    maxPicks: maxPicks,
+    source_label: source.label,
+    ran_at: new Date().toISOString(),
+  };
+  renderCandidatePool();
+  renderAiShortlistPanel();
+  showToast(mode === 'replace'
+    ? ('แทนที่คลังด้วย ' + added + ' รายการที่ AI เลือกแล้ว')
+    : ('AI เลือกได้ ' + (added + marked) + ' รายการ' + (added ? ' (เพิ่มใหม่ ' + added + ')' : '') + ' — ดูเหตุผลในแผง AI Shortlist'),
+    'success');
 }
 
-function renderVoiceoverPanel(project) {
-  const scenes = (project.storyboard && project.storyboard.scenes) || [];
-  const voiced = scenes.filter((scene) => scene.audio && scene.audio.asset_ref && project.assets[scene.audio.asset_ref]);
-  const audio = project.audio || {};
-  const statusText = audio.status === 'AUDIO_ATTACHED'
-    ? `มีเสียงครบ ${voiced.length}/${scenes.length} ฉาก`
-    : audio.status === 'AUDIO_DURATION_MISMATCH'
-      ? `เสียงกับความยาวฉากไม่ตรงกัน ${(audio.mismatches || []).length} ฉาก`
-      : `ยังไม่มีเสียงบรรยาย (${voiced.length}/${scenes.length} ฉาก)`;
-  return h('section', { class: 'mvp-card' },
-    h('div', { class: 'card-head' },
-      h('div', null,
-        h('p', { class: 'eyebrow', text: 'Production · Thai voice-over' }),
-        h('h2', { text: 'เสียงบรรยายไทย' }),
-      ),
-      badge(audio.status || 'AUDIO_PENDING', audio.status === 'AUDIO_ATTACHED' ? 'badge-select' : 'badge-neutral'),
-    ),
-    h('p', { class: 'lead' }, 'สร้างเสียงบรรยายจากบทพูดของทุกฉากด้วยเสียงไทย แล้วผูกเข้าไทม์ไลน์ — '
-      + 'ความยาวฉากจะถูกปรับตามเสียงจริงเพื่อให้เสียงไม่ถูกตัด'),
-    h('div', { class: 'toolbar' },
-      h('button', {
-        type: 'button', class: 'btn btn-primary', disabled: ui.busy || project.status !== 'DRAFT',
-        on: { click: () => run(() => synthesizeThaiVoiceover(project.content_id, false), 'เสียงบรรยายพร้อมแล้ว') },
-      }, voiced.length ? 'สร้างเสียงเฉพาะฉากที่ยังไม่มี' : 'สร้างเสียงบรรยายไทย'),
-      h('button', {
-        type: 'button', class: 'btn btn-ghost', disabled: ui.busy || project.status !== 'DRAFT',
-        on: { click: () => run(() => synthesizeThaiVoiceover(project.content_id, true), 'สร้างเสียงบรรยายใหม่ครบทุกฉาก') },
-      }, 'สร้างใหม่ทั้งหมด'),
-    ),
-    h('p', { class: 'note', text: statusText }),
-  );
+function renderAiShortlistPanel() {
+  const panel = document.getElementById('ai-shortlist-panel');
+  const host = document.getElementById('ai-shortlist-body');
+  if (!panel || !host) return;
+  if (!lastAiResearch) {
+    panel.classList.add('hidden');
+    return;
+  }
+  const r = lastAiResearch;
+  let html = '<p class="muted small">รันเมื่อ ' + escapeHtml(new Date(r.ran_at).toLocaleString('th-TH')) +
+    ' · โมเดล ' + escapeHtml(r.model || '-') +
+    ' · พิจารณา ' + Number(r.considered) + '/' + Number(r.pool_size) + ' รายการจากคลังจริง' +
+    ' · AI เป็นที่ปรึกษา — การตัดสินใจเป็นของคุณ</p>';
+  if (r.summary) html += '<p class="ai-summary">' + escapeHtml(r.summary) + '</p>';
+  html += '<ol class="ai-picks">';
+  r.picks.forEach(function(pick) {
+    const pid = parseInt(pick.candidate_id, 10);
+    const idAttr = Number.isFinite(pid) ? String(pid) : '';
+    html += '<li class="ai-pick"' + (idAttr ? ' data-id="' + idAttr + '"' : '') + '>' +
+      '<div class="ai-pick-head"><strong>' + escapeHtml(pick.title || String(pick.candidate_id)) + '</strong>' +
+      (Number.isFinite(pick.fit_score) ? '<span class="ai-fit">fit ' + pick.fit_score + '</span>' : '') +
+      '</div>' +
+      (pick.why ? '<p>' + escapeHtml(pick.why) + '</p>' : '') +
+      (pick.risks ? '<p class="ai-risk">⚠ ' + escapeHtml(pick.risks) + '</p>' : '') +
+      (pick.hook ? '<p class="ai-hook-line">💬 ' + escapeHtml(pick.hook) + '</p>' : '') +
+      (pick.script && pick.script.length ? '<pre class="ai-script">' + escapeHtml(pick.script.join('\n')) + '</pre>' : '') +
+      '</li>';
+  });
+  html += '</ol>';
+  if (r.notes.length) {
+    html += '<ul class="ai-notes">' + r.notes.map(function(note) { return '<li>' + escapeHtml(note) + '</li>'; }).join('') + '</ul>';
+  }
+  host.innerHTML = html;
+  panel.classList.remove('hidden');
+  host.querySelectorAll('.ai-pick[data-id]').forEach(function(row) {
+    row.addEventListener('click', function() {
+      selectCandidate(Number(row.dataset.id));
+    });
+  });
 }
 
-function renderContentCreate() {
-  const state = ui.state;
-  const plans = (state.plans || []);
-  const eligible = eligibleCandidates();
-  const sources = [
-    ...plans.map((plan) => ({
-      value: `plan:${plan.plan_id}`,
-      label: `PLAN ${plan.plan_id} · ${APPROACH_LABEL[plan.approach] || plan.approach} · ${plan.candidate_id}`,
-    })),
-    ...eligible.map((candidate) => ({
-      value: `cand:${candidate.id}`,
-      label: `CAND ${candidate.id} · ${candidate.title} · ${candidate.status}`,
-    })),
-  ];
-  if (!sources.length) return null;
-  if (!ui.contentSource || !sources.some((option) => option.value === ui.contentSource)) {
-    ui.contentSource = sources[0].value;
-  }
-  const approach = ui.contentApproach;
-  const isCustom = approach === 'user_custom';
-  return h('section', { class: 'mvp-card' },
-    h('div', { class: 'card-head' },
-      h('div', null,
-        h('p', { class: 'eyebrow', text: 'สร้าง Content ใหม่' }),
-        h('h2', { text: 'เริ่มจากแผนหรือผู้สมัครที่เลือกไว้' }),
-      ),
-      badge('fixture state only', 'badge-neutral'),
-    ),
-    h('p', { class: 'lead' },
-      'ระบบจะสร้าง Storyboard 5 ฉาก บทพูดภาษาไทย และ CTA จากข้อมูลสินค้าและหลักฐานที่เลือกไว้'),
-    h('div', { class: 'field inline' },
-      h('label', { class: 'field' },
-        h('span', { class: 'field-label', text: 'ต้นทาง' }),
-        h('select', {
-          on: { change: (event) => { ui.contentSource = event.target.value; } },
-        }, sources.map((option) => h('option', {
-          value: option.value,
-          text: option.label,
-          selected: option.value === ui.contentSource,
-        }))),
-      ),
-    ),
-    h('div', { class: 'approach-grid' }, CONTENT_APPROACHES.map((option) =>
-      h('label', { class: `approach${approach === option.key ? ' is-selected' : ''}` },
-        h('div', { class: 'approach-head' },
-          h('input', {
-            type: 'radio', name: 'new-content-approach', value: option.key,
-            checked: approach === option.key,
-            on: { change: () => { ui.contentApproach = option.key; render(); } },
-          }),
-          h('p', { class: 'approach-label', text: option.label }),
-        ),
-        isCustom && option.key === 'user_custom'
-          ? h('p', { class: 'cell-sub', text: 'จะเปิดฟอร์มให้กรอกมุมมองเองหลังสร้าง' })
-          : h('p', { class: 'cell-sub', text: 'สร้างจากหลักฐานในไฟล์ส่งออก' }),
-      ))),
-    h('label', { class: 'small settings-live' },
-      h('input', { id: 'content-use-llm', type: 'checkbox' }),
-      ' ให้ AI ร่างสคริปต์ด้วยคีย์เดียวกัน (ต้องเปิด Live drafting ใน Settings ก่อน)'),
-    h('div', { class: 'toolbar' },
-      h('button', {
-        type: 'button', class: 'btn btn-primary', disabled: ui.busy,
-        on: {
-          click: () => run(async () => {
-            const [kind, id] = ui.contentSource.split(':');
-            const body = { approach: ui.contentApproach };
-            const llmNode = document.getElementById('content-use-llm');
-            if (llmNode && llmNode.checked) body.useLlm = true;
-            if (kind === 'plan') body.planId = id;
-            else body.candidateId = id;
-            const res = await api('/api/mvp/content/draft', 'POST', body);
-            ui.contentId = res.project.content_id;
-            ui.sceneId = res.project.storyboard.scenes[0].id;
-            ui.contentTab = 'storyboard';
-            ui.contentNew = false;
-            contentDrafts = {};
-            applyState(res.state);
-          }, 'สร้าง Content แล้ว'),
-        },
-      }, 'สร้าง Content'),
-    ),
-    ui.error ? h('p', { class: 'error-text', text: ui.error.message }) : null,
-  );
+// ----- Settings: bind the AI Agent key (server memory only) -----
+
+function openSettingsPanel() {
+  const overlay = document.getElementById('settings-overlay');
+  if (!overlay) return;
+  overlay.classList.remove('hidden');
+  refreshSettingsPanel();
 }
 
-const renderers = {
-  storyboard: renderStoryboardTab,
-  preview: renderPreviewTab,
-  qa: renderQaTab,
-  finalize: renderFinalizeTab,
-  export: renderExportTab,
-  publish: renderPublishTab,
-};
-
-function renderContent() {
-  const state = ui.state;
-  const wrap = h('div', { class: 'stack' });
-  if (!state || !state.import) {
-    wrap.append(h('section', { class: 'notice' },
-      h('div', { class: 'notice-head' }, h('h2', { text: 'ยังไม่มีแคนดิเดตในพูล' })),
-      h('p', null, h('button', { type: 'button', class: 'link-btn', on: { click: () => go('research') } }, 'ไปที่ Research →')),
-    ));
-    return wrap;
-  }
-  const existing = allContents();
-  if (ui.contentNew || !existing.length) {
-    const create = renderContentCreate();
-    if (create) wrap.append(create);
-  }
-  if (existing.length) {
-    const project = openContent();
-    if (project) wrap.append(renderContentProject(project));
-    wrap.append(h('div', { class: 'toolbar' },
-      h('button', {
-        type: 'button', class: 'btn btn-ghost', disabled: ui.busy,
-        on: { click: () => { ui.contentNew = true; contentDrafts = {}; render(); } },
-      }, 'สร้าง Content อีกรายการ'),
-      existing.length > 1 ? h('select', {
-        on: { change: (event) => { ui.contentId = event.target.value; ui.contentNew = false; contentDrafts = {}; applyState(ui.state); } },
-      }, existing.map((item) => h('option', {
-        value: item.content_id,
-        text: `${item.content_id} · ${item.status} · ${item.offer_snapshot ? item.offer_snapshot.product_name : ''}`,
-        selected: item.content_id === ui.contentId,
-      }))) : null,
-    ));
-  }
-  return wrap;
+function closeSettingsPanel() {
+  const overlay = document.getElementById('settings-overlay');
+  if (overlay) overlay.classList.add('hidden');
 }
 
-/* ---------- Content Library ---------- */
+async function refreshSettingsPanel() {
+  const data = await refreshAiStatus();
+  const status = document.getElementById('settings-ai-status');
+  if (!status) return;
+  const ai = data && data.ai ? data.ai : null;
+  const settings = data && data.settings ? data.settings : null;
+  if (!ai || !settings) {
+    status.textContent = 'อ่านสถานะไม่สำเร็จ — เซิร์ฟเวอร์ไม่ตอบสนอง';
+    return;
+  }
+  const lines = [];
+  const providerLabels = { openrouter: 'OpenRouter', orcarouter: 'OrcaRouter', gemini: 'Gemini' };
+  Object.keys(settings.providers || {}).forEach(function(name) {
+    const p = settings.providers[name];
+    lines.push('[' + (providerLabels[name] || name) + '] Key: ' + (p.key_present ? 'ผูกแล้ว (' + (p.key_hint || 'จาก .env') + ' · ที่มา: ' + p.key_source + ')' : 'ยังไม่ได้ผูก') + ' · โมเดล: ' + p.model + ' · ปลายทาง: ' + (p.endpoint || '-'));
+  });
+  lines.push('Provider ที่ใช้ตอนนี้: ' + (settings.provider || 'openrouter') + ' (ที่มา: ' + settings.provider_source + ') — ทุกขั้นตอนใช้ provider นี้จนกว่าจะเปลี่ยน');
+  lines.push('Live drafting: ' + (settings.live_drafting ? 'เปิด' : 'ปิด') + ' · interlock ปัจจุบัน: ' + (settings.interlock ? 'เปิด' : 'ปิด'));
+  if (data.env) lines.push(String(data.env));
+  status.innerHTML = lines.map(function(line) { return '<div>' + escapeHtml(line) + '</div>'; }).join('');
+  const providerSelect = document.getElementById('settings-provider');
+  if (providerSelect) providerSelect.value = settings.provider || 'openrouter';
+  const live = document.getElementById('settings-live-toggle');
+  if (live) live.checked = settings.live_drafting === true;
+}
 
-async function loadLibrary() {
-  if (ui.library.loading) return;
-  ui.library.loading = true;
-  ui.library.error = null;
-  if (ui.section === 'schedule') render();
+async function saveAiSettings() {
+  const keyInput = document.getElementById('settings-api-key');
+  const modelInput = document.getElementById('settings-model');
+  const live = document.getElementById('settings-live-toggle');
+  const status = document.getElementById('settings-ai-status');
+  const body = {};
+  const providerSelect = document.getElementById('settings-provider');
+  const key = keyInput ? keyInput.value.trim() : '';
+  const model = modelInput ? modelInput.value.trim() : '';
+  if (providerSelect) body.provider = providerSelect.value;
+  if (key) body.api_key = key;
+  if (model) body.model = model;
+  if (live) body.live_drafting = live.checked === true;
+  if (!Object.keys(body).length) {
+    if (status) status.textContent = 'ยังไม่มีอะไรให้บันทึก — ใส่ API Key หรือชื่อโมเดลก่อน';
+    return;
+  }
+  if (keyInput) keyInput.disabled = true;
   try {
-    const res = await api('/api/mvp/library');
-    ui.library.items = res.items || [];
-    ui.library.counts = res.counts || null;
-    ui.library.meta = res;
-  } catch (err) {
-    ui.library.error = err.message;
-    ui.library.items = [];
+    const response = await fetch('/api/mvp/settings/ai', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    const data = await response.json().catch(function() { return null; });
+    if (!response.ok) {
+      if (status) status.textContent = 'บันทึกไม่สำเร็จ: ' + (data && data.error ? data.error : ('HTTP ' + response.status));
+      return;
+    }
+    if (keyInput) keyInput.value = '';
+    await refreshSettingsPanel();
+    showToast('ผูก AI Agent แล้ว — คีย์อยู่ในหน่วยความจำของเซิร์ฟเวอร์เท่านั้น (ไม่เขียนไฟล์ ไม่เก็บในเบราว์เซอร์)', 'success');
+  } catch (error) {
+    if (status) status.textContent = 'เชื่อมต่อเซิร์ฟเวอร์ไม่ได้: ' + error.message;
   } finally {
-    ui.library.loading = false;
-    if (ui.section === 'schedule') render();
-  }
-}
-
-function libraryEntryTitle(item) {
-  const entry = item.entry || {};
-  return entry.filename || entry.id || '(record without an id)';
-}
-
-function renderLibraryItem(item) {
-  const entry = item.entry || {};
-  const file = item.file || {};
-  const integrity = LIBRARY_INTEGRITY[file.integrity]
-    || { label: file.integrity || 'UNKNOWN', kind: 'badge-neutral' };
-  const known = new Set(((ui.state && ui.state.contents) || []).map((c) => c.content_id));
-  return h('section', { class: 'mvp-card' },
-    h('div', { class: 'card-head' },
-      h('div', null,
-        h('p', { class: 'eyebrow', text: `export · ${entry.kind || 'VIDEO'}` }),
-        h('h2', { text: libraryEntryTitle(item) }),
-      ),
-      badge(integrity.label, integrity.kind),
-    ),
-    h('dl', { class: 'kv compact' },
-      h('div', null, h('dt', { text: 'content_id' }), h('dd', { class: 'mono', text: entry.id || '—' })),
-      h('div', null, h('dt', { text: 'เวลา export' }), h('dd', { text: entry.exported_at ? fmtDate(entry.exported_at) : '—' })),
-      h('div', null, h('dt', { text: 'ขนาดบนดิสก์' }), h('dd', { text: file.bytes === null || file.bytes === undefined ? 'ไม่มีไฟล์' : `${Math.round(file.bytes / 1024)} KB` })),
-      h('div', null, h('dt', { text: 'รูปแบบ' }), h('dd', { text: entry.width && entry.height ? `${entry.width}×${entry.height} · ${entry.aspect_ratio || '9:16'} · ${entry.duration_s || '—'}s` : '—' })),
-      h('div', null, h('dt', { text: 'sha256 ที่บันทึก' }), h('dd', { class: 'mono small', text: entry.sha256 || '—' })),
-      h('div', null, h('dt', { text: 'sha256 บนดิสก์' }), h('dd', { class: 'mono small', text: file.sha256 || '—' })),
-    ),
-    h('div', { class: 'toolbar' },
-      file.integrity === 'VERIFIED'
-        ? h('a', {
-          class: 'btn btn-primary',
-          href: `/api/mvp/library/${encodeURIComponent(entry.id)}/file`,
-          download: entry.filename,
-        }, 'ดาวน์โหลด MP4')
-        : h('span', { class: 'warn', text: 'ไฟล์ไม่ผ่านการตรวจ — ปิดการดาวน์โหลดจนกว่าจะแก้ไข' }),
-      known.has(entry.id) ? h('button', {
-        type: 'button', class: 'btn btn-ghost', disabled: ui.busy,
-        on: {
-          click: () => {
-            ui.contentId = entry.id;
-            ui.contentNew = false;
-            ui.contentTab = 'export';
-            go('production');
-          },
-        },
-      }, 'เปิดใน Content') : h('span', { class: 'mono small', text: 'project ไม่ได้อยู่ใน state ปัจจุบัน' }),
-    ),
-  );
-}
-
-function renderLibrary() {
-  const lib = ui.library;
-  const wrap = h('div', { class: 'stack' });
-  const clean = lib.counts && lib.counts.VERIFIED > 0
-    && !lib.counts.MISMATCH && !lib.counts.MISSING && !lib.counts.UNREADABLE;
-  wrap.append(h('section', { class: 'mvp-card' },
-    h('div', { class: 'card-head' },
-      h('div', null,
-        h('p', { class: 'eyebrow', text: 'Content Library · store & retrieve' }),
-        h('h2', { text: 'ไฟล์ที่ export แล้วทั้งหมด' }),
-      ),
-      lib.counts
-        ? badge(`${lib.counts.VERIFIED} VERIFIED · ${lib.counts.MISMATCH} MISMATCH · ${lib.counts.MISSING} MISSING`, clean ? 'badge-fact' : 'badge-neutral')
-        : null,
-    ),
-    h('p', { class: 'lead' },
-      'ดัชนีกลางของไฟล์ที่ export แล้ว — ทุกครั้งที่เปิดหน้านี้ ระบบจะเทียบ sha256 กับไฟล์จริงบนดิสก์ จึงเห็น MISSING หรือ MISMATCH ได้ทันที'),
-    h('div', { class: 'toolbar' },
-      h('button', {
-        type: 'button', class: 'btn btn-ghost', disabled: ui.busy || lib.loading,
-        on: { click: () => loadLibrary() },
-      }, lib.loading ? 'กำลังโหลด…' : 'โหลดใหม่ / ตรวจสอบ hash'),
-    ),
-    lib.meta
-      ? h('p', { class: 'trace mono small', text: `index: ${lib.meta.library_file} · exports: ${lib.meta.exports_root}` })
-      : null,
-  ));
-  if (lib.error) {
-    wrap.append(h('section', { class: 'notice' },
-      h('div', { class: 'notice-head' }, h('h2', { text: 'อ่าน Content Library ไม่ได้' })),
-      h('p', { class: 'error-text', text: lib.error }),
-    ));
-    return wrap;
-  }
-  if (lib.items === null) {
-    wrap.append(h('section', { class: 'notice' },
-      h('div', { class: 'notice-head' }, h('h2', { text: lib.loading ? 'กำลังโหลดรายการ…' : 'ยังไม่ได้โหลดรายการ' })),
-      lib.loading ? null : h('p', null, h('button', {
-        type: 'button', class: 'link-btn', on: { click: () => loadLibrary() },
-      }, 'โหลด Content Library →')),
-    ));
-    return wrap;
-  }
-  if (!lib.items.length) {
-    wrap.append(h('section', { class: 'notice' },
-      h('div', { class: 'notice-head' }, h('h2', { text: 'ยังไม่มีไฟล์ใน Content Library' })),
-      h('p', null, 'export วิดีโอจากแท็บ Export ของ Content project แล้วรายการจะปรากฏที่นี่'),
-      h('p', null, h('button', {
-        type: 'button', class: 'link-btn', on: { click: () => go('production') },
-      }, 'ไปที่ Content →')),
-    ));
-    return wrap;
-  }
-  for (const item of lib.items) wrap.append(renderLibraryItem(item));
-  return wrap;
-}
-
-/* ---------- Pipeline views (Profile / Research pool / Publish) ---------- */
-
-// Which content tab belongs to which pipeline step.
-const SECTION_CONTENT_TAB = { production: 'storyboard', schedule: 'publish' };
-const SECTION_CONTENT_TABS = {
-  // Production owns the edit, the Thai voice and the whole QC/finalize/export
-  // run; scheduling sees only the publish payload it is allowed to act on.
-  production: ['storyboard', 'preview', 'qa', 'finalize', 'export'],
-  schedule: ['publish'],
-};
-
-async function loadAiStatus() {
-  ui.ai = ui.ai || {};
-  if (ui.ai.loading) return;
-  ui.ai.loading = true;
-  try {
-    ui.ai.status = await api('/api/mvp/ai/status');
-    ui.ai.error = null;
-  } catch (err) {
-    ui.ai.error = err.message;
-  } finally {
-    ui.ai.loading = false;
-    if (ui.section === 'profile' || ui.section === 'research') render();
+    if (keyInput) keyInput.disabled = false;
   }
 }
 
 async function pingAiConnection() {
-  const res = await api('/api/mvp/ai/ping', 'POST', {});
-  ui.ai = ui.ai || {};
-  ui.ai.ping = res.ping;
-  if (res.ai) ui.ai.status = { ai: res.ai };
-  return res.ping;
-}
-
-async function runAiResearch() {
-  const res = await api('/api/mvp/ai/research', 'POST', {});
-  ui.aiResearch = res;
-  if (res.ai) ui.ai = { ...(ui.ai || {}), status: { ai: res.ai } };
-  applyState(res.state);
-}
-
-async function createContentFromAiPick(candidateId) {
-  const res = await api('/api/mvp/content/draft', 'POST', { candidateId });
-  ui.contentId = res.project.content_id;
-  ui.contentNew = false;
-  ui.section = 'production';
-  ui.contentTab = 'storyboard';
-  applyState(res.state);
-}
-
-function aiStatusBadge(configured) {
-  return badge(configured ? 'เชื่อมต่อแล้ว' : 'ยังไม่ตั้งค่า', configured ? 'badge-fact' : 'badge-reject');
-}
-
-/* ---------- Settings · OpenRouter key & model ---------- */
-
-async function applyAiSettings(payload) {
-  const res = await api('/api/mvp/settings/ai', 'POST', payload);
-  ui.ai = { ...(ui.ai || {}), status: { ai: res.ai, settings: res.settings, env: res.env }, error: null, ping: null };
-  return res;
-}
-
-async function clearAiKey() {
-  return applyAiSettings({ clear_key: true });
+  const status = document.getElementById('settings-ping-status');
+  if (status) status.textContent = 'กำลังทดสอบการเชื่อมต่อ… (ส่งข้อความสั้น 1 รอบ)';
+  try {
+    const providerSelect = document.getElementById('settings-provider');
+    const response = await fetch('/api/mvp/ai/ping', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ provider: providerSelect ? providerSelect.value : undefined }),
+    });
+    const data = await response.json().catch(function() { return null; });
+    if (!response.ok) {
+      if (status) status.textContent = 'ทดสอบไม่สำเร็จ: ' + (data && data.error ? data.error : ('HTTP ' + response.status));
+      return;
+    }
+    const ping = data && data.ping ? data.ping : null;
+    if (ping && ping.ok) {
+      if (status) status.textContent = '✅ เชื่อมต่อสำเร็จ · โมเดล ' + (ping.model || '-') + (ping.latency_ms != null ? ' · ' + ping.latency_ms + ' ms' : '');
+    } else {
+      if (status) status.textContent = '❌ ' + aiFailureMessage(ping && ping.status, ping && ping.message);
+    }
+    refreshAiStatus();
+  } catch (error) {
+    if (status) status.textContent = 'เชื่อมต่อเซิร์ฟเวอร์ไม่ได้: ' + error.message;
+  }
 }
 
 async function resetAiSettings() {
-  return applyAiSettings({ reset: true });
-}
-
-const AI_KEY_SOURCE_TEXT = {
-  runtime: 'ตั้งค่าในหน้านี้ (ใช้ทันที)',
-  'env-file': 'อ่านจาก .env',
-  process: 'มาจาก environment',
-  missing: 'ยังไม่พบคีย์',
-};
-
-function renderAiStatusCard() {
-  const payload = ui.ai && ui.ai.status;
-  const ai = payload ? payload.ai : null;
-  const settings = payload ? payload.settings : null;
-  const envNote = payload ? payload.env : null;
-  const ping = ui.ai && ui.ai.ping;
-  return h('section', { class: 'mvp-card' },
-    h('div', { class: 'card-head' },
-      h('div', null,
-        h('p', { class: 'eyebrow', text: 'Back office · Settings' }),
-        h('h2', { text: 'API Key & Model (ใช้ร่วมทั้ง pipeline)' }),
-      ),
-      ai ? aiStatusBadge(ai.configured) : badge('loading', 'badge-neutral'),
-    ),
-    ui.ai && ui.ai.error ? h('p', { class: 'note', text: `อ่านสถานะไม่ได้: ${ui.ai.error}` }) : null,
-    ai && settings
-      ? h('div', { class: 'table-scroll' },
-        h('table', { class: 'mvp-table compact' },
-          h('tbody', null,
-            h('tr', null, h('th', { text: 'Endpoint' }), h('td', { class: 'mono', text: ai.endpoint })),
-            h('tr', null, h('th', { text: 'คีย์ที่ใช้อยู่' }), h('td', { text: `${settings.key_hint || '—'} · ${settings.key_var} · ${AI_KEY_SOURCE_TEXT[settings.key_source] || settings.key_source}` })),
-            h('tr', null, h('th', { text: 'โมเดล' }), h('td', { class: 'mono', text: `${settings.model} (${settings.model_source})` })),
-            h('tr', null, h('th', { text: 'AI ร่างสคริปต์ (Live drafting)' }), h('td', { text: settings.live_drafting ? 'เปิด — สร้างสคริปต์ผ่าน OpenRouter ได้' : 'ปิด — บทพูดยังสร้างจากแม่แบบเดิม' })),
-            h('tr', null, h('th', { text: 'เพดานคำตอบ' }), h('td', { text: `${ai.max_output_tokens} tokens` })),
-            h('tr', null, h('th', { text: 'เก็บค่าไว้ที่' }), h('td', { text: 'หน่วยความจำเซิร์ฟเวอร์เท่านั้น (ไม่เขียนดิสก์ ไม่เก็บในเบราว์เซอร์)' })),
-            settings.updated_at ? h('tr', null, h('th', { text: 'แก้ไขล่าสุด' }), h('td', { text: fmtDate(settings.updated_at) })) : null,
-            envNote ? h('tr', null, h('th', { text: '.env' }), h('td', { text: envNote })) : null,
-          ),
-        ),
-      )
-      : h('p', { class: 'note', text: 'กำลังอ่านสถานะ…' }),
-    h('div', { class: 'settings-form' },
-      h('p', { class: 'sub-head', text: 'ตั้งค่า / สลับคีย์และโมเดล' }),
-      h('div', { class: 'field inline' },
-        h('label', { class: 'field' },
-          h('span', { class: 'field-label', text: 'OpenRouter API Key ใหม่' }),
-          h('input', {
-            id: 'settings-key', type: 'password', autocomplete: 'off', spellcheck: 'false',
-            placeholder: 'เว้นว่าง = ใช้คีย์เดิม (ค่าที่กรอกจะไม่ถูกเก็บถาวร)',
-          }),
-        ),
-        h('label', { class: 'field' },
-          h('span', { class: 'field-label', text: 'Model' }),
-          h('input', {
-            id: 'settings-model', type: 'text',
-            value: settings ? settings.model : '',
-            placeholder: 'vendor/model',
-          }),
-        ),
-      ),
-      h('label', { class: 'small settings-live' },
-        h('input', {
-          id: 'settings-live', type: 'checkbox',
-          checked: Boolean(settings && settings.live_drafting),
-        }),
-        ' อนุญาตให้ AI ร่างสคริปต์/คอนเทนต์ด้วยคีย์นี้ (Live drafting) — เปิดแล้วทุกครั้งที่สร้างคอนเทนต์ระบบจะเรียกโมเดลจริง',
-      ),
-      h('div', { class: 'toolbar' },
-        h('button', {
-          type: 'button', class: 'btn btn-primary', disabled: ui.busy,
-          on: {
-            click: () => {
-              const keyNode = document.getElementById('settings-key');
-              const modelNode = document.getElementById('settings-model');
-              const liveNode = document.getElementById('settings-live');
-              const payload = { live_drafting: Boolean(liveNode && liveNode.checked) };
-              const key = keyNode ? keyNode.value.trim() : '';
-              const model = modelNode ? modelNode.value.trim() : '';
-              if (key) payload.api_key = key;
-              if (model) payload.model = model;
-              run(async () => { await applyAiSettings(payload); }, 'บันทึกแล้ว — ใช้ค่าทันทีโดยไม่ต้องรีสตาร์ท');
-            },
-          },
-        }, 'บันทึก & ใช้ทันที'),
-        h('button', {
-          type: 'button', class: 'btn btn-ghost', disabled: ui.busy,
-          on: { click: () => run(clearAiKey, 'ล้างคีย์ในหน่วยความจำแล้ว — กลับไปใช้ .env') },
-        }, 'ล้างคีย์ (กลับไปใช้ .env)'),
-        h('button', {
-          type: 'button', class: 'btn btn-ghost', disabled: ui.busy,
-          on: { click: () => run(resetAiSettings, 'รีเซ็ตการตั้งค่าทั้งหมดแล้ว') },
-        }, 'รีเซ็ตทั้งหมด'),
-        h('button', {
-          type: 'button', class: 'btn btn-ghost', disabled: ui.busy || !(ai && ai.configured),
-          on: { click: () => run(() => pingAiConnection(), 'ทดสอบการเชื่อมต่อแล้ว') },
-        }, 'ทดสอบการเชื่อมต่อ'),
-      ),
-      ping
-        ? h('p', { class: 'note', text: ping.ok
-          ? `เชื่อมต่อสำเร็จ · ${ping.model} · ${ping.latency_ms} ms`
-          : `เชื่อมต่อไม่สำเร็จ · ${ping.status}${ping.message ? ` · ${ping.message}` : ''}` })
-        : null,
-    ),
-    h('p', { class: 'note' }, 'ลำดับความสำคัญของค่า: ตั้งค่าในหน้านี้ → .env (โหลดตอนเปิดเซิร์ฟเวอร์) → ค่าเริ่มต้น · '
-      + 'คีย์เดียวกันถูกใช้ทั้ง Research & Candidate, การร่างสคริปต์/คอนเทนต์ และการทดสอบการเชื่อมต่อ · '
-      + 'ค่าในหน่วยความจำหายเมื่อรีสตาร์ทเซิร์ฟเวอร์ และไม่มี background call ใด ๆ'),
-  );
-}
-
-function renderAiPanel() {
-  const analysis = (ui.aiResearch && ui.aiResearch.result && ui.aiResearch.result.analysis)
-    || (ui.state && ui.state.ai_research && ui.state.ai_research.analysis)
-    || null;
-  const result = ui.aiResearch && ui.aiResearch.result;
-  const ai = (ui.ai && ui.ai.status && ui.ai.status.ai) || null;
-  const meta = ui.state && ui.state.ai_research;
-  return h('section', { class: 'mvp-card' },
-    h('div', { class: 'card-head' },
-      h('div', null,
-        h('p', { class: 'eyebrow', text: 'AI Research · OpenRouter' }),
-        h('h2', { text: analysis ? `คัด ${analysis.picks.length} รายการ + Hook/สคริปต์แล้ว` : 'วิเคราะห์และคัด 5 รายการด้วย AI' }),
-      ),
-      ai ? aiStatusBadge(ai.configured) : null,
-    ),
-    h('p', { class: 'note' }, 'โมเดลอ่านข้อมูลสินค้าที่นำเข้าแล้วเสนอ 5 รายการพร้อมเหตุผล ความเสี่ยง Hook และสคริปต์ย่อ · '
-      + 'ระบบไม่แก้ลำดับหรือ claim ให้เอง — คนยังเป็นผู้เลือก'),
-    h('div', { class: 'toolbar' },
-      h('button', {
-        type: 'button', class: 'btn btn-primary', disabled: ui.busy || !(ai && ai.configured),
-        on: { click: () => run(() => runAiResearch(), 'AI วิเคราะห์เสร็จแล้ว') },
-      }, 'วิเคราะห์ด้วย AI (5 รายการ)'),
-      !(ai && ai.configured)
-        ? h('button', { type: 'button', class: 'btn btn-ghost', on: { click: () => go('profile') } }, 'ไปตั้งค่าการเชื่อมต่อ →')
-        : null,
-    ),
-    result && !result.ok
-      ? h('p', { class: 'note', text: `เรียกไม่สำเร็จ · ${result.status}${result.message ? ` · ${result.message}` : ''}` })
-      : null,
-    meta && !result ? h('p', { class: 'note', text: `ผลล่าสุด ${fmtDate(meta.ran_at)} · ${meta.model}` }) : null,
-    analysis
-      ? h('div', { class: 'stack' },
-        analysis.summary ? h('p', { class: 'lead', text: analysis.summary }) : null,
-        h('ul', { class: 'list' }, analysis.picks.map((pick) => h('li', { class: 'cell' },
-          h('div', null,
-            h('p', { class: 'cell-title', text: `${pick.candidate_id} · ${pick.title}${pick.fit_score === null ? '' : ` · ${pick.fit_score}/100`}` }),
-            pick.why ? h('p', { class: 'cell-sub', text: `ทำไม: ${pick.why}` }) : null,
-            pick.risks ? h('p', { class: 'cell-sub', text: `ความเสี่ยง: ${pick.risks}` }) : null,
-            pick.hook ? h('p', { class: 'cell-title', text: `Hook: ${pick.hook}` }) : null,
-            pick.script.length ? h('ol', { class: 'plain-list tight' }, pick.script.map((line) => h('li', { text: line }))) : null,
-            h('button', {
-              type: 'button', class: 'btn btn-ghost', disabled: ui.busy,
-              on: { click: () => run(() => createContentFromAiPick(pick.candidate_id), `สร้างคอนเทนต์ ${pick.candidate_id} แล้ว — ไปต่อที่ Production`) },
-            }, 'สร้างคอนเทนต์จากรายการนี้ →'),
-          ),
-        ))),
-        analysis.notes && analysis.notes.length
-          ? h('ul', { class: 'plain-list tight' }, analysis.notes.map((note) => h('li', { text: note })))
-          : null,
-      )
-      : h('p', { class: 'note' }, 'ยังไม่มีผลวิเคราะห์ — กด "วิเคราะห์ด้วย AI" เพื่อเริ่ม'),
-  );
-}
-
-/* ---------- End-to-End Traceability View ---------- */
-
-const TRACE_STATUS = {
-  DONE: ['ผ่านแล้ว', 'badge-fact'],
-  ACTIVE: ['กำลังทำ', 'badge-defer'],
-  PENDING: ['ยังไม่เริ่ม', 'badge-neutral'],
-  BLOCKED: ['ติดปัญหา', 'badge-reject'],
-  STALE: ['ต้องทำใหม่', 'badge-reject'],
-};
-
-function traceStatusBadge(status) {
-  const entry = TRACE_STATUS[status] || [status || 'ไม่ทราบ', 'badge-neutral'];
-  return badge(entry[0], entry[1]);
-}
-
-function renderTraceFacts(facts) {
-  const list = (facts || []).filter(Boolean);
-  if (!list.length) return null;
-  return h('dl', { class: 'kv compact' }, list.map((item) => h('div', null,
-    h('dt', { text: item.label }),
-    h('dd', { class: item.mono ? 'mono small' : '', text: item.value }),
-  )));
-}
-
-function renderTraceChecks(checks) {
-  const list = (checks || []).filter(Boolean);
-  if (!list.length) return null;
-  return h('ul', { class: 'trace-checks' }, list.map((item) => h('li', { class: `trace-check${item.ok ? ' is-ok' : ' is-bad'}` },
-    h('span', { class: 'trace-mark', 'aria-hidden': 'true', text: item.ok ? '✓' : '✕' }),
-    h('div', { class: 'trace-check-body' },
-      h('p', { class: 'trace-check-label', text: item.label }),
-      item.detail ? h('p', { class: 'cell-sub', text: item.detail }) : null,
-    ),
-  )));
-}
-
-function renderTraceScenes(step) {
-  if (!step.scenes || !step.scenes.length) return null;
-  return h('div', { class: 'table-scroll' },
-    h('table', { class: 'mvp-table compact' },
-      h('thead', null, h('tr', null,
-        h('th', { text: 'ฉาก' }),
-        h('th', { text: 'บทพูดไทย' }),
-        h('th', { text: 'เสียงที่ผูก' }),
-        h('th', { text: 'หลักฐาน' }),
-      )),
-      h('tbody', null, step.scenes.map((scene) => h('tr', null,
-        h('td', null,
-          h('p', { class: 'cell-title', text: `${scene.id}${scene.role ? ` · ${scene.role}` : ''}` }),
-          h('p', { class: 'cell-sub', text: `${scene.duration_s === null ? '—' : scene.duration_s}s` }),
-        ),
-        h('td', null,
-          h('p', { class: 'cell-sub', text: scene.headline || '—' }),
-          h('p', { class: 'small', text: scene.voiceover || '—' }),
-        ),
-        h('td', null, scene.audio
-          ? h('div', null,
-            h('p', { class: 'mono small', text: `${scene.audio.asset_id} · ${scene.audio.duration_s === null ? '—' : scene.audio.duration_s}s` }),
-            h('p', { class: 'cell-sub', text: scene.audio.provider || '—' }),
-            h('p', { class: 'cell-sub mono small', text: scene.audio.file || '' }),
-          )
-          : h('span', { class: 'warn', text: 'ยังไม่มีไฟล์เสียง' })),
-        h('td', null, h('p', { class: 'mono small', text: (scene.evidence_ids || []).join(' · ') || '—' })),
-      ))),
-    ),
-  );
-}
-
-function renderTraceStep(step, number) {
-  const body = h('div', { class: 'trace-step-body' });
-  body.append(h('div', { class: 'trace-step-head' },
-    h('div', null,
-      h('p', { class: 'eyebrow', text: `Step ${number}` }),
-      h('h3', { class: 'trace-step-title', text: step.label }),
-    ),
-    traceStatusBadge(step.status),
-  ));
-  mount(body, step.at ? h('p', { class: 'trace-time mono small', text: fmtDate(step.at) }) : null);
-  mount(body, step.summary ? h('p', { class: 'lead', text: step.summary }) : null);
-  mount(body, renderTraceFacts(step.facts));
-  mount(body, renderTraceChecks(step.checks));
-  if (step.notes && step.notes.length) {
-    body.append(h('ul', { class: 'limits' }, step.notes.map((note) => h('li', { text: note }))));
-  }
-  mount(body, renderTraceScenes(step));
-  const pick = step.payload && step.payload.ai_pick;
-  if (pick) {
-    body.append(h('div', { class: 'trace-ai' },
-      h('p', { class: 'eyebrow', text: 'AI shortlist evidence' }),
-      pick.fit_score === null ? null : h('p', { class: 'cell-sub', text: `Fit score ${pick.fit_score}/100${pick.model ? ` · ${pick.model}` : ''}` }),
-      pick.why ? h('p', { class: 'cell-sub', text: `ทำไม: ${pick.why}` }) : null,
-      pick.hook ? h('p', { class: 'cell-title', text: `Hook: ${pick.hook}` }) : null,
-      pick.script && pick.script.length
-        ? h('ol', { class: 'plain-list tight' }, pick.script.map((line) => h('li', { text: line })))
-        : null,
-    ));
-  }
-  if (step.payload && step.payload.reasons && step.payload.reasons.length) {
-    body.append(h('details', { class: 'trace-raw-block' },
-      h('summary', { text: 'เหตุผลการคัดเลือก (raw)' }),
-      h('ul', { class: 'plain-list' }, step.payload.reasons.map((text) => h('li', { text }))),
-    ));
-  }
-  return h('article', { class: `trace-step is-${String(step.status || 'pending').toLowerCase()}` },
-    h('div', { class: 'trace-step-rail' },
-      h('span', { class: 'trace-step-num', text: String(number) }),
-      h('span', { class: 'trace-dot', 'aria-hidden': 'true' }),
-    ),
-    body,
-  );
-}
-
-function renderTraceMedia(run) {
-  const media = run.media || {};
-  if (!media.video_url) {
-    return h('p', { class: 'note', text: 'ยังไม่มีไฟล์ MP4 ให้พรีวิว — ขั้น Export ยังไม่เกิดขึ้น' });
-  }
-  return h('div', { class: 'trace-media' },
-    h('div', { class: 'trace-video-wrap' },
-      h('video', {
-        class: 'trace-video', controls: true, playsinline: true, preload: 'metadata', src: media.video_url,
-      }, 'เบราว์เซอร์นี้เล่นวิดีโอไม่ได้'),
-    ),
-    h('div', { class: 'trace-media-side' },
-      h('div', { class: 'head-meta' },
-        badge(media.integrity || 'UNKNOWN', media.integrity === 'VERIFIED' ? 'badge-fact' : 'badge-reject'),
-        media.width && media.height ? badge(`${media.width}×${media.height}`, 'badge-neutral') : null,
-        media.duration_s === null || media.duration_s === undefined ? null : badge(`${media.duration_s}s`, 'badge-neutral'),
-      ),
-      h('p', { class: 'cell-sub', text: 'พรีวิวไฟล์ MP4 9:16 ตัวจริงจาก Content Library — sha256 ถูกตรวจกับไฟล์บนดิสก์แล้ว' }),
-      run.payload && run.payload.caption ? h('pre', { class: 'trace-caption', text: run.payload.caption }) : null,
-      run.payload && run.payload.hashtags && run.payload.hashtags.length
-        ? h('p', { class: 'small', text: run.payload.hashtags.join(' ') })
-        : null,
-      run.payload && run.payload.affiliate_link
-        ? (/^https?:\/\//i.test(run.payload.affiliate_link)
-          ? h('p', { class: 'mono small' }, h('a', { href: run.payload.affiliate_link, target: '_blank', rel: 'noopener' }, run.payload.affiliate_link))
-          : h('p', { class: 'mono small', text: run.payload.affiliate_link }))
-        : null,
-      h('div', { class: 'toolbar' },
-        h('a', { class: 'btn btn-ghost', href: media.video_url, target: '_blank', rel: 'noopener' }, 'เปิดวิดีโอเต็มจอ'),
-        media.download_url ? h('a', { class: 'btn btn-primary', href: media.download_url, download: true }, 'ดาวน์โหลด MP4') : null,
-      ),
-    ),
-  );
-}
-
-function renderTraceRun(run, index) {
-  return h('section', { class: 'mvp-card trace-run' },
-    h('div', { class: 'card-head' },
-      h('div', null,
-        h('p', { class: 'eyebrow', text: index === 0 ? 'Production run' : `Production run ${index + 1}` }),
-        h('h2', { text: `${run.content_id} · ${run.status}` }),
-      ),
-      h('div', { class: 'head-meta' },
-        badge(`${run.done_steps}/${run.total_steps} ขั้นผ่าน`, run.done_steps === run.total_steps ? 'badge-fact' : 'badge-neutral'),
-        badge(run.approach || '—', 'badge-neutral'),
-        h('button', {
-          type: 'button', class: 'btn btn-ghost', disabled: ui.busy,
-          on: {
-            click: () => {
-              ui.contentId = run.content_id;
-              ui.contentNew = false;
-              ui.contentTab = 'storyboard';
-              go('production');
-            },
-          },
-        }, 'เปิดใน Production'),
-      ),
-    ),
-    renderTraceMedia(run),
-    h('div', { class: 'trace-timeline' }, run.steps.map((step, stepIndex) => renderTraceStep(step, stepIndex + 2))),
-    h('details', { class: 'trace-raw-block' },
-      h('summary', { text: `ข้อมูลดิบของ ${run.content_id} (JSON)` }),
-      h('pre', { class: 'trace-pre', text: JSON.stringify(run.raw, null, 2) }),
-    ),
-  );
-}
-
-async function openTrace(candidateId) {
-  ui.trace = { candidateId, data: null, loading: true, error: null };
-  render();
+  if (!window.confirm('ล้างค่า AI ที่ผูกไว้ในเซิร์ฟเวอร์ (Key / โมเดล / live drafting)?')) return;
   try {
-    const data = await api(`/api/mvp/candidates/${encodeURIComponent(candidateId)}/trace`);
-    if (ui.trace.candidateId !== candidateId) return;
-    ui.trace.data = data;
-  } catch (err) {
-    if (ui.trace.candidateId !== candidateId) return;
-    ui.trace.error = err.message;
-  } finally {
-    if (ui.trace.candidateId === candidateId) {
-      ui.trace.loading = false;
-      render();
+    const response = await fetch('/api/mvp/settings/ai/reset', { method: 'POST' });
+    if (!response.ok) {
+      showToast('ล้างค่าไม่สำเร็จ (HTTP ' + response.status + ')', 'error');
+      return;
     }
+    await refreshSettingsPanel();
+    showToast('ล้างค่า AI ในเซิร์ฟเวอร์แล้ว', 'success');
+  } catch (error) {
+    showToast('เชื่อมต่อเซิร์ฟเวอร์ไม่ได้: ' + error.message, 'error');
   }
 }
 
-function closeTrace() {
-  ui.trace = { candidateId: null, data: null, loading: false, error: null };
-  render();
+function bindSettingsPanel() {
+  document.querySelectorAll('[aria-label="ตั้งค่า"]').forEach(function(btn) {
+    if (btn.dataset.settingsBound === '1') return;
+    btn.dataset.settingsBound = '1';
+    btn.addEventListener('click', openSettingsPanel);
+  });
+  const close = document.getElementById('settings-close');
+  if (close) close.addEventListener('click', closeSettingsPanel);
+  const save = document.getElementById('settings-save');
+  if (save) save.addEventListener('click', saveAiSettings);
+  const ping = document.getElementById('settings-ping');
+  if (ping) ping.addEventListener('click', pingAiConnection);
+  const reset = document.getElementById('settings-reset');
+  if (reset) reset.addEventListener('click', resetAiSettings);
 }
 
-function renderTraceView() {
-  const view = ui.trace;
-  const trace = view.data;
-  const wrap = h('div', { class: 'stack' });
-  wrap.append(h('section', { class: 'mvp-card' },
-    h('div', { class: 'card-head' },
-      h('div', null,
-        h('p', { class: 'eyebrow', text: 'End-to-End Traceability · read-only' }),
-        h('h2', { text: trace ? `ไทม์ไลน์: ${trace.title}` : `ไทม์ไลน์: ${view.candidateId}` }),
-        h('p', { class: 'cell-sub mono', text: view.candidateId }),
-      ),
-      h('div', { class: 'toolbar' },
-        h('button', { type: 'button', class: 'btn btn-ghost', on: { click: closeTrace } }, '← กลับไปที่ Candidate Pool'),
-      ),
-    ),
-    trace
-      ? h('p', { class: 'note', text: `ประกอบจาก state และ Content Library เท่านั้น · สร้างเมื่อ ${fmtDate(trace.generated_at)} · ไม่มีการเขียนข้อมูลหรือเรียกบริการภายนอก` })
-      : null,
-  ));
+/**
+ * Real data source for a candidate: the Shopee product page via its affiliate
+ * link when usable, otherwise a Shopee search by product name. (The offer
+ * commission detail page lives behind the logged-in Affiliate dashboard —
+ * Shopee has no per-offer deep link without its offer id; the Source Library
+ * shortcuts open the Offers section.)
+ */
+function candidateSourceUrl(candidate) {
+  if (!candidate) return '';
+  const rawLink = candidate.affiliateLink || '';
+  // ลิงก์สั้น (shope.ee) หรือลิงก์ที่ Shopee ส่งไปหน้า error ใช้ไม่ได้จริง —
+  // fallback ไปค้นหาสินค้าบน Shopee ด้วยชื่อสินค้าแทน
+  const unusable = !rawLink ||
+    /error[_-]?page/i.test(rawLink) ||
+    /shope\.ee\/(error|404)/i.test(rawLink) ||
+    // ลิงก์สั้น shope.ee หมดอายุ/พังบ่อย — ใช้ค้นหาบน Shopee แทน
+    /shope\.ee\/[A-Za-z0-9_-]{1,24}\/?$/i.test(rawLink);
+  return unusable
+    ? 'https://shopee.co.th/search?keyword=' + encodeURIComponent(candidate.name || '')
+    : rawLink;
+}
 
-  if (view.error) {
-    wrap.append(h('section', { class: 'notice notice-error' },
-      h('div', { class: 'notice-head' }, h('h2', { text: 'อ่านไทม์ไลน์ไม่ได้' })),
-      h('p', { class: 'error-text', text: view.error }),
-    ));
-    return wrap;
+function openCandidateSource(candidate) {
+  if (!candidate) {
+    showToast('ไม่พบรายการสินค้านี้', 'warning');
+    return;
   }
-  if (view.loading || !trace) {
-    wrap.append(h('section', { class: 'notice' },
-      h('div', { class: 'notice-head' }, h('h2', { text: 'กำลังประกอบไทม์ไลน์…' })),
-      h('p', { text: 'ตรวจไฟล์ export และ sha256 บนดิสก์ก่อนแสดงผล' }),
-    ));
-    return wrap;
+  const rawLink = candidate.affiliateLink || '';
+  const url = candidateSourceUrl(candidate);
+  const unusable = !rawLink ||
+    /error[_-]?page/i.test(rawLink) ||
+    /shope\.ee\/(error|404)/i.test(rawLink) ||
+    /shope\.ee\/[A-Za-z0-9_-]{1,24}\/?$/i.test(rawLink);
+  window.open(url, '_blank', 'noopener');
+  showToast(unusable
+    ? 'ลิงก์ใช้ตรงได้จำกัด — เปิดหน้าค้นหาสินค้าจริงแทน'
+    : 'เปิดลิงก์สินค้าจริงแล้ว — ราคา/รีวิว/ยอดขายจริงอยู่บนหน้านั้น (ต้องล็อกอิน Shopee จึงเห็นครบ)',
+    'info');
+}
+
+/* Sample product image: shown when the candidate has one; otherwise a
+   clickable placeholder so the user can paste an image URL (or fill it via
+   Capture / the link reader later). */
+function candidateImageHtml(c) {
+  if (c.image) {
+    return '<img class="candidate-card-image" src="' + escapeHtml(c.image) + '" alt="' + escapeHtml(c.name || 'สินค้า') + '">';
   }
-
-  wrap.append(renderTraceStep(trace.steps[0], 1));
-
-  if (trace.has_runs) {
-    trace.runs.forEach((run, index) => wrap.append(renderTraceRun(run, index)));
-  } else {
-    const status = trace.raw && trace.raw.candidate ? trace.raw.candidate.status : null;
-    const canCreate = status === 'SAVED' || status === 'QUEUED';
-    wrap.append(h('section', { class: 'mvp-card' },
-      h('div', { class: 'card-head' },
-        h('div', null,
-          h('p', { class: 'eyebrow', text: 'No production run' }),
-          h('h2', { text: 'ยังไม่มีคอนเทนต์ที่ผลิตจากรายการนี้' }),
-        ),
-      ),
-      h('p', { class: 'note' }, 'ไทม์ไลน์จะเริ่มมีข้อมูล Production / Finalize / Export หลังจากสร้างคอนเทนต์จาก candidate รายการนี้'),
-      h('div', { class: 'toolbar' },
-        canCreate
-          ? h('button', {
-            type: 'button', class: 'btn btn-primary', disabled: ui.busy,
-            on: {
-              click: () => run(async () => {
-                await createContentFromAiPick(trace.candidate_id);
-                closeTrace();
-              }, 'สร้างคอนเทนต์แล้ว — ไปต่อที่ Production'),
-            },
-          }, 'สร้างคอนเทนต์จากรายการนี้ →')
-          : h('p', { class: 'note', text: 'ต้อง Save หรือ Add to queue รายการนี้ก่อน จึงจะสร้างคอนเทนต์ได้' }),
-        h('button', { type: 'button', class: 'btn btn-ghost', on: { click: closeTrace } }, '← กลับไปที่ Candidate Pool'),
-      ),
-    ));
-    wrap.append(h('section', { class: 'mvp-card' },
-      h('div', { class: 'trace-timeline' }, trace.steps.slice(1).map((step, index) => renderTraceStep(step, index + 2))),
-    ));
-  }
-
-  wrap.append(h('section', { class: 'mvp-card' },
-    h('details', { class: 'trace-raw-block' },
-      h('summary', { text: 'ข้อมูลดิบของ candidate (JSON)' }),
-      h('pre', { class: 'trace-pre', text: JSON.stringify(trace.raw, null, 2) }),
-    ),
-  ));
-  return wrap;
+  return '<div class="candidate-card-image is-placeholder" data-image-add="' + Number(c.id) + '" title="คลิกเพื่อวาง URL รูปสินค้าตัวอย่าง (หรือเพิ่มรูปผ่าน Capture / ดึงข้อมูลจากลิงก์)">🖼️ ยังไม่มีรูปสินค้า — คลิกเพื่อใส่ URL รูป</div>';
 }
 
-function renderProfileSchedule() {
-  const state = ui.state;
-  const wrap = h('div', { class: 'stack' });
-  const offers = state && state.offers ? Object.values(state.offers) : [];
-  const shops = [...new Set(offers.map((offer) => offer.shop_name).filter(Boolean))];
-  const importInfo = state ? state.import : null;
-  wrap.append(h('section', { class: 'mvp-card' },
-    h('div', { class: 'card-head' },
-      h('div', null,
-        h('p', { class: 'eyebrow', text: 'Profile' }),
-        h('h2', { text: 'ช่องทางและข้อมูลต้นทาง' }),
-      ),
-      badge(state && state.synthetic ? 'SYNTHETIC' : 'STAGED', state && state.synthetic ? 'badge-neutral' : 'badge-fact'),
-    ),
-    h('div', { class: 'table-scroll' },
-      h('table', { class: 'mvp-table compact' },
-        h('tbody', null,
-          h('tr', null, h('th', { text: 'ช่องทางเผยแพร่' }), h('td', { text: 'Shopee Affiliate' })),
-          h('tr', null, h('th', { text: 'ชุดข้อมูล' }), h('td', { text: importInfo ? importInfo.id : 'ยังไม่มีข้อมูล' })),
-          h('tr', null, h('th', { text: 'ร้านค้าในพูล' }), h('td', { text: shops.length ? `${shops.length} ร้าน · ${shops.slice(0, 3).join(', ')}` : '—' })),
-          h('tr', null, h('th', { text: 'สินค้า / ข้อเสนอ' }), h('td', { text: state ? `${state.summary.products} / ${state.summary.offers}` : '—' })),
-        ),
-      ),
-    ),
-    h('p', { class: 'note' }, 'ข้อมูลพูลมาจากชุดข้อมูลที่โหลดไว้ในระบบแล้ว (fixture) — หน้านี้แสดงโปรไฟล์และตารางเผยแพร่เท่านั้น'),
-  ));
+function renderCandidatePool() {
+  savePoolState();
+  const container = dom.candidatePool;
+  const noData = dom.noCandidates;
 
-  const contents = (state && state.contents) || [];
-  const scheduled = contents.filter((c) => c.publish_schedule)
-    .sort((a, b) => String(a.publish_schedule.scheduled_at).localeCompare(String(b.publish_schedule.scheduled_at)));
-  wrap.append(h('section', { class: 'mvp-card' },
-    h('div', { class: 'card-head' },
-      h('div', null,
-        h('p', { class: 'eyebrow', text: 'Schedule' }),
-        h('h2', { text: 'ตารางเผยแพร่' }),
-      ),
-      h('div', { class: 'head-meta' },
-        badge(`${scheduled.filter((c) => c.publish_schedule.status === 'SCHEDULED').length} ตั้งเวลาไว้`, 'badge-neutral'),
-        badge(`${scheduled.filter((c) => c.publish_schedule.status === 'QUEUED').length} รออนุมัติ`, 'badge-reject'),
-        badge(`${scheduled.filter((c) => c.publish_schedule.status === 'PUBLISHED').length} เผยแพร่แล้ว`, 'badge-select'),
-      ),
-    ),
-    scheduled.length
-      ? h('ul', { class: 'list' }, scheduled.map((item) => h('li', { class: 'cell' },
-        h('div', null,
-          h('p', { class: 'cell-title', text: `${item.content_id} · ${(item.offer_snapshot || {}).product_name || ''}` }),
-          h('p', { class: 'cell-sub', text: `${PUBLISH_STATUS_TEXT[item.publish_schedule.status] || item.publish_schedule.status} · `
-            + `${item.publish_schedule.channel} · ${fmtDate(item.publish_schedule.scheduled_at)}` }),
-        ),
-      )))
-      : h('p', { class: 'note' }, 'ยังไม่มีกำหนดการ — ไปที่ Publish Queue เพื่อตั้งเวลาให้คอนเทนต์ที่พร้อมแล้ว'),
-    h('div', { class: 'toolbar' },
-      h('button', { type: 'button', class: 'btn btn-ghost', on: { click: () => go('schedule') } }, 'ไปที่ Publish Queue →'),
-    ),
-  ));
-  wrap.append(renderAiStatusCard());
-  return wrap;
-}
-
-function renderResearchPool() {
-  const wrap = h('div', { class: 'stack' });
-  if (ui.trace.candidateId) {
-    wrap.append(renderTraceView());
-    return wrap;
-  }
-  wrap.append(renderAiPanel());
-  wrap.append(renderResearch());
-  wrap.append(renderCandidates());
-  return wrap;
-}
-
-function renderPublishSection() {
-  const wrap = h('div', { class: 'stack' });
-  wrap.append(renderContent());
-  wrap.append(renderLibrary());
-  return wrap;
-}
-
-/* ---------- Render ---------- */
-
-function renderDataChip() {
-  if (!els.dataChip) return;
-  const state = ui.state;
-  const synthetic = state ? state.synthetic !== false : true;
-  let text;
-  if (!state || !state.import) {
-    text = 'SYNTHETIC FIXTURE — not Shopee data';
-  } else if (synthetic) {
-    text = 'SYNTHETIC FIXTURE — not Shopee data';
-  } else {
-    text = 'USER-SUPPLIED EXPORT — not verified against Shopee';
-  }
-  els.dataChip.textContent = `● ${text}`;
-  els.dataChip.classList.toggle('is-real', Boolean(state && state.import && state.synthetic === false));
-}
-
-function render() {
-  renderNav();
-  renderDataChip();
-  const currentSection = SECTIONS.find((s) => s.key === ui.section) || SECTIONS[0];
-  els.eyebrow.textContent = `MVP slice · ${currentSection.label}`;
-  els.title.textContent = {
-    profile: 'Profile & Channels',
-    research: 'Research & Candidate Pool',
-    plan: 'Plan & AI Video Generation',
-    production: 'Production & Finalize',
-    schedule: 'Schedule & Task',
-    analytics: 'Analytics Dashboard',
-  }[ui.section];
-  els.save.textContent = ui.busy
-    ? 'Working…'
-    : ui.state
-      ? `${ui.state.data_mode === 'STAGED_IMPORT' ? 'staged' : 'fixture'} ${ui.state.import ? ui.state.import.id : 'not imported'}`
-      : 'Loading…';
-  clear(els.body);
-  const section = ui.section;
-  if (section === 'profile') els.body.append(renderProfileChannels());
-  else if (section === 'research') els.body.append(renderResearchPool());
-  else if (section === 'plan') els.body.append(renderPlanStage());
-  else if (section === 'production') els.body.append(renderProductionStage());
-  else if (section === 'schedule') els.body.append(renderScheduleStage());
-  else if (section === 'analytics') els.body.append(renderAnalyticsStage());
-  else els.body.append(renderProfileChannels());
-}
-
-/* ---------- Shell actions (static sidebar) ---------- */
-
-function bindShellActions() {
-  const quick = document.getElementById('quick-start');
-  if (quick) {
-    quick.addEventListener('click', () => run(async () => {
-      if (!ui.state || !ui.state.import) {
-        throw new Error('ยังไม่มีข้อมูลพูลสินค้าในระบบ');
-      }
-      if (!ui.state.summary || !ui.state.summary.candidates) {
-        await generateFromResearch(false);
-      } else {
-        ui.section = 'research';
-      }
-      ui.error = null;
-    }, 'Candidate Pool พร้อมแล้ว — เลือก 1 รายการเพื่อไปต่อ'));
+  if (!candidatePool || candidatePool.length === 0) {
+    if (container) container.innerHTML = '';
+    if (noData) {
+      noData.style.display = 'block';
+      noData.textContent = 'ยังไม่มี candidate ในคลัง — วางข้อความจากหน้า Product Offer แล้วกด “อ่านข้อเสนอทั้งหมด” หรือ “✨ อ่านด้วย AI”, หรือใช้ Capture bookmarklet';
+    }
+    return;
   }
 
-  const offers = document.getElementById('open-offers');
-  if (offers) {
-    offers.addEventListener('click', () => {
-      if (!ui.state || !ui.state.import) {
-        toast('ยังไม่มีข้อมูลนำเข้า — กด "สร้าง Candidate Pool 5 รายการ" ก่อน แล้วจึงเพิ่มข้อเสนอได้', true);
-        return;
-      }
-      openSelectModal('add', null);
+  if (noData) noData.style.display = 'none';
+
+  const term = (poolFilter || '').trim().toLowerCase();
+  const filtered = term
+    ? candidatePool.filter(function(c) { return String(c.name || '').toLowerCase().indexOf(term) !== -1; })
+    : candidatePool;
+  const visible = filtered.slice(0, poolVisibleCount);
+
+  let html = visible.map((c, i) => {
+    const qualityClass = 'quality-' + c.quality.toLowerCase();
+    const statusClass = 'status-' + c.status.toLowerCase();
+    return `
+      <div class="candidate-card" data-id="${c.id}">
+        <div class="card-header">
+          <span class="card-title">${c.name}</span>
+          <span class="card-flags">
+            ${c.sample ? '<span class="sample-badge" title="ข้อมูลตัวอย่าง ไม่ได้มาจาก Shopee">EXAMPLE</span>' : ''}
+            ${c.ai && c.ai.picked ? '<span class="ai-badge" title="AI คัดเลือกจากข้อมูลจริง — คำแนะนำเท่านั้น มนุษย์ตัดสินใจต่อ">✨ AI' + (Number.isFinite(c.ai.fit_score) ? ' ' + c.ai.fit_score : '') + '</span>' : ''}
+            <span class="quality-badge ${qualityClass}">${c.quality}</span>
+          </span>
+        </div>
+        ${candidateImageHtml(c)}
+        <div class="card-body">
+          <div class="affiliate-link">
+            <input type="text" value="${c.affiliateLink}" readonly title="ลิงก์ Shopee Affiliate ของการ์ดนี้ — กด “เปิด” เพื่อดูข้อมูลจริง">
+            <button class="open-link btn btn-small btn-outline" data-open="${c.id}" title="เปิดลิงก์ดูข้อมูลจริงจาก Shopee (ราคา/รีวิว/ยอดขาย)">เปิด ↗</button>
+            <button class="copy-link btn btn-small btn-ghost" data-link="${c.affiliateLink}">คัดลอก</button>
+          </div>
+          ${c.ai && c.ai.picked && c.ai.hook ? '<div class="ai-hook">💬 ' + escapeHtml(c.ai.hook) + '</div>' : ''}
+          ${candidateDetailHtml(c)}
+        </div>
+        <div class="card-actions">
+          <button class="btn btn-sm btn-primary move-to-lib" data-id="${c.id}">
+            ย้ายเข้าคลัง
+          </button>
+          <button class="btn btn-sm btn-ghost view-source" data-id="${c.id}" title="เปิดสินค้าจากแหล่งข้อมูลจริง (Shopee)">
+            ดูข้อมูล
+          </button>
+          <button class="btn btn-sm btn-ghost remove-from-pool" data-id="${c.id}">
+            ถอนออก
+          </button>
+          <button class="btn btn-sm btn-outline draft-content" data-id="${c.id}">
+            สร้าง Content
+          </button>
+        </div>
+      </div>
+    `;
+  }).join('');
+
+  if (!filtered.length) {
+    html = '<p class="muted small" style="padding:12px">ไม่พบสินค้าที่ตรงกับคำค้น</p>';
+  } else if (filtered.length > visible.length) {
+    html += '<button type="button" class="btn btn-sm btn-outline" id="pool-more" style="margin:8px 0">โหลดเพิ่มอีก ' + Math.min(30, filtered.length - visible.length) + ' รายการ (จาก ' + filtered.length + ')</button>';
+  }
+
+  if (container) {
+    container.innerHTML = html;
+
+    container.querySelectorAll('.candidate-card').forEach(function(card) {
+      card.addEventListener('click', function(event) {
+        if (event.target.closest('button')) return;
+        selectCandidate(Number(card.dataset.id));
+      });
+    });
+
+    if (!candidatePool.find(function(c) { return c.id === selectedCandidateId; })) {
+      selectCandidate(candidatePool.length ? candidatePool[0].id : null);
+    }
+    const more = container.querySelector('#pool-more');
+    if (more) {
+      more.addEventListener('click', function() {
+        poolVisibleCount += 30;
+        renderCandidatePool();
+      });
+    }
+    renderStudioMeta();
+
+    // Sample-image placeholder: click to paste an image URL for this candidate
+    container.querySelectorAll('[data-image-add]').forEach(function(placeholder) {
+      placeholder.addEventListener('click', function(event) {
+        event.stopPropagation();
+        const id = Number(placeholder.dataset.imageAdd);
+        const candidate = candidatePool.find(function(x) { return x.id === id; });
+        if (!candidate) return;
+        const url = window.prompt('วาง URL รูปสินค้าตัวอย่าง (https://…jpg / png / webp):', candidate.image || '');
+        if (url === null) return;
+        const trimmed = String(url).trim();
+        if (!trimmed) {
+          delete candidate.image;
+          renderCandidatePool();
+          return;
+        }
+        if (!/^https?:\/\//i.test(trimmed)) {
+          showToast('URL รูปต้องขึ้นต้นด้วย http(s)://', 'warning');
+          return;
+        }
+        candidate.image = trimmed;
+        renderCandidatePool();
+        showToast('ใส่รูปสินค้าตัวอย่างให้ “' + candidate.name + '” แล้ว', 'success');
+      });
+    });
+
+    // Attach copy link handlers
+    container.querySelectorAll('.copy-link').forEach(btn => {
+      btn.addEventListener('click', function(e) {
+        e.stopPropagation();
+        var input = this.parentElement.querySelector('input');
+        navigator.clipboard.writeText(input.value).then(function() {
+          showToast('คัดลอกลิงก์แล้ว', 'success');
+        });
+      });
+    });
+
+    // Open the real data source straight from the link row
+    container.querySelectorAll('.open-link').forEach(function(btn) {
+      btn.addEventListener('click', function(event) {
+        event.stopPropagation();
+        var id = parseInt(this.dataset.open, 10);
+        openCandidateSource(candidatePool.find(function(c) { return c.id === id; }));
+      });
+    });
+
+    // View source product (open the real data source)
+    container.querySelectorAll('.view-source').forEach(function(btn) {
+      btn.addEventListener('click', function() {
+        var id = parseInt(this.dataset.id, 10);
+        openCandidateSource(candidatePool.find(function(c) { return c.id === id; }));
+      });
+    });
+
+    // Move to library
+    container.querySelectorAll('.move-to-lib').forEach(function(btn) {
+      btn.addEventListener('click', function() {
+        var id = parseInt(this.dataset.id, 10);
+        var candidate = candidatePool.find(function(c) { return c.id === id; });
+        if (candidate) {
+          moveCandidateToLibrary(candidate);
+        }
+      });
+    });
+
+    // Draft content from this candidate
+    container.querySelectorAll('.draft-content').forEach(function(btn) {
+      btn.addEventListener('click', function() {
+        openContentDraft(parseInt(btn.dataset.id, 10));
+      });
+    });
+
+    // Remove from pool
+    container.querySelectorAll('.remove-from-pool').forEach(function(btn) {
+      btn.addEventListener('click', function() {
+        candidatePool = candidatePool.filter(function(c) { return c.id !== parseInt(btn.dataset.id, 10); });
+        renderCandidatePool();
+        renderContentLibrary();
+        showToast('ถอน candidate ออกจาก pool แล้ว', 'info');
+      });
     });
   }
 }
 
-bindShellActions();
-
-/* ---------- Boot ---------- */
-
-(async () => {
-  try {
-    const [meta, state] = await Promise.all([api('/api/mvp/meta'), api('/api/mvp/state')]);
-    ui.meta = meta;
-    applyState(state);
-    ui.section = 'profile';
-    render();
-    loadAiStatus();
-  } catch (err) {
-    ui.error = { message: err.message, details: null };
-    render();
-    toast(err.message, true);
+function moveCandidateToLibrary(candidate) {
+  // Find existing or create new
+  var libEntry = contentLibrary.find(function(c) { return c.affiliateLink === candidate.affiliateLink; });
+  if (!libEntry) {
+    libEntry = {
+      ...candidate,
+      libraryId: 'lib-' + Date.now() + '-' + Math.random().toString(36).substr(2, 9),
+      status: 'PENDING',
+      qualityScore: candidate.quality,
+    };
+    contentLibrary.push(libEntry);
+  } else {
+    // Update status if currently DRAFT in pool
+    libEntry.status = 'PENDING';
   }
-})();
+  renderContentLibrary();
+  showToast('ย้าย candidate เข้าคลังสำเร็จ', 'success');
+}
+
+// ----- Snap / Upload Workflow -----
+function showSnapWorkflow() {
+  hideAllSections();
+  if (dom.snapWorkflow) dom.snapWorkflow.classList.remove('hidden');
+  resetSnapForm();
+}
+
+function resetSnapForm() {
+  if (dom.snapProductName) dom.snapProductName.textContent = '-- เลือกหมวดหมู่เพื่อดูตัวอย่าง --';
+  if (dom.snapProductPrice) dom.snapProductPrice.textContent = '--';
+  if (dom.snapProductShop) dom.snapProductShop.textContent = '--';
+  var radios = document.querySelectorAll('input[name="snap-category"]');
+  if (radios.length > 0) radios[0].checked = true;
+}
+
+function handleProductImageSelect(e) {
+  var file = e.target.files[0];
+  if (!file) return;
+
+  var reader = new FileReader();
+  reader.onload = function(e) {
+    var img = new Image();
+    img.onload = function() {
+      snapImageDataUrl = reader.result;
+      showSnapPreview(reader.result, file.name);
+    };
+    img.src = reader.result;
+  };
+  reader.readAsDataURL(file);
+}
+
+function handleDragOver(e) {
+  e.preventDefault();
+  e.dataTransfer.effectAllowed = 'copy';
+}
+
+function handleDrop(e) {
+  e.preventDefault();
+  var file = e.dataTransfer.files[0];
+  if (!file) return;
+  dom.productImageUpload.files = e.dataTransfer.files;
+  handleProductImageSelect({ target: dom.productImageUpload });
+}
+
+function showSnapPreview(imgSrc, productName) {
+  if (dom.snapPreviewImg && imgSrc) dom.snapPreviewImg.src = imgSrc;
+  if (dom.snapNameInput && !dom.snapNameInput.value) {
+    dom.snapNameInput.value = String(productName || '')
+      .replace(/\.[a-z0-9]+$/i, '')
+      .replace(/[-_]+/g, ' ')
+      .trim();
+  }
+  var previewArea = document.querySelector('.snap-preview-area');
+  if (previewArea) previewArea.classList.remove('hidden');
+}
+
+function setSnapAiStatus(message, kind) {
+  if (!dom.snapAiStatus) return;
+  dom.snapAiStatus.textContent = message;
+  dom.snapAiStatus.className = 'muted small' +
+    (kind === 'error' ? ' link-import-status-error' : kind === 'ok' ? ' link-import-status-ok' : '');
+}
+
+function snapNumber(value) {
+  var num = parseFloat(value);
+  return isFinite(num) && num >= 0 ? Math.round(num * 100) / 100 : 0;
+}
+
+function applyExtractedProduct(product) {
+  if (!product) return;
+  if (product.name && dom.snapNameInput) dom.snapNameInput.value = product.name;
+  if (dom.snapPriceInput && product.price !== null && product.price !== undefined) {
+    dom.snapPriceInput.value = product.price;
+  }
+  if (dom.snapShopInput && product.shop_name) dom.snapShopInput.value = product.shop_name;
+  if (dom.snapRatingInput && product.rating !== null && product.rating !== undefined) {
+    dom.snapRatingInput.value = product.rating;
+  }
+  if (dom.snapSoldInput && product.sold) dom.snapSoldInput.value = product.sold;
+
+  if (dom.snapCommissionInput) {
+    var amount = product.commission_amount;
+    if ((amount === null || amount === undefined) && product.commission_rate && product.price) {
+      amount = Math.round(product.price * product.commission_rate) / 100;
+    }
+    if (amount !== null && amount !== undefined) dom.snapCommissionInput.value = amount;
+  }
+}
+
+async function handleSnapAiExtract() {
+  var text = dom.snapText ? dom.snapText.value.trim() : '';
+  if (!text) {
+    setSnapAiStatus('วางข้อความจากหน้า Shopee ก่อนครับ', 'error');
+    return;
+  }
+
+  setSnapAiStatus('กำลังอ่านข้อมูลด้วย AI…', null);
+  if (dom.snapAiExtract) dom.snapAiExtract.disabled = true;
+
+  try {
+    var response = await fetch('/api/mvp/snap/extract', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ text: text })
+    });
+    var data = await response.json().catch(function() { return null; });
+
+    if (!response.ok || !data || !data.ok) {
+      setSnapAiStatus((data && (data.message || data.error)) || 'อ่านข้อมูลไม่สำเร็จ', 'error');
+      return;
+    }
+
+    applyExtractedProduct(data.product);
+    setSnapAiStatus('อ่านข้อมูลสำเร็จ (' + (data.model || 'model') + ') — ตรวจสอบราคา/คอมมิชชันก่อนสร้างการ์ด', 'ok');
+  } catch (error) {
+    setSnapAiStatus('เชื่อมต่อเซิร์ฟเวอร์ไม่ได้: ' + error.message, 'error');
+  } finally {
+    if (dom.snapAiExtract) dom.snapAiExtract.disabled = false;
+  }
+}
+
+function resetSnapFormAfterAdd() {
+  if (dom.snapText) dom.snapText.value = '';
+  if (dom.snapNameInput) dom.snapNameInput.value = '';
+  if (dom.snapPriceInput) dom.snapPriceInput.value = '';
+  if (dom.snapCommissionInput) dom.snapCommissionInput.value = '';
+  if (dom.snapShopInput) dom.snapShopInput.value = '';
+  if (dom.snapRatingInput) dom.snapRatingInput.value = '';
+  if (dom.snapSoldInput) dom.snapSoldInput.value = '';
+  if (dom.productImageUpload) dom.productImageUpload.value = '';
+  snapImageDataUrl = null;
+  setSnapAiStatus('', null);
+}
+
+function candidateDetailHtml(c) {
+  var rows = [
+    ['ราคา', c.price ? '฿' + c.price.toLocaleString('th-TH') : '—'],
+    ['ค่าคอม', (c.commissionRate ? c.commissionRate + '% · ' : '') + (c.commission ? '฿' + c.commission.toLocaleString('th-TH') : '—')],
+    ['คะแนน', c.rating ? c.rating + ' / 5' : '—'],
+    ['ยอดขาย', c.sold || '—'],
+    ['ร้านค้า', c.shopName || '—'],
+    ['แหล่งข้อมูลจริง', '<a class="source-link" href="' + escapeHtml(candidateSourceUrl(c)) + '" target="_blank" rel="noopener noreferrer">สินค้า ↗</a> · <a class="source-link" href="https://affiliate.shopee.co.th/offer/product_offer" target="_blank" rel="noopener noreferrer">Offers ↗</a>'],
+  ];
+  if (c.perf) {
+    rows.push(['ผลจริง', 'V ' + (c.perf.views || 0) + ' · C ' + (c.perf.clicks || 0) + ' · O ' + (c.perf.orders || 0) + ' · ฿' + Number(c.perf.commission_thb || 0).toLocaleString('th-TH', { maximumFractionDigits: 2 }) + (c.perf.platform ? ' · ' + c.perf.platform : '')]);
+  }
+  return '<dl class="detail-list">' + rows.map(function(row) {
+    return '<div><dt>' + row[0] + '</dt><dd>' + row[1] + '</dd></div>';
+  }).join('') + '</dl>';
+}
+
+function confirmSnapAndAddCandidate() {
+  var name = dom.snapNameInput ? dom.snapNameInput.value.trim() : '';
+  if (!name) {
+    showToast('กรอกหรือดึงชื่อสินค้าถ่อนสร้าง Candidate Card', 'warning');
+    if (dom.snapNameInput) dom.snapNameInput.focus();
+    return;
+  }
+
+  var price = snapNumber(dom.snapPriceInput && dom.snapPriceInput.value);
+  var commission = snapNumber(dom.snapCommissionInput && dom.snapCommissionInput.value);
+  var shopName = dom.snapShopInput ? dom.snapShopInput.value.trim() : '';
+  var rating = snapNumber(dom.snapRatingInput && dom.snapRatingInput.value);
+  var sold = dom.snapSoldInput ? dom.snapSoldInput.value.trim() : '';
+  var category = document.querySelector('input[name="snap-category"]:checked')?.value || 'clothing';
+
+  if (!commission && price > 0) {
+    commission = Math.round(price * ESTIMATED_COMMISSION_RATE * 100) / 100;
+  }
+
+  var linkId = 'SMP' + String(Math.floor(100000000 + Math.random() * 900000000));
+  var quality = commission >= 100 ? 'High' : commission >= 40 ? 'Medium' : 'Low';
+
+  var newCandidate = {
+    id: candidatePool.length + 1,
+    name: name,
+    platform: 'Shopee',
+    affiliateLink: AFFILIATE_BASE + '/product/' + linkId,
+    quality: quality,
+    status: 'DRAFT',
+    views: 0,
+    clicks: 0,
+    estimatedSale: 0,
+    commission: commission,
+    price: price,
+    rating: rating || null,
+    sold: sold || null,
+    shopName: shopName || null,
+    category: category,
+    image: snapImageDataUrl || null,
+    evidence: 'Snap ภาพสินค้า' + (shopName ? ' • ' + shopName : '') + (sold ? ' • ขายได้ ' + sold : '')
+  };
+
+  candidatePool.push(newCandidate);
+  contentLibrary.push({ ...newCandidate, libraryId: 'lib-' + newCandidate.id, status: 'PENDING', qualityScore: quality });
+  sourceItems.push({
+    name: name,
+    kind: 'SNAP',
+    detail: (price > 0 ? '฿' + price.toFixed(2) : 'ยังไม่ทราบราคา') +
+      (commission > 0 ? ' • คอมมิชชัน ฿' + commission.toFixed(2) : ''),
+    badgeClass: 'status-approved'
+  });
+
+  renderCandidatePool();
+  renderContentLibrary();
+  renderSourceLibrary();
+  resetSnapFormAfterAdd();
+  var previewArea = document.querySelector('.snap-preview-area');
+  if (previewArea) previewArea.classList.add('hidden');
+  showToast('สร้าง Candidate Card จากภาพแล้ว: ' + name, 'success');
+}
+
+// ----- Content draft from a snap candidate -----
+
+function setDraftStatus(message, kind) {
+  if (!dom.contentDraftStatus) return;
+  dom.contentDraftStatus.textContent = message;
+  dom.contentDraftStatus.className = 'muted small' +
+    (kind === 'error' ? ' link-import-status-error' : kind === 'ok' ? ' link-import-status-ok' : '');
+}
+
+function renderContentDraft(content) {
+  if (dom.draftHook) dom.draftHook.textContent = content.hook || '—';
+  if (dom.draftScript) dom.draftScript.textContent = content.script || '—';
+  if (dom.draftCaption) dom.draftCaption.textContent = content.caption || '—';
+  if (dom.draftHashtags) {
+    dom.draftHashtags.textContent = (content.hashtags && content.hashtags.length)
+      ? content.hashtags.join(' ')
+      : '—';
+  }
+}
+
+function draftAsText(candidate) {
+  if (!lastDraft) return '';
+  const c = ensureCandidateSettings(candidate) || candidate;
+  const preset = currentProductionPreset(candidate);
+  const channels = (c.channels || []).map(function(id) {
+    const found = PUBLISH_CHANNELS.find(function(ch) { return ch.id === id; });
+    return found ? found.label : id;
+  });
+  const price = Number(candidate.price) || 0;
+  const rate = Number(candidate.commissionRate);
+  const commission = Number(candidate.commission);
+  return [
+    '📦 ชุดโพสต์ — ' + (candidate.name || ''),
+    '',
+    'Hook: ' + (lastDraft.hook || ''),
+    'บทพูด (25–30 วิ): ' + (lastDraft.script || ''),
+    'แคปชัน: ' + (lastDraft.caption || ''),
+    'แฮชแท็ก: ' + ((lastDraft.hashtags || []).join(' ')),
+    'สไตล์การผลิต: ' + preset.label + ' (' + preset.tone + ')',
+    '',
+    'CTA: ' + (c.cta || 'กดลิงก์ในโปรไฟล์ / พิมพ์ Shopee Video'),
+    'ราคา: ' + (price ? '฿' + price.toLocaleString('th-TH') : '—'),
+    'ค่าคอม: ' + (Number.isFinite(rate) && rate > 0 ? rate + '%' : '—') + (Number.isFinite(commission) && commission > 0 ? ' · ฿' + commission.toLocaleString('th-TH', { maximumFractionDigits: 2 }) : ''),
+    'ลิงก์ affiliate: ' + (candidate.affiliateLink || '— (ยังไม่ผูก — วางลิงก์ก่อนโพสต์)'),
+    'ช่องทาง: ' + (channels.length ? channels.join(', ') : 'Shopee Video'),
+    'รูปที่ต้องเตรียม: 3–5 รูป (สินค้า / ใช้งานจริง / รีวิว) — ' + (candidate.image ? 'มีรูปหลักแล้ว 1 รูป' : 'ยังไม่มีรูป'),
+    '',
+    '🖼 คำสั่งสร้างภาพ (นำไปเจนใน Flow/Sora ตามสไตล์ ' + preset.label + '):',
+    buildImagePrompts(candidate, preset).join('\n'),
+    '',
+    'เช็กลิสต์ก่อนโพสต์: ตรวจราคา/โปร • เปิดลิงก์ให้ได้ • ใส่แคปชัน+แฮชแท็ก • CTA ตรงโปรไฟล์ • โพสต์ Shopee Video + TikTok',
+  ].join('\n');
+}
+
+async function openContentDraft(candidateId) {
+  var candidate = candidatePool.find(function(c) { return c.id === candidateId; });
+  if (!candidate) return;
+
+  if (dom.contentDraftPanel) {
+    dom.contentDraftPanel.classList.remove('hidden');
+    dom.contentDraftPanel.dataset.candidateId = String(candidateId);
+  }
+  lastDraft = null;
+  renderContentDraft({});
+  setDraftStatus('กำลังสร้าง Content ด้วย AI…', null);
+
+  try {
+    var response = await fetch('/api/mvp/snap/content', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        product: {
+          name: candidate.name,
+          platform: candidate.platform,
+          price: candidate.price || null,
+          commission: candidate.commission || null,
+          rating: candidate.rating || null,
+          sold: candidate.sold || null,
+          promo: candidate.evidence || null,
+          cta: candidate.cta || null,
+          preset: currentProductionPreset(candidate).label + ' — ' + currentProductionPreset(candidate).tone,
+          affiliateLink: candidate.affiliateLink || null
+        }
+      })
+    });
+    var data = await response.json().catch(function() { return null; });
+
+    if (!response.ok || !data || !data.ok) {
+      setDraftStatus((data && (data.message || data.error)) || 'สร้าง Content ไม่สำเร็จ', 'error');
+      return;
+    }
+
+    lastDraft = data.content;
+    renderContentDraft(data.content);
+    setDraftStatus('สร้าง Content สำเร็จ (' + (data.model || 'model') + ') — ตรวจสอบราคา/คอมมิชชันก่อนโพสต์', 'ok');
+  } catch (error) {
+    setDraftStatus('เชื่อมต่อเซิร์ฟเวอร์ไม่ได้: ' + error.message, 'error');
+  }
+}
+
+// ----- Revenue-first tools: batch post kits + tracking sheet -----
+
+function downloadTextFile(filename, text) {
+  try {
+    const blob = new Blob([text], { type: 'text/plain;charset=utf-8' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(function() { URL.revokeObjectURL(a.href); a.remove(); }, 500);
+    return true;
+  } catch (error) {
+    return false;
+  }
+}
+
+function postKitText(candidate, content, index, total, model) {
+  const c = ensureCandidateSettings(candidate) || candidate;
+  const channels = (c.channels || []).map(function(id) {
+    const found = PUBLISH_CHANNELS.find(function(ch) { return ch.id === id; });
+    return found ? found.label : id;
+  });
+  return [
+    '════════ ชุดโพสต์ ' + (index + 1) + '/' + total + ' ════════',
+    '📦 ' + (c.name || ''),
+    '',
+    'Hook: ' + ((content && content.hook) || ''),
+    'บทพูด (25–30 วิ): ' + ((content && content.script) || ''),
+    'แคปชัน: ' + ((content && content.caption) || ''),
+    'แฮชแท็ก: ' + (((content && content.hashtags) || []).join(' ')),
+    '',
+    'CTA: ' + (c.cta || 'กดลิงก์ในโปรไฟล์ / พิมพ์ Shopee Video'),
+    'ราคา: ' + (c.price ? '฿' + Number(c.price).toLocaleString('th-TH') : '—'),
+    'ค่าคอม: ' + (c.commissionRate ? c.commissionRate + '%' : '—') + (c.commission ? ' · ฿' + Number(c.commission).toLocaleString('th-TH', { maximumFractionDigits: 2 }) : ''),
+    'ลิงก์ affiliate: ' + (c.affiliateLink || '— (ยังไม่ผูก — วางลิงก์ก่อนโพสต์)'),
+    'ช่องทาง: ' + (channels.length ? channels.join(', ') : 'Shopee Video'),
+    'รูปที่ต้องเตรียม: 3–5 รูป (สินค้า / ใช้งานจริง / รีวิว)',
+    'โมเดล: ' + (model || '-'),
+    '',
+    'เช็กลิสต์ก่อนโพสต์: ตรวจราคา/โปร • เปิดลิงก์ให้ได้ • ใส่แคปชัน+แฮชแท็ก • CTA ตรงโปรไฟล์ • โพสต์ Shopee Video + TikTok',
+  ].join('\n');
+}
+
+async function generateBatchPostKits() {
+  if (!candidatePool.length) {
+    showToast('คลังยังว่าง — นำเข้าสินค้าจริงก่อน (CSV จาก Offers / Capture / ลิงก์)', 'warning');
+    return;
+  }
+  const items = candidatePool.slice(0, 10);
+  const btn = document.getElementById('batch-drafts');
+  if (btn) btn.disabled = true;
+  const parts = [];
+  let okCount = 0;
+  try {
+    for (let i = 0; i < items.length; i++) {
+      const c = ensureCandidateSettings(items[i]);
+      showToast('สร้างชุดโพสต์ ' + (i + 1) + '/' + items.length + ' — ' + String(c.name || '').slice(0, 32) + '…', 'info');
+      try {
+        const response = await fetch('/api/mvp/snap/content', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            product: {
+              name: c.name,
+              platform: c.platform,
+              price: c.price || null,
+              commission: c.commission || null,
+              rating: c.rating || null,
+              sold: c.sold || null,
+              promo: c.evidence || null,
+              cta: c.cta || null,
+              affiliateLink: c.affiliateLink || null,
+            },
+          }),
+        });
+        const data = await response.json().catch(function() { return null; });
+        if (response.ok && data && data.ok) {
+          parts.push(postKitText(c, data.content, i, items.length, data.model));
+          okCount += 1;
+          continue;
+        }
+        parts.push('⚠ ' + (c.name || '') + ' — สร้างไม่สำเร็จ: ' + ((data && (data.message || data.error)) || ('HTTP ' + response.status)));
+      } catch (error) {
+        parts.push('⚠ ' + (c.name || '') + ' — เชื่อมต่อเซิร์ฟเวอร์ไม่ได้: ' + error.message);
+      }
+    }
+    const bundle = parts.join('\n\n');
+    window.__lastPostKits = bundle;
+    const filename = 'ace-post-kits-' + new Date().toISOString().slice(0, 10) + '.txt';
+    downloadTextFile(filename, bundle);
+    try {
+      await navigator.clipboard.writeText(bundle);
+      showToast('สร้างชุดโพสต์สำเร็จ ' + okCount + '/' + items.length + ' — คัดลอกและดาวน์โหลด ' + filename + ' แล้ว', 'success');
+    } catch (clipError) {
+      showToast('สร้างชุดโพสต์ ' + okCount + '/' + items.length + ' — ดาวน์โหลดไฟล์แล้ว (คัดลอกอัตโนมัติไม่ได้ในเบราว์เซอร์นี้)', 'success');
+    }
+  } finally {
+    if (btn) btn.disabled = false;
+  }
+}
+
+function buildTrackingCsv() {
+  const header = ['วันที่โพสต์', 'สินค้า', 'แพลตฟอร์ม', 'Sub_id', 'Views', 'Clicks', 'Orders', 'คอมมิชชัน_THB', 'หมายเหตุ'];
+  const rows = [header.join(',')];
+  candidatePool.slice(0, 10).forEach(function(c) {
+    const escaped = function(v) { return '"' + String(v == null ? '' : v).replace(/"/g, '""') + '"'; };
+    rows.push([
+      '',
+      escaped(c.name),
+      escaped((c.channels || ['Shopee Video']).join(' / ')),
+      escaped(''),
+      '', '', '',
+      c.commission ? String(c.commission) : '',
+      escaped(c.affiliateLink || ''),
+    ].join(','));
+  });
+  return rows.join('\r\n');
+}
+
+function downloadTrackingCsv() {
+  if (!candidatePool.length) {
+    showToast('ยังไม่มีสินค้าในคลัง — นำเข้าสินค้าจริงก่อน', 'warning');
+    return;
+  }
+  const csv = buildTrackingCsv();
+  const filename = 'ace-tracking-' + new Date().toISOString().slice(0, 10) + '.csv';
+  const ok = downloadTextFile(filename, '\uFEFF' + csv);
+  showToast(ok
+    ? 'ดาวน์โหลดเทมเพลตติดตามผลแล้ว (' + (candidatePool.slice(0, 10).length) + ' รายการ) — กรอก views/clicks/orders หลังโพสต์'
+    : 'ดาวน์โหลดไฟล์ไม่ได้ — ใช้คัดลอกแทน',
+    ok ? 'success' : 'warning');
+}
+
+// ----- Production presets: actor + background style for the clip -----
+
+const PRODUCTION_PRESETS = [
+  { id: 'cute-cartoon', label: 'การ์ตูนน่ารัก + ฉากหลังใหม่', badge: 'CUTE CARTOON', bgFrom: '#2A1B4A', bgAccent: '#FF7EB6', actorType: 'cartoon_2d', tone: 'สนุก สดใส น่ารัก เป็นกันเอง', imagePrompt: 'ตัวการ์ตูนน่ารักสไตล์ kawaii ถือ {product} ยิ้มสดใส บนฉากหลังใหม่สีพาสเทล แสงอ่อนนุ่ม' },
+  { id: 'cute-mascot', label: 'มาสคอตน่ารัก + ฉากใหม่', badge: 'MASCOT', bgFrom: '#1B3A4A', bgAccent: '#FFB347', actorType: 'mascot', tone: 'ขี้เล่น น่ารัก พลังล้น', imagePrompt: 'มาสคอตน่ารักรูปทรงกลมถือ {product} กระโดดดีใจ ฉากหลังใหม่สีสดใส' },
+  { id: 'real-presenter', label: 'พิธีกรจริง + ฉากสตูดิโอ', badge: 'PRESENTER', bgFrom: '#12233B', bgAccent: '#2E7DF6', actorType: 'human', tone: 'จริงใจ น่าเชื่อถือ เหมือนเพื่อนแนะนำ', imagePrompt: 'ภาพพิธีกรจริงถือ {product} ในสตูดิโอไฟสว่าง มุมใกล้ ดูน่าเชื่อถือ' },
+  { id: 'product-hero', label: 'โฟกัสสินค้า (ไม่มีนักแสดง)', badge: 'PRODUCT HERO', bgFrom: '#101820', bgAccent: '#9FE8B6', actorType: 'product', tone: 'กระชับ ตรงประเด็น เน้นสินค้า', imagePrompt: '{product} เด่นกลางเฟรม พื้นหลังเรียบสีเข้ม ไฟสินค้าสะท้อนขอบ' },
+];
+
+function getProductionPreset(id) {
+  return PRODUCTION_PRESETS.find(function(p) { return p.id === id; }) || PRODUCTION_PRESETS[0];
+}
+
+function currentProductionPreset(candidate) {
+  const el = document.getElementById('clip-preset');
+  return getProductionPreset((candidate && candidate.preset) || (el ? el.value : undefined));
+}
+
+function buildImagePrompts(candidate, preset) {
+  const product = String((candidate && candidate.name) || 'สินค้า');
+  return [
+    '1) ภาพหลัก: ' + preset.imagePrompt.replace('{product}', product),
+    '2) ภาพระยะใกล้: ' + product + ' — รายละเอียดสินค้า มุมใกล้ ไฟนุ่ม เห็นคุณภาพชัด',
+    '3) ภาพบรรยากาศ: ' + product + ' ในฉากหลังใหม่สไตล์ ' + preset.label + ' มีพื้นที่วางข้อความด้านบน',
+    '4) ภาพปิดคลิป: ' + product + ' พร้อมพื้นที่ใส่ตัวหนังสือ CTA ด้านล่าง สไตล์เดียวกับภาพหลัก',
+  ];
+}
+
+// ----- Clip preview: render the draft to a real MP4 (local ffmpeg) -----
+
+async function renderPreviewClip() {
+  const candidateId = dom.contentDraftPanel ? parseInt(dom.contentDraftPanel.dataset.candidateId, 10) : NaN;
+  const candidate = candidatePool.find(function(c) { return c.id === candidateId; });
+  const status = document.getElementById('clip-preview-status');
+  const host = document.getElementById('clip-preview-host');
+  if (!candidate || !lastDraft) {
+    showToast('สร้าง Content ด้วย AI ก่อน แล้วค่อยทำคลิปพรีวิว', 'warning');
+    return;
+  }
+  const hook = String(lastDraft.hook || '').trim();
+  const body = String(lastDraft.script || '').trim();
+  const sentences = [];
+  body.split(/\n+/).forEach(function(chunk) {
+    String(chunk).split(/(?<=[.!?。])\s+/).forEach(function(part) {
+      const line = part.trim();
+      if (line) sentences.push(line);
+    });
+  });
+  const lines = [];
+  if (hook) lines.push(hook);
+  sentences.forEach(function(line) { if (lines.length < 9) lines.push(line); });
+  lines.push(candidate.cta ? String(candidate.cta).slice(0, 80) : 'กดลิงก์ในโปรไฟล์');
+  const images = [];
+  if (candidate.image && /^(https:\/\/|data:image\/)/i.test(String(candidate.image))) images.push(candidate.image);
+  const extraField = document.getElementById('clip-images');
+  if (extraField && extraField.value.trim()) {
+    extraField.value.split(/\r?\n/).map(function(line) { return line.trim(); })
+      .filter(function(line) { return /^(https:\/\/|data:image\/)/i.test(line); })
+      .slice(0, 4)
+      .forEach(function(url) { images.push(url); });
+  }
+  const preset = currentProductionPreset(candidate);
+  if (status) status.textContent = 'กำลังเรนเดอร์ MP4 ด้วย ffmpeg…' + (images.length ? ' (มี ' + Math.min(5, images.length) + ' รูป)' : '') + ' · สไตล์ ' + preset.label + ' · เสียงพากย์ไทย (10–40 วินาที)';
+  if (host) host.innerHTML = '';
+  try {
+    const response = await fetch('/api/mvp/preview/render', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ lines: lines.slice(0, 10), images: images.slice(0, 5), cta: candidate.cta || '', narrate: true, preset: currentProductionPreset(candidate).id, style: (function() { const p = currentProductionPreset(candidate); return { badge: p.badge, from: p.bgFrom, accent: p.bgAccent }; })() }),
+    });
+    const data = await response.json().catch(function() { return null; });
+    if (!response.ok) {
+      if (status) status.textContent = 'เรนเดอร์ไม่สำเร็จ: ' + ((data && data.error) || ('HTTP ' + response.status));
+      return;
+    }
+    if (status) status.textContent = 'คลิปพรีวิวพร้อม — ' + (data.duration_s || '?') + 's · ' + Math.round((data.bytes || 0) / 1024) + ' KB · ' + (data.width || 1080) + '×' + (data.height || 1920) + ' · ฟอนต์ ' + (data.font || '-') + ' · สไตล์ ' + preset.label +
+      (data.narration && data.narration.ok ? ' · เสียงพากย์ ' + (data.narration.voice || '') + ' (' + data.narration.lines + '/' + data.narration.total + ' บรรทัด)' : ' · ไม่มีเสียงพากย์' + (data.narration && data.narration.error ? ' (' + String(data.narration.error).slice(0, 80) + ')' : ''));
+    if (host) {
+      host.innerHTML = '<video controls autoplay playsinline style="width:100%;max-height:520px;border-radius:12px;background:#000" src="' + data.url + '"></video>' +
+        '<p class="muted small"><a href="' + data.url + '" download target="_blank" rel="noopener">ดาวน์โหลด MP4</a> — ตรวจลำดับภาพ/ข้อความ/CTA ก่อนนำไปตัดต่อหรือโพสต์</p>';
+    }
+    showToast('สร้างคลิปพรีวิวสำเร็จ — ดูได้ในแผง Content Draft', 'success');
+  } catch (error) {
+    if (status) status.textContent = 'เชื่อมต่อเซิร์ฟเวอร์ไม่ได้: ' + error.message;
+  }
+}
+
+// ----- Results import: real performance data from the tracking CSV -----
+
+function resultsFromCsv(text) {
+  const probe = String(text || '').replace(/^\uFEFF/, '');
+  const firstLine = probe.split(/\r?\n/, 1)[0] || '';
+  const delimiter = detectDelimiter(firstLine);
+  const rows = parseDelimited(probe, delimiter);
+  if (!rows.length) return [];
+  const header = rows[0].map(function(c) { return String(c || '').trim().toLowerCase(); });
+  const findCol = function(names) {
+    for (let i = 0; i < header.length; i++) {
+      for (let n = 0; n < names.length; n++) {
+        if (header[i].indexOf(names[n].toLowerCase()) !== -1) return i;
+      }
+    }
+    return -1;
+  };
+  const col = {
+    name: findCol(['สินค้า', 'product']),
+    platform: findCol(['แพลตฟอร์ม', 'platform']),
+    subId: findCol(['sub_id']),
+    views: findCol(['views']),
+    clicks: findCol(['clicks']),
+    orders: findCol(['orders']),
+    commission: findCol(['คอมมิชชัน_thb', 'คอมมิชชัน', 'commission']),
+    note: findCol(['หมายเหตุ', 'note']),
+    postedAt: findCol(['วันที่โพสต์', 'date']),
+  };
+  const out = [];
+  for (let r = 1; r < rows.length; r++) {
+    const cells = rows[r];
+    const pick = function(key) {
+      const i = col[key];
+      return i === -1 || cells[i] === undefined ? '' : String(cells[i]).trim();
+    };
+    const name = pick('name');
+    if (!name) continue;
+    out.push({
+      name: name,
+      platform: pick('platform'),
+      sub_id: pick('subId'),
+      views: Number(pick('views')) || 0,
+      clicks: Number(pick('clicks')) || 0,
+      orders: Number(pick('orders')) || 0,
+      commission_thb: Number(String(pick('commission')).replace(/[^0-9.]/g, '')) || 0,
+      note: pick('note'),
+      posted_at: pick('postedAt'),
+    });
+  }
+  return out;
+}
+
+function handleResultsCsvFile(file) {
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = function() {
+    try {
+      const rows = resultsFromCsv(String(reader.result || ''));
+      if (!rows.length) {
+        showToast('อ่านไฟล์ผลลัพธ์ไม่ได้ — ต้องมีหัวคอลัมน์ "สินค้า"', 'error');
+        return;
+      }
+      let matched = 0;
+      let orders = 0;
+      let commission = 0;
+      rows.forEach(function(row) {
+        const name = row.name.trim();
+        let candidate = candidatePool.find(function(c) { return String(c.name || '').trim() === name; });
+        if (!candidate) {
+          const lower = name.toLowerCase();
+          candidate = candidatePool.find(function(c) {
+            const cn = String(c.name || '').toLowerCase();
+            return cn && (cn.indexOf(lower) !== -1 || lower.indexOf(cn) !== -1);
+          });
+        }
+        if (!candidate) return;
+        candidate.perf = {
+          posted_at: row.posted_at || null,
+          platform: row.platform || null,
+          sub_id: row.sub_id || null,
+          views: row.views,
+          clicks: row.clicks,
+          orders: row.orders,
+          commission_thb: row.commission_thb,
+          note: row.note || null,
+          imported_at: new Date().toISOString(),
+        };
+        matched += 1;
+        orders += row.orders;
+        commission += row.commission_thb;
+      });
+      renderCandidatePool();
+      showToast('นำเข้าผลลัพธ์ ' + rows.length + ' แถว — จับคู่ได้ ' + matched + ' สินค้า · Orders รวม ' + orders + ' · ค่าคอม ฿' + commission.toLocaleString('th-TH', { maximumFractionDigits: 2 }), matched ? 'success' : 'warning');
+    } catch (error) {
+      showToast('อ่านไฟล์ไม่สำเร็จ: ' + error.message, 'error');
+    }
+  };
+  reader.readAsText(file, 'utf-8');
+}
+
+function copyContentDraft() {
+  var candidateId = dom.contentDraftPanel ? parseInt(dom.contentDraftPanel.dataset.candidateId, 10) : NaN;
+  var candidate = candidatePool.find(function(c) { return c.id === candidateId; });
+  if (!lastDraft || !candidate) {
+    setDraftStatus('ยังไม่มี Content ให้คัดลอก', 'error');
+    return;
+  }
+
+  navigator.clipboard.writeText(draftAsText(candidate)).then(function() {
+    showToast('คัดลอกชุดโพสต์แล้ว (caption + CTA + ลิงก์ + เช็กลิสต์)', 'success');
+  }).catch(function() {
+    setDraftStatus('คัดลอกไม่สำเร็จ — เบราว์เซอร์ไม่อนุญาตคลิปบอร์ด', 'error');
+  });
+}
+
+function hideSnapWorkflow() {
+  if (dom.snapWorkflow) dom.snapWorkflow.classList.add('hidden');
+  hideAllSections();
+}
+
+// ----- Actor Studio -----
+function addActorRow() {
+  if (dom.actorStudio) {
+    var html = `
+      <div class="actor-card">
+        <input type="text" placeholder="ชื่อนักแสดง" class="actor-name">
+        <input type="text" placeholder="@username" class="actor-handle">
+        <select class="actor-platform">
+          <option value="Shopee">Shopee</option>
+          <option value="Lazada">Lazada</option>
+          <option value="TikTok">TikTok</option>
+        </select>
+        <button type="button" class="btn btn-danger btn-remove-actor">ลบ</button>
+      </div>
+    `;
+    if (dom.actorStudio.querySelector('.actor-grid')) {
+      dom.actorStudio.querySelector('.actor-grid').insertAdjacentHTML('beforeend', html);
+    }
+  }
+}
+
+function hideActorStudio() {
+  if (dom.actorStudio) dom.actorStudio.classList.add('hidden');
+  hideAllSections();
+}
+
+// ----- Content Library -----
+function renderContentLibraryStart() {
+  var tbody = dom.libraryTableBody;
+  if (!tbody) return;
+
+  if (!contentLibrary || contentLibrary.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="7" class="muted">ไม่มีรายการในคลัง</td></tr>';
+    if (dom.libraryCount) dom.libraryCount.textContent = '0 / 0 รายการ';
+    return;
+  }
+
+  var html = contentLibrary.map(function(item, i) {
+    var statusClass = 'status-' + item.status.toLowerCase();
+    var qualityClass = 'quality-' + (item.qualityScore || 'medium').toLowerCase();
+    var btnDisabled = item.status === 'EXPORTED' ? 'disabled' : '';
+
+    // Determine action buttons based on status
+    var actionHtml = '';
+    if (item.status === 'PENDING') {
+      actionHtml = `
+        <button class="btn btn-ghost btn-sm approve-row" data-index="${i}" ${btnDisabled}>อนุมัติ</button>
+        <button class="btn btn-ghost btn-sm reject-row" data-index="${i}" ${btnDisabled}>ปฏิเสธ</button>
+      `;
+    } else if (item.status === 'APPROVE') {
+      actionHtml = `
+        <button class="btn btn-primary btn-sm set-active-row" data-index="${i}" ${btnDisabled}>ตั้งเป็น Active Lineage</button>
+        <button class="btn btn-ghost btn-sm reject-row" data-index="${i}" ${btnDisabled}>ยกเลิกการอนุมัติ</button>
+      `;
+    } else if (item.status === 'REJECT') {
+      actionHtml = `
+        <button class="btn btn-primary btn-sm approve-row" data-index="${i}" ${btnDisabled}>โอนเป็น PENDING</button>
+        <button class="btn btn-ghost btn-sm" data-index="${i}" ${btnDisabled}>ลบรายการ</button>
+      `;
+    } else if (item.status === 'EXPORTED') {
+      actionHtml = '<span class="muted">Exporting</span>';
+    }
+
+    return `
+      <tr data-index="${i}">
+        <td><input type="checkbox" class="row-checkbox" ${item.status === 'EXPORTED' ? 'disabled' : ''} /></td>
+        <td>${item.libraryId || '--'}</td>
+        <td>
+          <div class="ellipsis" title="${item.name || ''}">${item.name || '--'}</div>
+        </td>
+        <td>${item.platform || '--'}</td>
+        <td><span class="status-badge ${statusClass}">${item.status}</span></td>
+        <td><span class="quality-badge ${qualityClass}">${item.qualityScore || '—'}</span></td>
+        <td>
+          ${actionHtml}
+        </td>
+      </tr>
+    `;
+  }).join('');
+
+  tbody.innerHTML = html;
+
+  // Attach event handlers after render
+  attachLibraryHandlers();
+
+  // Update count
+  if (dom.libraryCount) {
+    var total = contentLibrary.length;
+    var visible = contentLibrary.filter(function(item, idx) {
+      var status = dom.libraryStatusFilter ? dom.libraryStatusFilter.value : '';
+      return !status || itemStatusMatches(idx, status);
+    }).length;
+    dom.libraryCount.textContent = visible + ' / ' + total + ' รายการ';
+  }
+}
+
+// ----- Content Library Helpers -----
+function filterLibraryByStatus() {
+  if (dom.libraryStatusFilter) {
+    renderContentLibrary();
+  }
+}
+
+function toggleSelectAll() {
+  if (dom.selectAllLib) {
+    var checked = dom.selectAllLib.checked;
+    document.querySelectorAll('.row-checkbox').forEach(function(cb) {
+      cb.checked = checked;
+      var index = parseInt(cb.closest('tr').dataset.index, 10);
+      if (index >= 0 && index < contentLibrary.length) {
+        contentLibrary[index].selected = checked;
+      }
+    });
+    updateLibraryCount();
+  }
+}
+
+function updateLibraryCount() {
+  if (!dom.libraryCount) return;
+  var total = contentLibrary.length;
+  var selected = contentLibrary.filter(function(item) { return item.selected; }).length;
+  dom.libraryCount.textContent = selected + ' / ' + total + ' รายการ';
+}
+
+function setActiveLineage() {
+  var selected = contentLibrary.filter(function(item) {
+    return item.selected && item.status === 'APPROVE';
+  });
+  if (selected.length === 0) {
+    showToast('กรุณาเลือกรายการที่มีสถานะ APPROVE ก่อน', 'warning');
+    return;
+  }
+  
+  // Prompt for notes before exporting (MANDATORY - no auto-publish)
+  var notes = prompt('กรุณาใส่หมายเหตุสำหรับการส่งออก (จำเป็น):', '');
+  if (notes === null) {
+    // User cancelled - do not proceed with publishing
+    showToast('การส่งออกถูกยกเลิก', 'info');
+    return;
+  }
+  
+  // Add notes to selected items and send to publish queue
+  selected.forEach(function(item) {
+    item.status = 'EXPORTED';
+    item.exportNotes = notes;
+    publishQueue.push(item);
+  });
+  renderContentLibrary();
+  renderPublishQueue();
+  showToast('ส่ง ' + selected.length + ' รายการไป Publish Queue เรียบร้อย (หมายเหตุ: ' + notes + ')', 'success');
+}
+
+// ----- Toast -----
+
+function showToast(message, type) {
+  if (!dom.toast) return;
+  dom.toast.textContent = message;
+  dom.toast.className = 'toast is-visible' + (type === 'error' ? ' is-error' : '');
+  window.clearTimeout(showToast.timer);
+  showToast.timer = window.setTimeout(function() {
+    dom.toast.className = 'toast';
+  }, 3200);
+}
+
+// ----- Source Library -----
+
+let sourceItems = [];
+
+// ----- Shopee Affiliate menu launchers -----
+// ACE cannot open Shopee's own menus for you: those pages need your logged-in
+// session and Shopee blocks automated navigation. These are one-click shortcuts
+// that open the real pages in your browser, where you stay signed in.
+
+const SHOPEE_MENUS = [
+  { id: 'dashboard', label: '\u0e23\u0e32\u0e22\u0e07\u0e32\u0e19\u0e41\u0e2a\u0e14\u0e07\u0e1c\u0e25', path: '/dashboard' },
+  { id: 'product_offer', label: '\u0e02\u0e49\u0e2d\u0e40\u0e2a\u0e19\u0e2d \u0e1c\u0e25\u0e34\u0e15\u0e20\u0e31\u0e13\u0e11\u0e4c', path: '/offer/product_offer' },
+  { id: 'product_feed', label: 'Feed \u0e2a\u0e34\u0e19\u0e04\u0e49\u0e32', path: '/creative/product_feed' },
+  { id: 'open_api', label: '\u0e40\u0e1b\u0e34\u0e14 API', path: '/open_api' },
+];
+
+const SHOPEE_ORIGIN = 'https://affiliate.shopee.co.th';
+
+function renderShopeeMenus() {
+  const host = document.getElementById('shopee-menus');
+  if (!host) return;
+  host.innerHTML = SHOPEE_MENUS.map(function(menu) {
+    return '<a class="shopee-menu" href="' + SHOPEE_ORIGIN + menu.path + '" target="_blank" rel="noopener noreferrer">' +
+      escapeHtml(menu.label) + '</a>';
+  }).join('') +
+    '<span class="muted small shopee-menu-note">\u0e40\u0e21\u0e19\u0e39\u0e2d\u0e37\u0e48\u0e19 (\u0e02\u0e49\u0e2d\u0e40\u0e2a\u0e19\u0e2d Shopee / \u0e23\u0e49\u0e32\u0e19\u0e04\u0e49\u0e32 / \u0e1e\u0e34\u0e40\u0e28\u0e29 / \u0e41\u0e04\u0e21\u0e40\u0e1b\u0e0d) \u0e40\u0e1b\u0e34\u0e14\u0e08\u0e32\u0e01\u0e41\u0e16\u0e1a\u0e0b\u0e49\u0e32\u0e22\u0e43\u0e19\u0e2b\u0e19\u0e49\u0e32 Shopee \u2014 ACE \u0e40\u0e1b\u0e34\u0e19\u0e41\u0e2d\u0e1b\u0e17\u0e35\u0e48\u0e23\u0e31\u0e19\u0e1a\u0e19\u0e40\u0e04\u0e23\u0e37\u0e48\u0e2d\u0e07\u0e04\u0e38\u0e13 \u0e08\u0e36\u0e07\u0e40\u0e02\u0e49\u0e32\u0e2a\u0e39\u0e48\u0e2b\u0e19\u0e49\u0e32\u0e40\u0e2b\u0e25\u0e48\u0e32\u0e19\u0e31\u0e49\u0e19\u0e41\u0e17\u0e19\u0e04\u0e38\u0e13\u0e44\u0e21\u0e48\u0e44\u0e14\u0e49</span>';
+}
+
+function bindSourceLibraryRemove() {
+  if (document.body.dataset.sourceRemoveBound === '1') return;
+  document.body.dataset.sourceRemoveBound = '1';
+  document.addEventListener('click', function(event) {
+    const button = event.target.closest('[data-source-remove]');
+    if (!button) return;
+    event.preventDefault();
+    event.stopPropagation();
+    const index = Number(button.dataset.sourceRemove);
+    const removed = sourceItems[index];
+    if (!removed) return;
+    sourceItems.splice(index, 1);
+    renderSourceLibrary();
+    showToast('ลบ “' + removed.name + '” ออกจาก Source Library แล้ว', 'info');
+  });
+}
+
+function renderSourceLibrary() {
+  savePoolState();
+  renderShopeeMenus();
+  var grids = document.querySelectorAll('.source-library-grid');
+  if (!grids.length) return;
+
+  grids.forEach(function(grid) {
+    if (!sourceItems.length) {
+      grid.innerHTML = '<div class="empty-state">ยังไม่มีไฟล์แหล่งที่มา</div>';
+      return;
+    }
+    var seen = {};
+    var unique = sourceItems.filter(function(item) {
+      var key = [String(item.name || '').trim().toLowerCase(), String(item.url || '').trim().toLowerCase()].join('|');
+      if (seen[key]) return false;
+      seen[key] = true;
+      return true;
+    });
+
+    grid.innerHTML = unique.map(function(item) {
+      var index = sourceItems.indexOf(item);
+      var open = item.url
+        ? '<a class="source-open" href="' + item.url + '" target="_blank" rel="noopener noreferrer" title="\u0e40\u0e1b\u0e34\u0e14\u0e25\u0e34\u0e07\u0e01\u0e4c">\u2197</a>'
+        : '';
+      return '<div class="source-card">' +
+        '<div class="card-header">' +
+          '<span class="card-title">' + item.name + '</span>' +
+          '<span class="card-actions-badges">' +
+            '<span class="status-badge ' + (item.badgeClass || 'status-draft') + '">' + item.kind + '</span>' +
+            open +
+            '<button type="button" class="source-remove" data-source-remove="' + index +
+            '" title="\u0e25\u0e1a\u0e41\u0e2b\u0e25\u0e48\u0e07\u0e02\u0e49\u0e2d\u0e21\u0e39\u0e25\u0e19\u0e35\u0e49" aria-label="\u0e25\u0e1a">\u00d7</button>' +
+          '</span>' +
+        '</div>' +
+        '<p class="muted mono small">' + (item.detail || '') + '</p>' +
+      '</div>';
+    }).join('');
+  });
+}
+
+function seedSourceLibraryFromPool() {
+  if (sourceItems.length) { renderSourceLibrary(); return; }
+  sourceItems = candidatePool.map(function(c) {
+    return {
+      name: c.name,
+      kind: c.platform,
+      detail: c.evidence || '',
+      badgeClass: 'status-approved'
+    };
+  });
+  renderSourceLibrary();
+  showToast('โหลด Source Library ' + sourceItems.length + ' รายการเรียบร้อย', 'success');
+}
+
+function addManualSource() {
+  var host = document.getElementById('manual-source-form');
+  if (!host) {
+    var button = document.getElementById('add-manual');
+    var section = button ? button.closest('.studio-panel') : null;
+    if (!section) return;
+    host = document.createElement('div');
+    host.id = 'manual-source-form';
+    host.className = 'manual-source-form';
+    host.innerHTML = '<input type="text" id="manual-source-name" placeholder="ชื่อแหล่งข้อมูล">' +
+      '<input type="url" id="manual-source-url" placeholder="https://affiliate.shopee.co.th/...">' +
+      '<button type="button" class="btn btn-sm btn-primary" id="manual-source-save">บันทึก</button>' +
+      '<button type="button" class="btn btn-sm btn-ghost" id="manual-source-cancel">ยกเลิก</button>';
+    section.insertBefore(host, section.querySelector('.source-library-grid'));
+
+    host.querySelector('#manual-source-cancel').addEventListener('click', function() { host.remove(); });
+    host.querySelector('#manual-source-save').addEventListener('click', saveManualSource);
+    host.querySelector('#manual-source-url').addEventListener('keydown', function(event) {
+      if (event.key === 'Enter') saveManualSource();
+    });
+  }
+  var nameField = document.getElementById('manual-source-name');
+  if (nameField) nameField.focus();
+}
+
+function saveManualSource() {
+  var nameField = document.getElementById('manual-source-name');
+  var urlField = document.getElementById('manual-source-url');
+  var name = nameField ? nameField.value.trim() : '';
+  var url = urlField ? urlField.value.trim() : '';
+  if (!name) { showToast('ใส่ชื่อแหล่งข้อมูลก่อน', 'warning'); return; }
+  if (url && !/^https?:\/\//i.test(url)) { showToast('ลิงก์ต้องขึ้นต้นด้วย http:// หรือ https://', 'warning'); return; }
+
+  var duplicate = sourceItems.some(function(item) {
+    return String(item.name || '').trim().toLowerCase() === name.toLowerCase()
+      && String(item.url || '').trim().toLowerCase() === url.toLowerCase();
+  });
+  if (duplicate) {
+    var form = document.getElementById('manual-source-form');
+    if (form) form.remove();
+    showToast('มีแหล่งข้อมูลนี้อยู่แล้ว — ไม่เพิ่มซ้ำ', 'warning');
+    return;
+  }
+
+  sourceItems.push({
+    name: name,
+    kind: 'MANUAL',
+    detail: url || 'เพิ่มด้วยมือ',
+    url: url,
+    badgeClass: 'status-pending'
+  });
+  var host = document.getElementById('manual-source-form');
+  if (host) host.remove();
+  renderSourceLibrary();
+  showToast('เพิ่ม Source เรียบร้อย' + (url ? ' — กดการ์ดเพื่อเปิดลิงก์' : ''), 'success');
+}
+
+// ----- Shopee product link import -----
+
+let linkPreview = null;
+const ESTIMATED_COMMISSION_RATE = 0.05;
+
+function setLinkStatus(message, kind) {
+  if (!dom.linkImportStatus) return;
+  dom.linkImportStatus.textContent = message;
+  dom.linkImportStatus.className = 'muted small' +
+    (kind === 'error' ? ' link-import-status-error' : kind === 'ok' ? ' link-import-status-ok' : '');
+}
+
+function suggestCommission() {
+  if (!dom.linkCommission || !dom.linkPrice) return;
+  if (dom.linkCommission.dataset.touched === 'true') return;
+  var price = parseFloat(dom.linkPrice.value);
+  dom.linkCommission.value = price > 0 ? (price * ESTIMATED_COMMISSION_RATE).toFixed(2) : '';
+}
+
+function showLinkPreview(data) {
+  if (!dom.linkImportPreview) return;
+  dom.linkImportPreview.classList.remove('hidden');
+
+  var fallbackName = data.itemId ? 'Shopee item ' + data.itemId : '';
+  if (dom.linkName) dom.linkName.value = data.title || fallbackName;
+  if (dom.linkPrice) dom.linkPrice.value = data.price === null || data.price === undefined ? '' : data.price;
+  if (dom.linkCommission) {
+    dom.linkCommission.dataset.touched = 'false';
+    dom.linkCommission.value = '';
+  }
+  suggestCommission();
+
+  if (dom.linkImportImage) {
+    if (data.image) {
+      dom.linkImportImage.src = data.image;
+      dom.linkImportImage.hidden = false;
+    } else {
+      dom.linkImportImage.removeAttribute('src');
+      dom.linkImportImage.hidden = true;
+    }
+  }
+
+  if (data.fetched && (data.title || data.price !== null)) {
+    setLinkStatus('ดึงข้อมูลสำเร็จ' + (data.title ? ': ' + data.title : '') +
+      (data.price ? ' • ฿' + data.price : ' • ไม่พบราคาบนหน้าเว็บ'), 'ok');
+  } else if (data.fetched) {
+    setLinkStatus('เปิดหน้าเว็บได้แต่ไม่พบข้อมูลสินค้า (หน้านี้โหลดด้วย JavaScript) — กรอกชื่อและราคาเองแล้วกดเพิ่มได้เลย', 'error');
+  } else {
+    setLinkStatus('Shopee ไม่ได้ส่งข้อมูลกลับมา (' + (data.reason || 'blocked') +
+      ') — กรอกชื่อและราคาเองแล้วกดเพิ่มได้เลย', 'error');
+  }
+}
+
+async function fetchProductFromLink() {
+  var url = dom.productUrl ? dom.productUrl.value.trim() : '';
+  if (!url) {
+    setLinkStatus('วางลิงก์สินค้า Shopee ก่อนครับ', 'error');
+    return;
+  }
+
+  setLinkStatus('กำลังดึงข้อมูลจากลิงก์…', null);
+  if (dom.fetchProduct) dom.fetchProduct.disabled = true;
+
+  try {
+    var response = await fetch('/api/mvp/products/preview', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ url: url })
+    });
+
+    var data = await response.json().catch(function() { return null; });
+    if (!response.ok) {
+      setLinkStatus((data && data.error) ? data.error : 'ดึงข้อมูลไม่สำเร็จ (HTTP ' + response.status + ')', 'error');
+      return;
+    }
+
+    linkPreview = data;
+    showLinkPreview(data);
+  } catch (error) {
+    setLinkStatus('เชื่อมต่อเซิร์ฟเวอร์ไม่ได้: ' + error.message, 'error');
+  } finally {
+    if (dom.fetchProduct) dom.fetchProduct.disabled = false;
+  }
+}
+
+function addLinkProductToPools() {
+  if (!linkPreview) {
+    setLinkStatus('กด “ดึงข้อมูล” จากลิงก์ก่อน แล้วค่อยเพิ่มเข้าคลัง', 'error');
+    return;
+  }
+
+  var name = dom.linkName ? dom.linkName.value.trim() : '';
+  if (!name) {
+    setLinkStatus('กรอกชื่อสินค้าก่อนเพิ่มเข้าคลัง', 'error');
+    return;
+  }
+
+  var price = dom.linkPrice ? parseFloat(dom.linkPrice.value) : 0;
+  if (!isFinite(price) || price < 0) price = 0;
+
+  var commission = dom.linkCommission ? parseFloat(dom.linkCommission.value) : 0;
+  if (!isFinite(commission) || commission < 0) commission = 0;
+
+  var quality = commission >= 100 ? 'High' : commission >= 40 ? 'Medium' : 'Low';
+  var link = linkPreview.finalUrl || linkPreview.url;
+  var idParts = linkPreview.shopId && linkPreview.itemId
+    ? ' • shop ' + linkPreview.shopId + ' / item ' + linkPreview.itemId
+    : '';
+
+  var product = {
+    id: candidatePool.length + 1,
+    name: name,
+    platform: 'Shopee',
+    affiliateLink: link,
+    quality: quality,
+    status: 'DRAFT',
+    views: 0,
+    clicks: 0,
+    estimatedSale: 0,
+    commission: commission,
+    price: price,
+    evidence: 'ลิงก์ Shopee (อ่านจากหน้าเว็บ: ' + (linkPreview.fetched ? 'สำเร็จ' : 'ไม่สำเร็จ') + ')' + idParts
+  };
+
+  candidatePool.push(product);
+  contentLibrary.push({
+    ...product,
+    libraryId: 'lib-' + product.id,
+    status: 'PENDING',
+    qualityScore: quality
+  });
+
+  sourceItems.push({
+    name: name,
+    kind: 'SHOPEE',
+    detail: (price > 0 ? '฿' + price.toFixed(2) : 'ยังไม่ทราบราคา') +
+      (commission > 0 ? ' • คอมมิชชัน ฿' + commission.toFixed(2) : ' • ยังไม่ระบุคอมมิชชัน') + idParts,
+    badgeClass: linkPreview.fetched ? 'status-approved' : 'status-pending'
+  });
+
+  renderCandidatePool();
+  renderContentLibrary();
+  renderSourceLibrary();
+  showToast('เพิ่ม “' + name + '” เข้า Source Library และ Candidate Pool เรียบร้อย', 'success');
+  setLinkStatus('เพิ่มสินค้าเข้า Source Library + Candidate Pool แล้ว', 'ok');
+
+  linkPreview = null;
+  if (dom.linkImportPreview) dom.linkImportPreview.classList.add('hidden');
+  if (dom.productUrl) dom.productUrl.value = '';
+}
+
+// ----- Library helpers -----
+
+function seedContentLibraryFromPool() {
+  if (contentLibrary.length || !candidatePool.length) return;
+  candidatePool.slice(0, 8).forEach(function(c) {
+    contentLibrary.push(Object.assign({}, c, {
+      libraryId: 'lib-' + c.id,
+      status: 'PENDING',
+      qualityScore: c.quality,
+    }));
+  });
+}
+
+function renderContentLibrary() {
+  savePoolState();
+  renderContentLibraryStart();
+}
+
+function itemStatusMatches(index, filterStatus) {
+  var item = contentLibrary[index];
+  if (!item) return false;
+  if (!filterStatus) return true;
+  if (filterStatus === '') return true;
+  if (filterStatus === 'DRAFT') return item.status === 'PENDING' || item.status === 'APPROVE';
+  if (filterStatus === 'REVIEW') return item.status === 'PENDING' || item.status === 'REJECT';
+  if (filterStatus === 'FINALIZED') return item.status === 'APPROVE' || item.status === 'EXPORTED';
+  if (filterStatus === 'EXPORTED') return item.status === 'EXPORTED';
+  return item.status === filterStatus;
+}
+
+function renderPublishQueue() {
+  savePoolState();
+  var list = document.getElementById('publish-queue');
+  if (!list) return;
+  if (!publishQueue.length) {
+    list.innerHTML = '<li class="muted">ยังไม่มีรายการในคิว</li>';
+    return;
+  }
+  list.innerHTML = publishQueue.map(function(item, i) {
+    return '<li class="queue-item">' +
+      '<span class="queue-index">' + (i + 1) + '</span>' +
+      '<span class="queue-title">' + item.name + '</span>' +
+      '<span class="muted small">' + (item.exportNotes || '') + '</span>' +
+    '</li>';
+  }).join('');
+}
+
+// ----- Dashboard -----
+
+function renderDashboard() {
+  if (dom.totalSales) dom.totalSales.textContent = dashboardData.totalSales.toLocaleString('th-TH');
+  if (dom.totalClicks) dom.totalClicks.textContent = dashboardData.totalClicks.toLocaleString('th-TH');
+  if (dom.totalCommission) dom.totalCommission.textContent = dashboardData.totalCommission.toLocaleString('th-TH') + ' THB';
+  drawTrendChart();
+}
+
+function drawTrendChart() {
+  var canvas = dom.trendCanvas;
+  if (!canvas || !canvas.getContext) return;
+  var ctx = canvas.getContext('2d');
+  if (!ctx) return;
+
+  var width = canvas.width;
+  var height = canvas.height;
+  var points = candidatePool.slice(0, 8);
+  ctx.clearRect(0, 0, width, height);
+
+  if (!points.length) return;
+
+  var maxClicks = Math.max.apply(null, points.map(function(c) { return c.clicks || 0; })) || 1;
+  var maxSales = Math.max.apply(null, points.map(function(c) { return c.estimatedSale || 0; })) || 1;
+  var slot = width / points.length;
+  var barWidth = Math.max(6, slot * 0.24);
+  var base = height - 18;
+
+  points.forEach(function(c, i) {
+    var x = i * slot + slot / 2;
+    var clicksH = ((c.clicks || 0) / maxClicks) * (base - 12);
+    var salesH = ((c.estimatedSale || 0) / maxSales) * (base - 12);
+
+    ctx.fillStyle = '#414a7d';
+    ctx.fillRect(x - barWidth - 2, base - clicksH, barWidth, clicksH);
+
+    ctx.fillStyle = '#1e5f49';
+    ctx.fillRect(x + 2, base - salesH, barWidth, salesH);
+
+    ctx.fillStyle = '#6b7a71';
+    ctx.font = '9px ui-monospace, monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText(c.platform || '', x, height - 4);
+  });
+}
+
+function refreshDashboard() {
+  dashboardData.totalSales = candidatePool.reduce(function(sum, c) { return sum + (c.estimatedSale || 0); }, 0);
+  dashboardData.totalClicks = candidatePool.reduce(function(sum, c) { return sum + (c.clicks || 0); }, 0);
+  dashboardData.totalCommission = candidatePool.reduce(function(sum, c) { return sum + (c.commission || 0); }, 0);
+  renderDashboard();
+  showToast('รีเฟรช Dashboard เรียบร้อย', 'info');
+}
+
+function importCSVHandler() {
+  var input = document.createElement('input');
+  input.type = 'file';
+  input.accept = '.csv,text/csv';
+
+  input.addEventListener('change', function() {
+    var file = input.files && input.files[0];
+    if (!file) return;
+
+    var reader = new FileReader();
+    reader.onload = function() {
+      var rows = String(reader.result).split(/\r?\n/).filter(function(row) { return row.trim() !== ''; });
+      var totalSales = 0;
+      var totalClicks = 0;
+      var totalCommission = 0;
+      var parsed = 0;
+
+      rows.forEach(function(row, index) {
+        var nums = row.split(',').map(function(cell) {
+          return parseFloat(String(cell).replace(/[^0-9.-]/g, ''));
+        }).filter(function(n) { return !isNaN(n); });
+
+        if (index === 0 && nums.length < 3) return; // header row
+        if (nums.length >= 3) {
+          totalSales += nums[0];
+          totalClicks += nums[1];
+          totalCommission += nums[2];
+          parsed++;
+        }
+      });
+
+      if (!parsed) {
+        showToast('ไม่พบข้อมูลตัวเลขในไฟล์ CSV', 'warning');
+        return;
+      }
+
+      dashboardData.totalSales = totalSales;
+      dashboardData.totalClicks = totalClicks;
+      dashboardData.totalCommission = totalCommission;
+      renderDashboard();
+      showToast('นำเข้า CSV ' + parsed + ' แถวเรียบร้อย', 'success');
+    };
+
+    reader.readAsText(file);
+  });
+
+  input.click();
+}
+
+// ----- Stage Management -----
+
+const STAGE_SECTIONS = [
+  'detail-quickstart',
+  'detail-library',
+  'detail-schedule',
+  'research-layout',
+  'snap-workflow',
+  'actor-studio',
+  'content-library',
+  'library-sync',
+  'dashboard-area',
+  'candidate-hero',
+  'affiliate-panel',
+  'detail-content-tabs',
+  'plan-stage',
+  'storyboard-stage',
+  'production-stage'
+];
+
+// some ids appear more than once in the markup, so toggle every match
+function eachSection(id, fn) {
+  document.querySelectorAll('[id="' + id + '"]').forEach(fn);
+}
+
+function hideAllSections() {
+  STAGE_SECTIONS.forEach(function(id) {
+    eachSection(id, function(el) { el.classList.add('hidden'); });
+  });
+  document.querySelectorAll('.mvp-source-library').forEach(function(el) {
+    el.classList.add('hidden');
+  });
+}
+
+function showSections(ids, showSources) {
+  ids.forEach(function(id) {
+    eachSection(id, function(el) { el.classList.remove('hidden'); });
+  });
+  document.querySelectorAll('.mvp-source-library').forEach(function(el) {
+    el.classList.toggle('hidden', !showSources);
+  });
+}
+
+const stageMap = {
+  research: {
+    name: 'Research',
+    activate: function() {
+      hideAllSections();
+      // quick start + market research panel (holds the add-source buttons) + Source Library
+      showSections(['detail-quickstart', 'candidate-hero', 'affiliate-panel', 'detail-content-tabs', 'research-layout'], true);
+      renderSourceLibrary();
+      showToast('เข้าสู่โหมด Research — สร้าง Candidate Pool ใหม่', 'info');
+    }
+  },
+  plan: {
+    name: 'Plan',
+    activate: function() {
+      hideAllSections();
+      showSections(['plan-stage'], false);
+      renderPlanStage();
+      showToast('เข้าสู่โหมด Plan — กำหนดแผนและเลือกนักแสดง', 'info');
+    }
+  },
+  storyboard: {
+    name: 'Storyboard',
+    activate: function() {
+      hideAllSections();
+      showSections(['storyboard-stage'], false);
+      renderStoryboardStage();
+      showToast('เข้าสู่โหมด Storyboard — breakdown จาก Plan', 'info');
+    }
+  },
+  production: {
+    name: 'Production',
+    activate: function() {
+      hideAllSections();
+      showSections(['production-stage'], false);
+      renderProductionStage();
+      showToast('เข้าสู่โหมด Production — ต่อจาก Storyboard', 'info');
+    }
+  },
+  finalize: {
+    name: 'Finalize',
+    activate: function() {
+      hideAllSections();
+      showSections(['detail-library'], false);
+      seedContentLibraryFromPool();
+      renderContentLibrary();
+      showToast('เข้าสู่โหมด Finalize — ตรวจคุณภาพและอนุมัติงานก่อนเผยแพร่', 'info');
+    }
+  },
+  dashboard: {
+    name: 'Dashboard',
+    activate: function() {
+      hideAllSections();
+      showSections(['dashboard-area'], false);
+      refreshDashboard();
+      showToast('เข้าสู่โหมด Dashboard - วิเคราะห์ผลการทำงาน', 'info');
+    }
+  },
+  report: {
+    name: 'Report',
+    activate: function() {
+      hideAllSections();
+      showSections(['dashboard-area'], false);
+      refreshDashboard();
+      showToast('เข้าสู่โหมด Report — สรุปรายงาน', 'info');
+    }
+  },
+  schedule: {
+    name: 'Schedule',
+    activate: function() {
+      hideAllSections();
+      showSections(['detail-schedule', 'detail-library'], false);
+      seedContentLibraryFromPool();
+      renderContentLibrary();
+      showToast('เข้าสู่โหมด Schedule - แผนการโพสต์และลำดับ', 'info');
+    }
+  }
+};
+
+function switchStage(stageKey) {
+  document.querySelectorAll('.footer-nav-btn').forEach(function(btn) {
+    var isActive = btn.dataset.stage === stageKey;
+    btn.classList.toggle('active', isActive);
+    btn.setAttribute('aria-pressed', isActive ? 'true' : 'false');
+  });
+
+  document.body.dataset.stage = stageKey;
+
+  if (stageMap[stageKey]) {
+    stageMap[stageKey].activate();
+  }
+
+  updateStudioStage(stageKey);
+}
+
+function initStage() {
+  // default to the Research stage so the Source Library is visible on load
+  switchStage('research');
+}
+
+function attachLibraryHandlers() {
+  // Approve row
+  document.querySelectorAll('.approve-row').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      var index = parseInt(this.dataset.index, 10);
+      if (index >= 0 && index < contentLibrary.length) {
+        contentLibrary[index].status = 'APPROVE';
+        renderContentLibrary();
+        showToast('อนุมัติรายการสำเร็จ', 'success');
+      }
+    });
+  });
+
+  // Reject row
+  document.querySelectorAll('.reject-row').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      var index = parseInt(this.dataset.index, 10);
+      if (index >= 0 && index < contentLibrary.length) {
+        contentLibrary[index].status = 'REJECT';
+        renderContentLibrary();
+        showToast('ปฏิเสธรายการสำเร็จ', 'error');
+      }
+    });
+  });
+
+  // Set as Active Lineage
+  document.querySelectorAll('.set-active-row').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      var index = parseInt(this.dataset.index, 10);
+      if (index >= 0 && index < contentLibrary.length) {
+        // Check if item is APPROVE status
+        if (contentLibrary[index].status !== 'APPROVE') {
+          showToast('รายการต้องผ่านการอนุมัติ (อนุมัติ) ก่อนจึงจะส่งไป Publish Queue ได้', 'warning');
+          return;
+        }
+        
+        // Call the new setActiveLineage function which has mandatory notes prompt
+        // We need to trigger it manually since it's a standalone function
+        var selected = [contentLibrary[index]];
+        
+        // Prompt for notes before exporting (MANDATORY - no auto-publish)
+        var notes = prompt('กรุณาใส่หมายเหตุสำหรับการส่งออก (จำเป็น):', '');
+        if (notes === null) {
+          // User cancelled - do not proceed with publishing
+          showToast('การส่งออกถูกยกเลิก', 'info');
+          return;
+        }
+        
+        // Add notes to the item and send to publish queue
+        contentLibrary[index].status = 'EXPORTED';
+        contentLibrary[index].exportNotes = notes;
+        publishQueue.push(contentLibrary[index]);
+        renderContentLibrary();
+        renderPublishQueue();
+        showToast('ส่ง 1 รายการไป Publish Queue เรียบร้อย (หมายเหตุ: ' + notes + ')', 'success');
+      }
+    });
+  });
+
+  // Row checkbox toggle
+  document.querySelectorAll('.row-checkbox').forEach(function(cb) {
+    cb.addEventListener('change', function(e) {
+      var index = parseInt(cb.closest('tr').dataset.index, 10);
+      if (index >= 0 && index < contentLibrary.length) {
+        contentLibrary[index].selected = cb.checked;
+        updateLibraryCount();
+      }
+    });
+  });
+}
+
+// ----- Studio shell (UX Behavior Guide) -----
+
+const STUDIO_STAGES = ['research', 'plan', 'storyboard', 'production', 'finalize', 'schedule', 'dashboard', 'report'];
+let selectedCandidateId = null;
+
+function currentCandidate() {
+  return candidatePool.find(function(c) { return c.id === selectedCandidateId; }) || null;
+}
+
+function starsFor(rating) {
+  var value = Math.round(Number(rating) || 0);
+  var stars = '';
+  for (var i = 1; i <= 5; i++) stars += i <= value ? '★' : '☆';
+  return stars;
+}
+
+function renderCandidateHero() {
+  var c = currentCandidate();
+  var name = document.getElementById('hero-name');
+  var note = document.getElementById('hero-note');
+  var rating = document.getElementById('hero-rating');
+  var stars = document.getElementById('hero-stars');
+  var sold = document.getElementById('hero-sold');
+  var price = document.getElementById('hero-price');
+  var image = document.getElementById('hero-image');
+  if (!name) return;
+
+  if (!c) {
+    name.textContent = '— เลือกสินค้าจากรายการด้านซ้าย —';
+    if (note) note.textContent = 'กดการ์ดสินค้าเพื่อดูรายละเอียด แล้วส่งเข้า queue หรือสร้างคอนเทนต์';
+    if (rating) rating.textContent = '—';
+    if (stars) stars.textContent = '☆☆☆☆☆';
+    if (sold) sold.textContent = '—';
+    if (price) price.textContent = '฿—';
+    if (image) { image.hidden = true; image.removeAttribute('src'); }
+    renderCandidateTabs(null);
+    renderAffiliatePanel();
+    return;
+  }
+
+  name.textContent = c.name;
+  if (note) {
+    note.textContent = [c.shopName, c.category, c.evidence].filter(Boolean).join(' · ') || 'สินค้าจาก Shopee';
+  }
+  if (rating) rating.textContent = c.rating ? c.rating + ' / 5' : 'ยังไม่มีคะแนน';
+  if (stars) stars.textContent = starsFor(c.rating);
+  if (sold) sold.textContent = c.sold || '—';
+  if (price) price.textContent = c.price ? '฿' + Number(c.price).toLocaleString('th-TH', { minimumFractionDigits: 2 }) : '฿—';
+  if (image) {
+    if (c.image) { image.src = c.image; image.hidden = false; }
+    else { image.removeAttribute('src'); image.hidden = true; }
+  }
+  renderCandidateTabs(c);
+  renderAffiliatePanel();
+}
+
+function renderCandidateTabs(c) {
+  var presentation = document.getElementById('tab-presentation');
+  var reason = document.getElementById('tab-reason');
+  var opportunity = document.getElementById('tab-opportunity');
+  if (!presentation || !reason || !opportunity) return;
+
+  if (!c) {
+    presentation.innerHTML = '<li>เลือกสินค้าเพื่อดูแนวทางการนำเสนอ</li>';
+    reason.innerHTML = '<li>เหตุผลจากราคา ค่าคอมมิชชัน และคะแนนร้านจะแสดงที่นี่</li>';
+    opportunity.innerHTML = '<li>โอกาสและมุมคอนเทนต์จะแสดงที่นี่</li>';
+    return;
+  }
+
+  var commission = Number(c.commission) || 0;
+  var price = Number(c.price) || 0;
+  var rate = price > 0 ? Math.round((commission / price) * 1000) / 10 : 0;
+  var priceText = price > 0 ? '฿' + price.toLocaleString('th-TH') : '—';
+
+  presentation.innerHTML = [
+    '<li><b>Hook:</b> เปิดด้วยปัญหาที่สินค้าแก้ได้ แล้วโชว์ราคา ฿' + price.toLocaleString('th-TH') + ' ให้เห็นชัดใน 3 วินาทีแรก</li>',
+    '<li><b>Action:</b> สาธิตการใช้งานจริง 1 ฉาก พร้อมซูมจุดขาย' + (c.shopName ? ' ของร้าน ' + c.shopName : '') + '</li>',
+    '<li><b>Payoff:</b> สรุปคะแนน ' + (c.rating ? c.rating + '/5' : '—') + ' และยอดขาย ' + (c.sold || '—') + '</li>',
+    '<li><b>CTA:</b> ปิดด้วยลิงก์ตะกร้า + เตือนให้ตรวจสอบราคาก่อนซื้อ</li>'
+  ].join('');
+
+  reason.innerHTML = [
+    '<li>ราคา ฿' + price.toLocaleString('th-TH') + ' อยู่ในช่วงที่คนตัดสินใจซื้อเร็ว</li>',
+    '<li>ค่าคอมมิชชัน ฿' + commission.toLocaleString('th-TH') + (rate ? ' (~' + rate + '% ของราคา)' : '') + '</li>',
+    '<li>สถานะความน่าสนใจ: <b>' + (c.quality || '—') + '</b></li>',
+    '<li>คะแนนร้าน ' + (c.rating || '—') + ' และยอดขาย ' + (c.sold || '—') + '</li>'
+  ].join('');
+
+  opportunity.innerHTML = [
+    '<li>ทำคอนเทนต์ได้หลายมุม: รีวิวสั้น, เปรียบเทียบ, แก้ปัญหาใช้งานจริง</li>',
+    '<li>ถ้าค่าคอมสูงกว่า ฿100 ควรจัดเป็นสินค้าเรือธงของสัปดาห์</li>',
+    '<li>ใช้ภาพ Snap เป็นหลักฐานประกอบ และเก็บลิงก์ affiliate ไว้ใน Source Library</li>'
+  ].join('');
+}
+
+function renderStudioMeta() {
+  var high = candidatePool.filter(function(c) { return c.quality === 'High'; }).length;
+  var medium = candidatePool.filter(function(c) { return c.quality === 'Medium'; }).length;
+  var low = candidatePool.filter(function(c) { return c.quality !== 'High' && c.quality !== 'Medium'; }).length;
+  var total = candidatePool.length || 1;
+
+  var donut = document.getElementById('quality-donut');
+  if (donut) {
+    var a = (high / total) * 100;
+    var b = a + (medium / total) * 100;
+    donut.style.background = 'conic-gradient(var(--green) 0 ' + a + '%, var(--amber) ' + a + '% ' + b + '%, var(--red) ' + b + '% 100%)';
+  }
+
+  var set = function(id, value) { var el = document.getElementById(id); if (el) el.textContent = value; };
+  set('donut-high', high);
+  set('donut-medium', medium);
+  set('donut-low', low);
+  set('pool-count', candidatePool.length + ' รายการ');
+  set('queue-count', String(publishQueue.length + contentLibrary.length));
+  set('profile-meta', sourceItems.length + ' source · ' + candidatePool.length + ' candidate');
+
+  renderScheduleQueue();
+}
+
+function renderScheduleQueue() {
+  var host = document.getElementById('schedule-queue');
+  if (!host) return;
+  if (!candidatePool.length) {
+    host.innerHTML = '<p class="muted small">ยังไม่มีสินค้าในคิว</p>';
+    return;
+  }
+  host.innerHTML = candidatePool.slice(0, 5).map(function(c, i) {
+    return '<div class="queue-item-mini" data-id="' + c.id + '">' +
+      (c.image ? '<img src="' + c.image + '" alt="">' : '<img alt="" src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI0MCIgaGVpZ2h0PSI0MCI+PHJlY3Qgd2lkdGg9IjQwIiBoZWlnaHQ9IjQwIiBmaWxsPSIjMTQxMDJhIi8+PC9zdmc+">') +
+      '<div><p class="queue-mini-title">' + c.name + '</p>' +
+      '<p class="queue-mini-meta">#' + (i + 1) + ' · ' + (c.sold || 'ยังไม่มียอดขาย') + ' · ' + (c.quality || '—') + '</p></div>' +
+      '<span class="queue-mini-price">' + (Number(c.price) > 0 ? '฿' + Number(c.price).toLocaleString('th-TH') : '—') + '</span>' +
+      '</div>';
+  }).join('');
+}
+
+function selectCandidate(id) {
+  selectedCandidateId = id;
+  document.querySelectorAll('.candidate-card').forEach(function(card) {
+    card.classList.toggle('is-selected', Number(card.dataset.id) === id);
+  });
+  renderCandidateHero();
+}
+
+function updateStudioStage(stageKey) {
+  var index = STUDIO_STAGES.indexOf(stageKey);
+  if (index === -1) index = 0;
+
+  var track = document.getElementById('stage-track');
+  if (track) {
+    Array.prototype.forEach.call(track.children, function(seg, i) {
+      seg.classList.toggle('is-on', i <= index);
+    });
+  }
+  var counter = document.getElementById('stage-counter');
+  if (counter) counter.textContent = (index + 1) + ' of ' + STUDIO_STAGES.length;
+
+  document.querySelectorAll('.rail-btn').forEach(function(btn) {
+    btn.classList.toggle('is-active', btn.dataset.stage === stageKey);
+  });
+}
+
+function studioGoStage(delta) {
+  var current = 0;
+  document.querySelectorAll('.footer-nav-btn').forEach(function(btn) {
+    if (btn.classList.contains('active')) current = STUDIO_STAGES.indexOf(btn.dataset.stage);
+  });
+  if (current < 0) current = 0;
+  var next = Math.min(STUDIO_STAGES.length - 1, Math.max(0, current + delta));
+  switchStage(STUDIO_STAGES[next]);
+}
+
+function bindStudioShell() {
+  document.querySelectorAll('.studio-tab').forEach(function(tab) {
+    tab.addEventListener('click', function() {
+      document.querySelectorAll('.studio-tab').forEach(function(t) { t.classList.remove('is-active'); });
+      document.querySelectorAll('.studio-tab-panel').forEach(function(p) { p.classList.remove('is-active'); });
+      tab.classList.add('is-active');
+      var panel = document.querySelector('.studio-tab-panel[data-panel="' + tab.dataset.tab + '"]');
+      if (panel) panel.classList.add('is-active');
+    });
+  });
+
+  document.querySelectorAll('.queue-tabs button').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      document.querySelectorAll('.queue-tabs button').forEach(function(b) { b.classList.remove('is-active'); });
+      btn.classList.add('is-active');
+      renderScheduleQueue();
+    });
+  });
+
+  document.querySelectorAll('.rail-btn[data-stage]').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      switchStage(btn.dataset.stage);
+    });
+  });
+
+  var prev = document.getElementById('stage-prev');
+  var next = document.getElementById('stage-next');
+  if (prev) prev.addEventListener('click', function() { studioGoStage(-1); });
+  if (next) next.addEventListener('click', function() { studioGoStage(1); });
+
+  var send = document.getElementById('hero-send');
+  if (send) {
+    send.addEventListener('click', function() {
+      var c = currentCandidate();
+      if (!c) { showToast('เลือกสินค้าก่อนส่งเข้า queue', 'warning'); return; }
+      moveCandidateToLibrary(c);
+      renderStudioMeta();
+    });
+  }
+
+  var draft = document.getElementById('hero-draft');
+  if (draft) {
+    draft.addEventListener('click', function() {
+      var c = currentCandidate();
+      if (!c) { showToast('เลือกสินค้าก่อนสร้าง Content', 'warning'); return; }
+      openContentDraft(c.id);
+    });
+  }
+
+  var search = document.getElementById('studio-search');
+  if (search) {
+    search.addEventListener('input', function() {
+      poolFilter = search.value.trim();
+      poolVisibleCount = 20;
+      renderCandidatePool();
+    });
+  }
+}
+
+// ----- Product Offer import (Shopee Affiliate = only data source) -----
+
+let importedOffers = [];
+let poolFilter = '';
+let poolVisibleCount = 20;
+
+const PUBLISH_CHANNELS = [
+  { id: 'shopee_video', label: 'Shopee Video', note: 'ค่าเริ่มต้น' },
+  { id: 'youtube', label: 'YouTube' },
+  { id: 'tiktok', label: 'TikTok', note: 'มีใน Shopee Affiliate แล้ว' },
+  { id: 'x', label: 'X (Twitter)' },
+  { id: 'facebook', label: 'Facebook' },
+];
+
+function setOffersStatus(message, kind) {
+  const el = document.getElementById('offers-status');
+  if (!el) return;
+  el.textContent = message;
+  el.dataset.kind = kind || 'info';
+}
+
+function offerQuality(commission) {
+  const value = Number(commission) || 0;
+  if (value >= 100) return 'High';
+  if (value >= 40) return 'Medium';
+  return 'Low';
+}
+
+function nextCandidateId() {
+  return candidatePool.reduce(function(max, c) { return Math.max(max, Number(c.id) || 0); }, 0) + 1;
+}
+
+function normalizeOffer(offer) {
+  const price = Number(offer.price) || 0;
+  const rate = Number(offer.commission_rate) || 0;
+  const commission = Number(offer.commission_amount);
+  return {
+    name: String(offer.name || '').trim(),
+    price: price,
+    sold: offer.sold || null,
+    commission_rate: rate || null,
+    commission: Number.isFinite(commission) && commission > 0 ? commission : Math.round(price * rate) / 100,
+    link: offer.link || '',
+    shopName: offer.shopName || null,
+    shopId: offer.shopId || null,
+    itemId: offer.itemId || null,
+    itemCode: offer.itemCode || null,
+    stock: offer.stock || null,
+  };
+}
+
+function renderOffersPreview() {
+  const host = document.getElementById('offers-preview');
+  if (!host) return;
+
+  if (!importedOffers.length) {
+    host.classList.add('hidden');
+    host.innerHTML = '';
+    return;
+  }
+
+  host.classList.remove('hidden');
+  const rows = importedOffers.map(function(offer, index) {
+    return '<label class="offer-row" data-index="' + index + '">' +
+      '<input type="checkbox" checked>' +
+      '<span><span class="offer-row-name">' + escapeHtml(offer.name) + '</span>' +
+      '<span class="offer-row-meta">' + (offer.sold || 'ไม่ทราบยอดขาย') +
+      (offer.link ? ' · มีลิงก์' : '') + '</span></span>' +
+      '<span class="offer-row-price">' + (offer.price ? '฿' + offer.price.toLocaleString('th-TH') : '—') +
+      '<span class="offer-row-rate">' + (offer.commission_rate ? offer.commission_rate + '% · ฿' + offer.commission.toLocaleString('th-TH', { maximumFractionDigits: 2 }) : 'ค่าคอม —') + '</span></span>' +
+      '</label>';
+  }).join('');
+
+  host.innerHTML = rows +
+    '<div class="offers-preview-actions">' +
+    '<button type="button" class="btn btn-sm btn-ghost" id="offers-select-all">เลือกทั้งหมด / ไม่เลือก</button>' +
+    '<button type="button" class="btn btn-sm btn-primary" id="offers-add">เพิ่ม ' + importedOffers.length + ' รายการเข้าคลัง</button>' +
+    '</div>';
+
+  const selectAll = document.getElementById('offers-select-all');
+  if (selectAll) {
+    selectAll.addEventListener('click', function() {
+      const boxes = host.querySelectorAll('.offer-row input');
+      const makeChecked = Array.prototype.some.call(boxes, function(b) { return !b.checked; });
+      boxes.forEach(function(b) { b.checked = makeChecked; });
+    });
+  }
+
+  const add = document.getElementById('offers-add');
+  if (add) add.addEventListener('click', addImportedOffers);
+}
+
+function escapeHtml(value) {
+  return String(value == null ? '' : value).replace(/[&<>"']/g, function(ch) {
+    return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch];
+  });
+}
+
+function addImportedOffers() {
+  const host = document.getElementById('offers-preview');
+  if (!host) return;
+
+  let added = 0;
+  let skipped = 0;
+
+  host.querySelectorAll('.offer-row').forEach(function(row) {
+    const box = row.querySelector('input');
+    if (!box || !box.checked) return;
+    const offer = importedOffers[Number(row.dataset.index)];
+    if (!offer || !offer.name) return;
+
+    const duplicate = candidatePool.some(function(c) {
+      if (offer.shopId && offer.itemId && String(c.shopId) === String(offer.shopId) && String(c.itemId) === String(offer.itemId)) return true;
+      return c.name === offer.name && Number(c.price) === Number(offer.price);
+    });
+    if (duplicate) { skipped += 1; return; }
+
+    candidatePool.push({
+      id: nextCandidateId(),
+      name: offer.name,
+      platform: 'Shopee',
+      price: offer.price,
+      commission: offer.commission,
+      commissionRate: offer.commission_rate,
+      rating: null,
+      sold: offer.sold,
+      shopName: offer.shopName || null,
+      shopId: offer.shopId || null,
+      itemId: offer.itemId || null,
+      affiliateLink: offer.link || '',
+      subIds: { 1: '', 2: '', 3: '', 4: '', 5: '' },
+      channels: ['shopee_video'],
+      quality: offerQuality(offer.commission),
+      status: 'DRAFT',
+      views: 0,
+      clicks: 0,
+      estimatedSale: 0,
+      evidence: 'Shopee Affiliate · ข้อเสนอ ผลิตภัณฑ์' + (offer.commission_rate ? ' (' + offer.commission_rate + '% ค่าคอม)' : ''),
+    });
+    added += 1;
+  });
+
+  renderCandidatePool();
+  if (typeof seedSourceLibraryFromPool === 'function') seedSourceLibraryFromPool();
+  if (typeof renderSourceLibrary === 'function') renderSourceLibrary();
+  renderStudioMeta();
+
+  showToast(
+    added
+      ? 'เพิ่ม ' + added + ' สินค้าเข้าคลังแล้ว' + (skipped ? ' (ข้ามซ้ำ ' + skipped + ')' : '')
+      : 'ยังไม่มีสินค้าที่เลือก หรือมีอยู่ในคลังแล้ว',
+    added ? 'success' : 'warning'
+  );
+}
+
+async function fetchOffersWithAI() {
+  const input = document.getElementById('offers-text');
+  const button = document.getElementById('offers-ai');
+  if (!input || !button) return;
+
+  const raw = input.value.trim();
+  if (!raw) {
+    setOffersStatus('วางข้อความจากหน้า “ข้อเสนอ ผลิตภัณฑ์” ก่อนครับ', 'warning');
+    input.focus();
+    return;
+  }
+
+  button.disabled = true;
+  setOffersStatus('AI กำลังอ่านรายการ… (อาจใช้เวลา 5–15 วินาที)', 'info');
+
+  try {
+    let attempts = 0;
+    let list = [];
+    while (attempts < 2 && list.length === 0) {
+      attempts += 1;
+      if (attempts > 1) setOffersStatus('AI ลองอ่านใหม่… (ครั้งที่ ' + attempts + ')', 'info');
+      const response = await fetch('/api/mvp/snap/offers', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text: raw }),
+      });
+      const data = await response.json();
+      list = (data && Array.isArray(data.offers) ? data.offers : []).map(normalizeOffer).filter(function(o) { return o.name; });
+    }
+
+    importedOffers = list;
+    renderOffersPreview();
+
+    if (importedOffers.length) {
+      setOffersStatus('AI อ่านได้ ' + importedOffers.length + ' รายการ — ตรวจรายการแล้วกด “เพิ่มเข้าคลัง”', 'success');
+    } else {
+      setOffersStatus('AI ไม่พบสินค้าในข้อความนี้ — ลองกด “อ่านข้อเสนอทั้งหมด” แทน', 'error');
+    }
+  } catch (error) {
+    setOffersStatus('เชื่อมต่อเซิร์ฟเวอร์ไม่ได้: ' + error.message, 'error');
+  } finally {
+    button.disabled = false;
+  }
+}
+
+async function fetchOffersFromText() {
+  const input = document.getElementById('offers-text');
+  const button = document.getElementById('offers-fetch');
+  if (!input || !button) return;
+
+  const raw = input.value.trim();
+  if (!raw) {
+    setOffersStatus('วางข้อความจากหน้า “ข้อเสนอ ผลิตภัณฑ์” ก่อนครับ', 'warning');
+    input.focus();
+    return;
+  }
+
+  button.disabled = true;
+  setOffersStatus('กำลังอ่านรายการ…', 'info');
+
+  try {
+    let response = await fetch('/api/mvp/offers/parse', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ text: raw }),
+    });
+    let data = await response.json();
+
+    if (!data || !Array.isArray(data.offers) || data.offers.length === 0) {
+      setOffersStatus('รูปแบบข้อความไม่ตรง — ให้ AI ช่วยอ่านแทน…', 'info');
+      response = await fetch('/api/mvp/snap/offers', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text: raw }),
+      });
+      data = await response.json();
+    }
+
+    const list = data && Array.isArray(data.offers) ? data.offers : [];
+    importedOffers = list.map(normalizeOffer).filter(function(o) { return o.name; });
+    renderOffersPreview();
+
+    if (importedOffers.length) {
+      setOffersStatus('อ่านได้ ' + importedOffers.length + ' รายการ — ตรวจรายการแล้วกด “เพิ่มเข้าคลัง”', 'success');
+    } else {
+      setOffersStatus('ไม่พบสินค้าในข้อความนี้ ลองคัดลอกทั้งหน้าใหม่ (Ctrl+A แล้วคัดลอก)', 'error');
+    }
+  } catch (error) {
+    setOffersStatus('เชื่อมต่อเซิร์ฟเวอร์ไม่ได้: ' + error.message, 'error');
+  } finally {
+    button.disabled = false;
+  }
+}
+
+function bindOffersImport() {
+  const ruleButton = document.getElementById('offers-fetch');
+  if (ruleButton && ruleButton.dataset.bound !== '1') {
+    ruleButton.dataset.bound = '1';
+    ruleButton.addEventListener('click', fetchOffersFromText);
+  }
+
+  const aiButton = document.getElementById('offers-ai');
+  if (aiButton && aiButton.dataset.bound !== '1') {
+    aiButton.dataset.bound = '1';
+    aiButton.addEventListener('click', fetchOffersWithAI);
+  }
+
+  const csvButton = document.getElementById('offers-csv');
+  const csvInput = document.getElementById('offers-csv-file');
+  if (csvButton && csvInput && csvButton.dataset.bound !== '1') {
+    csvButton.dataset.bound = '1';
+    csvButton.addEventListener('click', function() { csvInput.click(); });
+    csvInput.addEventListener('change', function() {
+      const file = csvInput.files && csvInput.files[0];
+      handleOffersCsvFile(file);
+      csvInput.value = '';
+    });
+  }
+}
+
+// ----- CSV/TSV import from the Shopee Affiliate Offers export -----
+//
+// The Offers catalogue exports selected rows as a CSV/TSV with this header
+// (Thai names, either delimiter):
+//   รหัสสินค้า, ชื่อสินค้า, ราคา, ขาย, ชื่อร้านค้า, อัตราค่าคอมมิชชั่น,
+//   คอมมิชชั่น, สินค้าคงคลัง, ลิงก์สินค้า, ลิงก์ข้อเสนอ
+// Every field the card needs is present except the product image — the image
+// is filled later via Capture or the card's click-to-add-URL placeholder.
+
+const OFFERS_CSV_COLUMNS = {
+  itemCode: ['รหัสสินค้า', 'item_id', 'itemid'],
+  name: ['ชื่อสินค้า', 'item_name'],
+  price: ['ราคา', 'price'],
+  sold: ['ขาย', 'sold'],
+  shopName: ['ชื่อร้านค้า', 'ร้านค้า', 'shop_name'],
+  commissionRate: ['อัตราค่าคอมมิชชั่น', 'อัตราค่าคอมมิชชัน', 'commission_rate'],
+  commission: ['คอมมิชชั่น', 'ค่าคอมมิชชั่น', 'commission'],
+  stock: ['สินค้าคงคลัง', 'คงคลัง', 'stock'],
+  productUrl: ['ลิงก์สินค้า', 'product_url'],
+  offerLink: ['ลิงก์ข้อเสนอ', 'offer_link'],
+};
+
+const OFFERS_CSV_FALLBACK_ORDER = ['itemCode', 'name', 'price', 'sold', 'shopName', 'commissionRate', 'commission', 'stock', 'productUrl', 'offerLink'];
+
+function detectDelimiter(firstLine) {
+  const tabs = (firstLine.match(/\t/g) || []).length;
+  const commas = (firstLine.match(/,/g) || []).length;
+  return tabs > commas ? '\t' : ',';
+}
+
+function parseDelimited(text, delimiter) {
+  const input = String(text || '').replace(/^\uFEFF/, '');
+  const rows = [];
+  let row = [];
+  let field = '';
+  let inQuotes = false;
+  for (let i = 0; i < input.length; i++) {
+    const ch = input[i];
+    if (inQuotes) {
+      if (ch === '"') {
+        if (input[i + 1] === '"') { field += '"'; i += 1; }
+        else { inQuotes = false; }
+      } else { field += ch; }
+      continue;
+    }
+    if (ch === '"') { inQuotes = true; continue; }
+    if (ch === delimiter) { row.push(field); field = ''; continue; }
+    if (ch === '\n' || ch === '\r') {
+      if (ch === '\r' && input[i + 1] === '\n') i += 1;
+      row.push(field);
+      field = '';
+      if (row.some(function(cell) { return String(cell).trim() !== ''; })) rows.push(row);
+      row = [];
+      continue;
+    }
+    field += ch;
+  }
+  row.push(field);
+  if (row.some(function(cell) { return String(cell).trim() !== ''; })) rows.push(row);
+  return rows;
+}
+
+function offersCsvNumber(value) {
+  const text = String(value == null ? '' : value).replace(/[^0-9.]/g, '');
+  if (text === '') return null;
+  const n = Number(text);
+  return Number.isFinite(n) ? n : null;
+}
+
+function idsFromProductUrl(url) {
+  const m = String(url || '').match(/\/product\/(\d+)\/(\d+)/);
+  if (m) return { shopId: m[1], itemId: m[2] };
+  return { shopId: null, itemId: null };
+}
+
+function offersFromCsv(text) {
+  const probe = String(text || '').replace(/^\uFEFF/, '');
+  const firstLine = probe.split(/\r?\n/, 1)[0] || '';
+  const delimiter = detectDelimiter(firstLine);
+  const rows = parseDelimited(probe, delimiter);
+  if (rows.length < 1) return [];
+
+  let map = {};
+  const header = rows[0];
+  const used = {};
+  // Two passes: exact header match first, then containment — and a column may
+  // only be claimed once, so "อัตราค่าคอมมิชชั่น" cannot be mistaken for the
+  // "คอมมิชชั่น" (฿ amount) column.
+  Object.keys(OFFERS_CSV_COLUMNS).forEach(function(key) {
+    const names = OFFERS_CSV_COLUMNS[key];
+    for (let i = 0; i < header.length; i++) {
+      if (used[i]) continue;
+      const cell = String(header[i] || '').trim().toLowerCase();
+      if (names.some(function(n) { return cell === n.toLowerCase(); })) { map[key] = i; used[i] = true; return; }
+    }
+  });
+  Object.keys(OFFERS_CSV_COLUMNS).forEach(function(key) {
+    if (map[key] !== undefined) return;
+    const names = OFFERS_CSV_COLUMNS[key];
+    for (let i = 0; i < header.length; i++) {
+      if (used[i]) continue;
+      const cell = String(header[i] || '').trim().toLowerCase();
+      if (names.some(function(n) { return cell.indexOf(n.toLowerCase()) !== -1; })) { map[key] = i; used[i] = true; return; }
+    }
+  });
+
+  const hasHeader = header.some(function(cell) { return String(cell).indexOf('ชื่อสินค้า') !== -1; }) || Object.keys(map).length >= 5;
+  if (!hasHeader) {
+    map = {};
+    OFFERS_CSV_FALLBACK_ORDER.forEach(function(key, index) { map[key] = index; });
+  }
+
+  const out = [];
+  for (let r = hasHeader ? 1 : 0; r < rows.length; r++) {
+    const cells = rows[r];
+    const pick = function(key) {
+      const index = map[key];
+      return index === undefined || cells[index] === undefined ? '' : String(cells[index]).trim();
+    };
+    const name = pick('name');
+    if (!name) continue;
+    const price = offersCsvNumber(pick('price')) || 0;
+    const rate = offersCsvNumber(pick('commissionRate'));
+    const commission = offersCsvNumber(pick('commission'));
+    const ids = idsFromProductUrl(pick('productUrl'));
+    out.push({
+      name: name,
+      price: price,
+      sold: pick('sold') || null,
+      commission_rate: rate,
+      commission: commission !== null ? commission : Math.round(price * (rate || 0)) / 100,
+      link: pick('offerLink') || '',
+      shopName: pick('shopName') || null,
+      shopId: ids.shopId,
+      itemId: ids.itemId,
+      itemCode: pick('itemCode') || null,
+      stock: pick('stock') || null,
+    });
+  }
+  return out;
+}
+
+function handleOffersCsvFile(file) {
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = function() {
+    try {
+      const list = offersFromCsv(String(reader.result || ''));
+      if (!list.length) {
+        setOffersStatus('อ่านไฟล์ไม่ได้ — ใช้ไฟล์ที่ดาวน์โหลดจากหน้า Offers (CSV/TSV) และต้องมีหัวคอลัมน์ "ชื่อสินค้า"', 'error');
+        return;
+      }
+      importedOffers = list;
+      renderOffersPreview();
+      setOffersStatus('อ่านไฟล์ได้ ' + list.length + ' รายการ (ครบ: ราคา/ยอดขาย/ร้าน/ค่าคอม/ลิงก์) — ขาดเฉพาะรูป ตรวจรายการแล้วกด “เพิ่มเข้าคลัง”', 'success');
+    } catch (error) {
+      setOffersStatus('อ่านไฟล์ไม่สำเร็จ: ' + error.message, 'error');
+    }
+  };
+  reader.readAsText(file, 'utf-8');
+}
+
+// ----- Affiliate link + publish channels -----
+
+function currentChannelIds() {
+  const c = currentCandidate();
+  if (c && Array.isArray(c.channels) && c.channels.length) return c.channels;
+  return ['shopee_video'];
+}
+
+function ensureCandidateSettings(c) {
+  if (!c) return null;
+  if (!Array.isArray(c.channels) || !c.channels.length) c.channels = ['shopee_video'];
+  if (!c.subIds) c.subIds = { 1: '', 2: '', 3: '', 4: '', 5: '' };
+  return c;
+}
+
+function renderAffiliatePanel() {
+  const c = ensureCandidateSettings(currentCandidate());
+  const link = document.getElementById('aff-link');
+  const channels = document.getElementById('aff-channels');
+  const estimate = document.getElementById('aff-estimate');
+  if (!link || !channels) return;
+
+  link.value = c ? c.affiliateLink || '' : '';
+  const state = document.getElementById('hero-link-state');
+  if (state) state.textContent = c && c.affiliateLink ? 'มีลิงก์แล้ว' : 'ยังไม่มีลิงก์';
+
+  // Per-candidate Call-to-Action: edited here, injected into the AI draft prompt.
+  const ctaField = document.getElementById('aff-cta');
+  if (ctaField) {
+    if (document.activeElement !== ctaField) ctaField.value = c ? (c.cta || '') : '';
+    if (ctaField.dataset.bound !== '1') {
+      ctaField.dataset.bound = '1';
+      ctaField.addEventListener('input', function() {
+        const target = ensureCandidateSettings(currentCandidate());
+        if (target) target.cta = ctaField.value.trim();
+      });
+    }
+  }
+
+  link.placeholder = c
+    ? 'ยังไม่มีลิงก์ — กด “เอา ลิงก์” ใน Shopee Affiliate แล้ววางที่นี่'
+    : 'เลือกสินค้าก่อน';
+
+  channels.innerHTML = PUBLISH_CHANNELS.map(function(channel) {
+    const active = c ? c.channels.indexOf(channel.id) !== -1 : channel.id === 'shopee_video';
+    return '<button type="button" class="channel-chip' + (active ? ' is-on' : '') + '" data-channel="' + channel.id + '"' + (c ? '' : ' disabled') + '>' +
+      escapeHtml(channel.label) + (channel.note ? ' <small>' + channel.note + '</small>' : '') + '</button>';
+  }).join('');
+
+  channels.querySelectorAll('.channel-chip').forEach(function(chip) {
+    chip.addEventListener('click', function() {
+      const target = ensureCandidateSettings(currentCandidate());
+      if (!target) return;
+      const id = chip.dataset.channel;
+      if (target.channels.indexOf(id) === -1) target.channels.push(id);
+      else if (target.channels.length > 1) target.channels = target.channels.filter(function(x) { return x !== id; });
+      else { showToast('ต้องเหลืออย่างน้อย 1 ช่องทาง', 'warning'); return; }
+      renderAffiliatePanel();
+      renderCandidateHero();
+    });
+  });
+
+  if (estimate) {
+    if (!c) {
+      estimate.textContent = 'ค่าคอมมิชชันโดยประมาณจะแสดงตามอัตราของสินค้า';
+    } else {
+      const amount = Number(c.commission) || 0;
+      const labels = c.channels.map(function(id) {
+        const found = PUBLISH_CHANNELS.find(function(ch) { return ch.id === id; });
+        return (found ? found.label : id) + ' ฿' + amount.toLocaleString('th-TH', { maximumFractionDigits: 2 });
+      });
+      estimate.textContent = 'ค่าคอมโดยประมาณต่อช่องทาง: ' + labels.join(' · ') +
+        ' — อัตราเดียวกันทุกช่องทาง ตัวเลขจริงขึ้นกับ Shopee';
+    }
+  }
+}
+
+function applyAffiliateLink() {
+  const c = ensureCandidateSettings(currentCandidate());
+  if (!c) return;
+  const input = document.getElementById('aff-link');
+  c.affiliateLink = input ? input.value.trim() : c.affiliateLink;
+  const badge = document.getElementById('hero-link-state');
+  if (badge) badge.textContent = c.affiliateLink ? 'มีลิงก์แล้ว' : 'ยังไม่มีลิงก์';
+  renderStudioMeta();
+  showToast(c.affiliateLink ? 'บันทึกลิงก์ข้อเสนอแล้ว' : 'ล้างลิงก์แล้ว', 'success');
+}
+
+function buildAffiliateLink() {
+  const c = ensureCandidateSettings(currentCandidate());
+  if (!c) { showToast('เลือกสินค้าก่อน', 'warning'); return; }
+
+  const field = document.getElementById('aff-link');
+  const base = ((field && field.value) || c.affiliateLink || '').trim();
+  if (base) c.affiliateLink = base;
+  if (!base) { showToast('วางลิงก์ข้อเสนอสินค้าก่อนต่อ Sub_id', 'warning'); return; }
+
+  const parts = [];
+  for (let i = 1; i <= 5; i++) {
+    const field = document.getElementById('aff-subid-' + i);
+    c.subIds[i] = field ? field.value.trim() : c.subIds[i] || '';
+    if (c.subIds[i]) parts.push('sub_id' + (i === 1 ? '' : i) + '=' + encodeURIComponent(c.subIds[i]));
+  }
+
+  if (parts.length) {
+    const cleaned = base.split('#')[0];
+    const joined = cleaned + (cleaned.indexOf('?') === -1 ? '?' : '&') + parts.join('&');
+    c.affiliateLink = joined;
+    const input = document.getElementById('aff-link');
+    if (input) input.value = joined;
+  }
+
+  const channels = c.channels.map(function(id) {
+    const found = PUBLISH_CHANNELS.find(function(ch) { return ch.id === id; });
+    return found ? found.label : id;
+  });
+  showToast('ต่อ Sub_id แล้ว · จะเผยแพร่ที่ ' + channels.join(', '), 'success');
+  renderAffiliatePanel();
+}
+
+function bindAffiliatePanel() {
+  const toggle = document.getElementById('aff-advanced-toggle');
+  const panel = document.getElementById('aff-advanced');
+  if (toggle && panel && toggle.dataset.bound !== '1') {
+    toggle.dataset.bound = '1';
+    toggle.addEventListener('click', function() {
+      panel.classList.toggle('hidden');
+      toggle.classList.toggle('is-on');
+    });
+  }
+
+  const copy = document.getElementById('aff-copy');
+  if (copy && copy.dataset.bound !== '1') {
+    copy.dataset.bound = '1';
+    copy.addEventListener('click', function() {
+      const input = document.getElementById('aff-link');
+      const value = input ? input.value.trim() : '';
+      if (!value) { showToast('ยังไม่มีลิงก์ให้คัดลอก', 'warning'); return; }
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(value).then(function() {
+          showToast('คัดลอกลิงก์แล้ว', 'success');
+        }).catch(function() {
+          showToast('คัดลอกไม่สำเร็จ — คัดลอกด้วยมือได้เลย', 'warning');
+        });
+      } else {
+        input.select();
+        showToast('เลือกข้อความลิงก์แล้ว — กด Ctrl+C', 'info');
+      }
+    });
+  }
+
+  const build = document.getElementById('aff-build-link');
+  if (build && build.dataset.bound !== '1') {
+    build.dataset.bound = '1';
+    build.addEventListener('click', buildAffiliateLink);
+  }
+
+  const save = document.getElementById('aff-save-link');
+  if (save && save.dataset.bound !== '1') {
+    save.dataset.bound = '1';
+    save.addEventListener('click', applyAffiliateLink);
+  }
+}
+
+// ===========================================================
+// Actor Studio 1.0 — roster of generated AI actors, reusable
+// across content and connected into Production.
+// (2.0 จะแยกเป็นโมดูลต่างหาก)
+// ===========================================================
+
+const ACTOR_STORAGE_KEY = 'ace.actors.v1';
+const ACTOR_MAX_IMAGE = 900 * 1024;
+
+const ACTOR_ROLES = ['Presenter', 'Reviewer', 'Model', 'Character', 'Voice only'];
+const ACTOR_TYPES = [
+  { id: 'all', label: 'ทั้งหมด' },
+  { id: 'human', label: 'มนุษย์' },
+  { id: 'cartoon_2d', label: 'การ์ตูน 2D' },
+  { id: 'cartoon_3d', label: 'การ์ตูน 3D' },
+  { id: 'mascot', label: 'มาสคอต' },
+  { id: 'product', label: 'สินค้า / วัตถุ' },
+];
+let actorTypeFilter = 'all';
+const ACTOR_STATUSES = ['พร้อมใช้', 'ร่าง'];
+
+let actorRoster = [];
+let actorSelectedId = null;
+
+function loadActorRoster() {
+  try {
+    const raw = window.localStorage.getItem(ACTOR_STORAGE_KEY);
+    const parsed = raw ? JSON.parse(raw) : [];
+    actorRoster = Array.isArray(parsed) ? parsed : [];
+  } catch (error) {
+    actorRoster = [];
+  }
+  return actorRoster;
+}
+
+function saveActorRoster() {
+  try {
+    window.localStorage.setItem(ACTOR_STORAGE_KEY, JSON.stringify(actorRoster));
+    return true;
+  } catch (error) {
+    showToast('บันทึกไม่สำเร็จ — พื้นที่เก็บข้อมูลเต็ม (ลองใช้ URL รูปแทนการอัปโหลด)', 'error');
+    return false;
+  }
+}
+
+function nextActorId() {
+  return actorRoster.reduce(function(max, a) { return Math.max(max, Number(a.id) || 0); }, 0) + 1;
+}
+
+function actorById(id) {
+  return actorRoster.find(function(a) { return Number(a.id) === Number(id); }) || null;
+}
+
+function actorUsageCount(id) {
+  const fromPool = candidatePool.filter(function(c) { return Number(c.actorId) === Number(id); }).length;
+  const fromLibrary = contentLibrary.filter(function(i) { return Number(i.actorId) === Number(id); }).length;
+  return fromPool + fromLibrary;
+}
+
+function actorTypeLabel(id) {
+  const found = ACTOR_TYPES.find(function(t) { return t.id === id; });
+  return found ? found.label : 'มนุษย์';
+}
+
+function actorTags(actor) {
+  return String(actor.tags || '')
+    .split(',')
+    .map(function(tag) { return tag.trim(); })
+    .filter(Boolean);
+}
+
+function actorInitials(name) {
+  const parts = String(name || '?').trim().split(/\s+/).slice(0, 2);
+  return parts.map(function(part) { return part.charAt(0); }).join('').toUpperCase();
+}
+
+// ----- Overlay rendering -----
+
+function openActorStudio(actorId) {
+  const overlay = document.getElementById('actor-overlay');
+  if (!overlay) return;
+  overlay.classList.remove('hidden');
+  if (actorId) actorSelectedId = Number(actorId);
+  else if (!actorSelectedId && actorRoster.length) actorSelectedId = Number(actorRoster[0].id);
+  renderActorStudio();
+}
+
+function closeActorStudio() {
+  const overlay = document.getElementById('actor-overlay');
+  if (overlay) overlay.classList.add('hidden');
+}
+
+function renderActorStudio() {
+  const overlay = document.getElementById('actor-overlay');
+  if (!overlay || overlay.classList.contains('hidden')) return;
+
+  const search = document.getElementById('actor-search');
+  const term = search ? search.value.trim().toLowerCase() : '';
+  const list = document.getElementById('actor-list');
+  const count = document.getElementById('actor-count');
+
+  const typeHost = document.getElementById('actor-type-filter');
+  if (typeHost) {
+    typeHost.innerHTML = ACTOR_TYPES.map(function(type) {
+      const count = type.id === 'all'
+        ? actorRoster.length
+        : actorRoster.filter(function(a) { return (a.type || 'human') === type.id; }).length;
+      return '<button type="button" class="actor-type-chip' + (actorTypeFilter === type.id ? ' is-active' : '') + '" data-actor-type="' + type.id + '">' +
+        type.label + ' <span class="queue-count">' + count + '</span></button>';
+    }).join('');
+  }
+
+  const items = actorRoster.filter(function(actor) {
+    if (actorTypeFilter !== 'all' && (actor.type || 'human') !== actorTypeFilter) return false;
+    if (!term) return true;
+    const haystack = [actor.name, actor.role, actor.voice, actor.tags, actor.language, actorTypeLabel(actor.type)].join(' ').toLowerCase();
+    return haystack.indexOf(term) !== -1;
+  });
+
+  if (count) count.textContent = actorRoster.length + ' นักแสดง';
+
+  if (list) {
+    if (!items.length) {
+      list.innerHTML = '<p class="muted small">' +
+        (actorRoster.length ? 'ไม่พบนักแสดงที่ตรงกับคำค้น' : 'ยังไม่มีนักแสดง — กด “+ นักแสดงใหม่” เพื่อเริ่ม') + '</p>';
+    } else {
+      list.innerHTML = items.map(function(actor) {
+        const active = Number(actor.id) === Number(actorSelectedId);
+        const avatar = actor.image
+          ? '<img class="actor-avatar" src="' + actor.image + '" alt="">'
+          : '<span class="actor-avatar actor-avatar-text">' + escapeHtml(actorInitials(actor.name)) + '</span>';
+        return '<button type="button" class="actor-row' + (active ? ' is-active' : '') + '" data-actor="' + actor.id + '">' +
+          avatar +
+          '<span class="actor-row-body"><span class="actor-row-name">' + escapeHtml(actor.name) + '</span>' +
+          '<span class="actor-row-meta">' + escapeHtml(actorTypeLabel(actor.type)) + ' · ' + escapeHtml(actor.role || '—') + ' · ' + escapeHtml(actor.language || '—') + '</span>' +
+          '<span class="actor-row-tags">' + actorTags(actor).slice(0, 3).map(function(tag) {
+            return '<span class="actor-tag">' + escapeHtml(tag) + '</span>';
+          }).join('') + '</span></span>' +
+          '<span class="actor-row-use">' + actorUsageCount(actor.id) + ' งาน</span>' +
+          '</button>';
+      }).join('');
+    }
+  }
+
+  const actor = actorById(actorSelectedId);
+  const form = document.getElementById('actor-form');
+  if (form) form.classList.toggle('hidden', !actor);
+  const empty = document.getElementById('actor-empty');
+  if (empty) empty.classList.toggle('hidden', !!actor);
+  const preview = document.getElementById('actor-preview');
+  if (preview) {
+    preview.innerHTML = actor
+      ? (actor.image
+        ? '<img src="' + actor.image + '" alt="' + escapeHtml(actor.name) + '">'
+        : '<span class="actor-preview-initials">' + escapeHtml(actorInitials(actor.name)) + '</span>') +
+        '<div class="actor-preview-meta"><b>' + escapeHtml(actor.name) + '</b>' +
+        '<span>' + escapeHtml(actor.role || '—') + ' · ' + escapeHtml(actor.status || 'ร่าง') + '</span></div>'
+      : '';
+  }
+  const hint = document.getElementById('actor-used');
+  if (hint) hint.textContent = actor ? 'ใช้แล้ว ' + actorUsageCount(actor.id) + ' งาน' : '';
+
+  fillActorForm(actor);
+}
+
+function fillActorForm(actor) {
+  const set = function(id, value) {
+    const el = document.getElementById(id);
+    if (el) el.value = value == null ? '' : value;
+  };
+  if (!actor) return;
+  set('actor-name', actor.name);
+  set('actor-role', actor.role || ACTOR_ROLES[0]);
+  set('actor-type', actor.type || 'human');
+  set('actor-status', actor.status || ACTOR_STATUSES[0]);
+  set('actor-language', actor.language);
+  set('actor-voice', actor.voice);
+  set('actor-look', actor.look);
+  set('actor-wardrobe', actor.wardrobe);
+  set('actor-tags', actor.tags);
+  set('actor-image-url', /^https?:/i.test(actor.image || '') ? actor.image : '');
+  set('actor-notes', actor.notes);
+  const file = document.getElementById('actor-image-file');
+  if (file) file.value = '';
+}
+
+function readActorForm() {
+  const value = function(id) {
+    const el = document.getElementById(id);
+    return el ? el.value.trim() : '';
+  };
+  return {
+    name: value('actor-name'),
+    role: value('actor-role'),
+    type: value('actor-type'),
+    status: value('actor-status'),
+    language: value('actor-language'),
+    voice: value('actor-voice'),
+    look: value('actor-look'),
+    wardrobe: value('actor-wardrobe'),
+    tags: value('actor-tags'),
+    imageUrl: value('actor-image-url'),
+    notes: value('actor-notes'),
+    file: document.getElementById('actor-image-file'),
+  };
+}
+
+function saveActor() {
+  const data = readActorForm();
+  if (!data.name) { showToast('ใส่ชื่อนักแสดงก่อนบันทึก', 'warning'); return; }
+
+  let actor = actorById(actorSelectedId);
+  const isNew = !actor;
+  if (isNew) {
+    actor = { id: nextActorId(), createdAt: Date.now() };
+    actorRoster.push(actor);
+  }
+
+  actor.name = data.name;
+  actor.role = data.role;
+  actor.type = data.type || 'human';
+  actor.status = data.status;
+  actor.language = data.language;
+  actor.voice = data.voice;
+  actor.look = data.look;
+  actor.wardrobe = data.wardrobe;
+  actor.tags = data.tags;
+  actor.notes = data.notes;
+  actor.updatedAt = Date.now();
+
+  const applyImage = function(image) {
+    actor.image = image || '';
+    if (saveActorRoster()) {
+      renderActorStudio();
+      renderProductionActor();
+      showToast(isNew ? 'เพิ่มนักแสดงใหม่แล้ว' : 'บันทึกข้อมูลนักแสดงแล้ว', 'success');
+    }
+  };
+
+  const file = data.file && data.file.files && data.file.files[0];
+  if (file) {
+    if (file.size > ACTOR_MAX_IMAGE) {
+      showToast('รูปใหญ่เกิน 900KB — ลดขนาดหรือใช้ URL', 'warning');
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = function() { applyImage(String(reader.result || '')); };
+    reader.onerror = function() { showToast('อ่านไฟล์รูปไม่สำเร็จ', 'error'); };
+    reader.readAsDataURL(file);
+    return;
+  }
+
+  applyImage(data.imageUrl || (actor.image && !/^https?:/i.test(actor.image) ? actor.image : ''));
+}
+
+function newActor() {
+  actorSelectedId = null;
+  renderActorStudio();
+  const form = document.getElementById('actor-form');
+  if (form) form.classList.remove('hidden');
+  const empty = document.getElementById('actor-empty');
+  if (empty) empty.classList.add('hidden');
+  const preview = document.getElementById('actor-preview');
+  if (preview) preview.innerHTML = '<span class="actor-preview-initials">ใหม่</span>';
+  const set = function(id, value) { const el = document.getElementById(id); if (el) el.value = value; };
+  set('actor-name', '');
+  set('actor-role', ACTOR_ROLES[0]);
+  set('actor-type', 'human');
+  set('actor-status', ACTOR_STATUSES[1]);
+  set('actor-language', 'ไทย');
+  set('actor-voice', '');
+  set('actor-look', '');
+  set('actor-wardrobe', '');
+  set('actor-tags', '');
+  set('actor-image-url', '');
+  set('actor-notes', '');
+  const file = document.getElementById('actor-image-file');
+  if (file) file.value = '';
+  const nameField = document.getElementById('actor-name');
+  if (nameField) nameField.focus();
+}
+
+function duplicateActor() {
+  const actor = actorById(actorSelectedId);
+  if (!actor) { showToast('เลือกนักแสดงที่จะทำสำเนาก่อน', 'warning'); return; }
+  const copy = Object.assign({}, actor, {
+    id: nextActorId(),
+    name: actor.name + ' (สำเนา)',
+    createdAt: Date.now(),
+    updatedAt: Date.now(),
+  });
+  actorRoster.push(copy);
+  actorSelectedId = copy.id;
+  if (saveActorRoster()) {
+    renderActorStudio();
+    showToast('ทำสำเนานักแสดงแล้ว — แก้ชื่อ/รายละเอียดต่อได้เลย', 'success');
+  }
+}
+
+function deleteActor() {
+  const actor = actorById(actorSelectedId);
+  if (!actor) return;
+  if (!window.confirm('ลบ “' + actor.name + '” ออกจาก Actor Studio?')) return;
+  actorRoster = actorRoster.filter(function(a) { return Number(a.id) !== Number(actor.id); });
+  candidatePool.forEach(function(c) { if (Number(c.actorId) === Number(actor.id)) c.actorId = null; });
+  contentLibrary.forEach(function(i) { if (Number(i.actorId) === Number(actor.id)) i.actorId = null; });
+  actorSelectedId = actorRoster.length ? Number(actorRoster[0].id) : null;
+  if (saveActorRoster()) {
+    renderActorStudio();
+    renderProductionActor();
+    showToast('ลบนักแสดงแล้ว', 'info');
+  }
+}
+
+function useActorForCurrent() {
+  const actor = actorById(actorSelectedId);
+  const candidate = currentCandidate();
+  if (!actor) { showToast('เลือกนักแสดงก่อน', 'warning'); return; }
+  if (!candidate) { showToast('เลือกสินค้า/งานใน Production ก่อน', 'warning'); return; }
+
+  candidate.actorId = actor.id;
+  candidate.actorName = actor.name;
+  if (typeof ensurePlan === 'function' && candidate) {
+    var plan = ensurePlan(candidate);
+    if (plan) plan.actorId = actor.id;
+  }
+  contentLibrary.forEach(function(item) {
+    if (item.affiliateLink && item.affiliateLink === candidate.affiliateLink) {
+      item.actorId = actor.id;
+      item.actorName = actor.name;
+    }
+  });
+
+  renderProductionActor();
+  if (typeof renderPlanActor === 'function') renderPlanActor();
+  if (typeof renderPlanStage === 'function') renderPlanStage();
+  if (typeof renderStoryboardStage === 'function') renderStoryboardStage();
+  if (typeof renderProductionStage === 'function') renderProductionStage();
+  renderActorStudio();
+  showToast('ผูก “' + actor.name + '” กับงานนี้แล้ว', 'success');
+}
+
+// ----- Production connector -----
+
+function renderProductionActor() {
+  const host = document.getElementById('production-actor-body');
+  if (!host) return;
+
+  const candidate = currentCandidate();
+  const actor = candidate && candidate.actorId ? actorById(candidate.actorId) : null;
+
+  if (actor) {
+    const avatar = actor.image
+      ? '<img class="actor-avatar" src="' + actor.image + '" alt="">'
+      : '<span class="actor-avatar actor-avatar-text">' + escapeHtml(actorInitials(actor.name)) + '</span>';
+    host.innerHTML = '<div class="prod-actor">' + avatar +
+      '<div class="prod-actor-body"><p class="prod-actor-name">' + escapeHtml(actor.name) + '</p>' +
+      '<p class="muted small">' + escapeHtml(actor.role || '—') + ' · ' + escapeHtml(actor.voice || 'ยังไม่กำหนดเสียง') +
+      ' · ใช้แล้ว ' + actorUsageCount(actor.id) + ' งาน</p>' +
+      '<p class="muted small">' + (candidate ? 'งาน: ' + escapeHtml(candidate.name) : 'ยังไม่ได้เลือกงาน') + '</p></div>' +
+      '<button type="button" class="btn btn-sm btn-ghost" id="prod-actor-clear">ถอดออก</button></div>';
+    const clear = document.getElementById('prod-actor-clear');
+    if (clear) {
+      clear.addEventListener('click', function() {
+        if (candidate) { candidate.actorId = null; candidate.actorName = null; }
+        renderProductionActor();
+        showToast('ถอดนักแสดงออกจากงานนี้แล้ว', 'info');
+      });
+    }
+    return;
+  }
+
+  if (!actorRoster.length) {
+    host.innerHTML = '<p class="muted small">ยังไม่มีนักแสดงใน Actor Studio — สร้างนักแสดง AI ประจำบริษัทเพื่อใช้ซ้ำในทุกคอนเทนต์</p>';
+    return;
+  }
+
+  host.innerHTML = '<p class="muted small">เลือกนักแสดงสำหรับงานนี้' + (candidate ? ' (' + escapeHtml(candidate.name) + ')' : '') + '</p>' +
+    '<div class="prod-actor-picker">' +
+    '<select id="prod-actor-select" class="form-input">' +
+    actorRoster.map(function(a) { return '<option value="' + a.id + '">' + escapeHtml(a.name) + ' · ' + escapeHtml(a.role || '—') + '</option>'; }).join('') +
+    '</select>' +
+    '<button type="button" class="btn btn-sm btn-primary" id="prod-actor-assign">ใช้กับงานนี้</button>' +
+    '</div>';
+
+  const assign = document.getElementById('prod-actor-assign');
+  if (assign) {
+    assign.addEventListener('click', function() {
+      const select = document.getElementById('prod-actor-select');
+      actorSelectedId = select ? Number(select.value) : actorSelectedId;
+      useActorForCurrent();
+    });
+  }
+}
+
+// ----- Generate an actor with AI (called from Actor Studio / Plan) -----
+
+function setActorGenStatus(message, kind) {
+  const el = document.getElementById('actor-gen-status');
+  if (!el) return;
+  el.textContent = message;
+  el.dataset.kind = kind || 'info';
+}
+
+async function generateActorWithAI() {
+  const briefField = document.getElementById('actor-gen-brief');
+  const typeField = document.getElementById('actor-gen-type');
+  const countField = document.getElementById('actor-gen-count');
+  const run = document.getElementById('actor-gen-run');
+  if (!briefField || !run) return;
+
+  const brief = briefField.value.trim();
+  if (!brief) { setActorGenStatus('พิมพ์โจทย์ก่อน เช่น “พรีเซนเตอร์หญิงไทย รีวิวเครื่องครัว”', 'error'); briefField.focus(); return; }
+
+  run.disabled = true;
+  setActorGenStatus('กำลังสร้างนักแสดง… (อาจใช้เวลา 5–15 วินาที)', 'info');
+
+  try {
+    const response = await fetch('/api/mvp/actors/generate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        brief: brief,
+        type: typeField ? typeField.value : 'human',
+        count: countField ? Number(countField.value) : 1,
+      }),
+    });
+    const data = await response.json();
+
+    if (!data || !Array.isArray(data.actors) || !data.actors.length) {
+      setActorGenStatus('สร้างไม่สำเร็จ: ' + ((data && data.message) || 'ไม่ได้รับข้อมูลนักแสดง'), 'error');
+      return;
+    }
+
+    const added = [];
+    data.actors.forEach(function(persona) {
+      const actor = Object.assign({
+        id: nextActorId(),
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+        status: 'ร่าง',
+        image: '',
+      }, {
+        name: persona.name,
+        type: persona.type || 'human',
+        role: persona.role,
+        language: persona.language,
+        voice: persona.voice,
+        look: persona.look,
+        wardrobe: persona.wardrobe,
+        tags: persona.tags,
+        notes: persona.notes,
+      });
+      actorRoster.push(actor);
+      added.push(actor);
+    });
+
+    saveActorRoster();
+    actorSelectedId = added[0].id;
+    actorTypeFilter = 'all';
+    renderActorStudio();
+    renderPlanActor();
+    renderProductionActor();
+
+    setActorGenStatus('สร้างแล้ว ' + added.length + ' คน (สถานะร่าง) — ตรวจ/แก้รายละเอียดแล้วกด “ใช้กับงานนี้”', 'success');
+    showToast('AI สร้างนักแสดง ' + added.length + ' คนเข้าคลังแล้ว', 'success');
+  } catch (error) {
+    setActorGenStatus('เชื่อมต่อเซิร์ฟเวอร์ไม่ได้: ' + error.message, 'error');
+  } finally {
+    run.disabled = false;
+  }
+}
+
+function openActorGenerator() {
+  openActorStudio();
+  const panel = document.getElementById('actor-gen');
+  if (panel) panel.classList.remove('hidden');
+  const brief = document.getElementById('actor-gen-brief');
+  if (brief) brief.focus();
+}
+
+function bindActorStudio() {
+  loadActorRoster();
+
+  const open = document.getElementById('open-actor-studio');
+  if (open && open.dataset.bound !== '1') {
+    open.dataset.bound = '1';
+    open.addEventListener('click', function() { openActorStudio(); });
+  }
+
+  const legacy = document.getElementById('add-actor');
+  if (legacy && legacy.dataset.bound !== '1') {
+    legacy.dataset.bound = '1';
+    legacy.addEventListener('click', function(event) {
+      event.preventDefault();
+      openActorStudio();
+    });
+  }
+
+  const overlay = document.getElementById('actor-overlay');
+  if (overlay && overlay.dataset.bound !== '1') {
+    overlay.dataset.bound = '1';
+
+    overlay.addEventListener('click', function(event) {
+      const typeChip = event.target.closest('[data-actor-type]');
+      if (typeChip) { actorTypeFilter = typeChip.dataset.actorType; renderActorStudio(); return; }
+
+      const row = event.target.closest('[data-actor]');
+      if (row) { actorSelectedId = Number(row.dataset.actor); renderActorStudio(); return; }
+      if (event.target.closest('#actor-close')) { closeActorStudio(); return; }
+      if (event.target.closest('#actor-gen-toggle')) {
+        const panel = document.getElementById('actor-gen');
+        if (panel) panel.classList.toggle('hidden');
+        return;
+      }
+      if (event.target.closest('#actor-gen-run')) { generateActorWithAI(); return; }
+      if (event.target.closest('#actor-new')) { newActor(); return; }
+      if (event.target.closest('#actor-save')) { saveActor(); return; }
+      if (event.target.closest('#actor-duplicate')) { duplicateActor(); return; }
+      if (event.target.closest('#actor-delete')) { deleteActor(); return; }
+      if (event.target.closest('#actor-use')) { useActorForCurrent(); return; }
+      if (event.target === overlay) closeActorStudio();
+    });
+
+    const search = document.getElementById('actor-search');
+    if (search) search.addEventListener('input', renderActorStudio);
+
+    const urlField = document.getElementById('actor-image-url');
+    if (urlField) {
+      urlField.addEventListener('change', function() {
+        const actor = actorById(actorSelectedId);
+        const preview = document.getElementById('actor-preview');
+        if (preview && urlField.value.trim()) {
+          preview.innerHTML = '<img src="' + urlField.value.trim() + '" alt=""><div class="actor-preview-meta"><b>' +
+            escapeHtml((document.getElementById('actor-name') || {}).value || 'ตัวอย่าง') + '</b></div>';
+        } else if (preview && actor) {
+          renderActorStudio();
+        }
+      });
+    }
+  }
+
+  renderProductionActor();
+}
+
+// ===========================================================
+// Plan -> Storyboard breakdown -> Production
+// Plan เป็นที่กำหนด เรื่องย่อ/รูปแบบฉาก/แสง/องค์ประกอบ/นักแสดง
+// แล้วแยกย่อยเป็น shot list บน Storyboard ก่อนส่งเข้า Production
+// ===========================================================
+
+const PLAN_SHOT_FORMATS = ['Medium shot', 'Wide shot', 'Close-up', 'Top-down flat lay', 'Handheld POV'];
+const PLAN_LIGHTING = ['Soft daylight', 'Studio key + fill', 'Warm practical light', 'Neon accent', 'Ring light'];
+const PLAN_COMPOSITIONS = ['Center hero', 'Rule of thirds', 'Product in hand', 'Split screen', 'Text-safe left'];
+
+function sbPad(n) { return String(n).padStart(2, '0'); }
+
+function sbTimecode(seconds) {
+  const total = Math.max(0, Number(seconds) || 0);
+  const mm = Math.floor(total / 60);
+  const ss = Math.floor(total % 60);
+  const ff = Math.round((total % 1) * 30) % 30;
+  return sbPad(mm) + ':' + sbPad(ss) + ':' + sbPad(ff);
+}
+
+function defaultBeats() {
+  return [
+    { id: 'hook', start: 0, end: 3, label: 'Hook', action: 'เปิดด้วยปัญหาที่สินค้าแก้ + โชว์ราคา' },
+    { id: 'demo', start: 3, end: 10, label: 'Demo', action: 'สาธิตการใช้งานจริง 1 ฉาก' },
+    { id: 'proof', start: 10, end: 22, label: 'Proof', action: 'ซูมจุดขาย + คะแนน/ยอดขาย' },
+    { id: 'cta', start: 22, end: 30, label: 'CTA', action: 'ปิดด้วยลิงก์ตะกร้า + เตือนตรวจราคา' },
+  ];
+}
+
+function ensurePlan(candidate) {
+  if (!candidate) return null;
+  if (!candidate.plan) {
+    candidate.plan = {
+      synopsis: '',
+      contentType: 'live_action',
+      shotFormat: PLAN_SHOT_FORMATS[0],
+      lighting: PLAN_LIGHTING[1],
+      composition: PLAN_COMPOSITIONS[0],
+      actorId: candidate.actorId || null,
+      beats: defaultBeats(),
+      updatedAt: null,
+    };
+  }
+  if (!Array.isArray(candidate.plan.beats) || !candidate.plan.beats.length) {
+    candidate.plan.beats = defaultBeats();
+  }
+  if (!candidate.plan.contentType) candidate.plan.contentType = 'live_action';
+  if (!Array.isArray(candidate.storyboard)) candidate.storyboard = [];
+  return candidate.plan;
+}
+
+// ----- Plan stage -----
+
+function renderPlanStage() {
+  const panel = document.getElementById('plan-stage');
+  if (!panel) return;
+
+  const candidate = currentCandidate();
+  ensurePlan(candidate);
+
+  const work = document.getElementById('plan-work');
+  if (work) work.textContent = candidate ? candidate.name : 'ยังไม่เลือกงาน — เลือกสินค้าในหน้า Research ก่อน';
+
+  const form = document.getElementById('plan-form');
+  if (form) form.classList.toggle('hidden', !candidate);
+  const empty = document.getElementById('plan-empty');
+  if (empty) empty.classList.toggle('hidden', !!candidate);
+  if (!candidate) { renderPlanActor(); return; }
+
+  const plan = candidate.plan;
+  const set = function(id, value) { const el = document.getElementById(id); if (el) el.value = value == null ? '' : value; };
+  set('plan-synopsis', plan.synopsis);
+  set('plan-content-type', plan.contentType || 'live_action');
+  set('plan-shot', plan.shotFormat);
+  set('plan-lighting', plan.lighting);
+  set('plan-composition', plan.composition);
+
+  const beatHost = document.getElementById('plan-beats');
+  if (beatHost) {
+    beatHost.innerHTML = plan.beats.map(function(beat, index) {
+      return '<div class="plan-beat" data-beat="' + index + '">' +
+        '<div class="plan-beat-head"><span class="plan-beat-index">' + (index + 1) + '</span>' +
+        '<span class="plan-beat-label">' + escapeHtml(beat.label) + '</span>' +
+        '<span class="plan-beat-time">' + sbTimecode(beat.start) + ' → ' + sbTimecode(beat.end) + '</span></div>' +
+        '<input type="text" class="plan-beat-action" value="' + escapeHtml(beat.action || '') + '" placeholder="สิ่งที่เกิดขึ้นในช่วงนี้">' +
+        '<div class="plan-beat-times">' +
+        '<label>เริ่ม (วิ)<input type="number" min="0" step="1" class="plan-beat-start" value="' + beat.start + '"></label>' +
+        '<label>จบ (วิ)<input type="number" min="1" step="1" class="plan-beat-end" value="' + beat.end + '"></label>' +
+        '</div></div>';
+    }).join('');
+  }
+
+  renderPlanActor();
+}
+
+function renderPlanActor() {
+  const host = document.getElementById('plan-actor');
+  if (!host) return;
+
+  const candidate = currentCandidate();
+  const actor = candidate && candidate.plan && candidate.plan.actorId ? actorById(candidate.plan.actorId) : null;
+
+  if (!candidate) {
+    host.innerHTML = '<p class="muted small">เลือกงานก่อนจึงจะเลือกนักแสดงได้</p>';
+    return;
+  }
+
+  const optional = candidate.plan.contentType !== 'live_action';
+  const optionalNote = optional
+    ? ' <span class="plan-optional">(รูปแบบนี้ไม่จำเป็นต้องมีนักแสดง — ใช้ภาพนิ่ง/Motion Graphic ได้)</span>'
+    : '';
+
+  if (!actor) {
+    host.innerHTML = '<p class="muted small">ยังไม่ได้เลือกนักแสดง — เลือกจาก Actor Studio (มนุษย์ / การ์ตูน 2D-3D / มาสคอต) หรือไม่ใช้นักแสดงก็ได้' + optionalNote + '</p>' +
+      '<div class="plan-actor-actions"><button type="button" class="btn btn-sm btn-primary" id="plan-actor-pick">เลือกนักแสดง</button>' +
+      '<button type="button" class="btn btn-sm btn-outline" id="plan-actor-gen">✨ สร้างด้วย AI</button></div>';
+  } else {
+    const avatar = actor.image
+      ? '<img class="actor-avatar" src="' + actor.image + '" alt="">'
+      : '<span class="actor-avatar actor-avatar-text">' + escapeHtml(actorInitials(actor.name)) + '</span>';
+    host.innerHTML = '<div class="prod-actor">' + avatar +
+      '<div class="prod-actor-body"><p class="prod-actor-name">' + escapeHtml(actor.name) + '</p>' +
+      '<p class="muted small">' + escapeHtml(actorTypeLabel(actor.type)) + ' · ' + escapeHtml(actor.role || '—') + ' · ' + escapeHtml(actor.voice || 'ยังไม่กำหนดเสียง') + '</p></div>' +
+      '<button type="button" class="btn btn-sm btn-ghost" id="plan-actor-pick">เปลี่ยน</button>' +
+      '<button type="button" class="btn btn-sm btn-ghost" id="plan-actor-clear">ถอดออก</button></div>';
+  }
+
+  const pick = document.getElementById('plan-actor-pick');
+  if (pick) pick.addEventListener('click', function() { openActorStudio(candidate.plan.actorId || undefined); });
+
+  const gen = document.getElementById('plan-actor-gen');
+  if (gen) gen.addEventListener('click', function() { openActorGenerator(); });
+
+  const clear = document.getElementById('plan-actor-clear');
+  if (clear) {
+    clear.addEventListener('click', function() {
+      candidate.plan.actorId = null;
+      candidate.actorId = null;
+      candidate.actorName = null;
+      renderPlanActor();
+      showToast('ถอดนักแสดงออกจากแผนแล้ว', 'info');
+    });
+  }
+}
+
+function readPlanForm() {
+  const candidate = currentCandidate();
+  if (!candidate) return null;
+  const plan = ensurePlan(candidate);
+  const val = function(id) { const el = document.getElementById(id); return el ? el.value : ''; };
+
+  plan.synopsis = val('plan-synopsis').trim();
+  plan.contentType = val('plan-content-type') || 'live_action';
+  plan.shotFormat = val('plan-shot');
+  plan.lighting = val('plan-lighting');
+  plan.composition = val('plan-composition');
+
+  document.querySelectorAll('#plan-beats .plan-beat').forEach(function(row, index) {
+    const beat = plan.beats[index];
+    if (!beat) return;
+    const action = row.querySelector('.plan-beat-action');
+    const start = row.querySelector('.plan-beat-start');
+    const end = row.querySelector('.plan-beat-end');
+    if (action) beat.action = action.value.trim();
+    if (start) beat.start = Number(start.value) || 0;
+    if (end) beat.end = Number(end.value) || beat.start + 1;
+  });
+
+  plan.updatedAt = Date.now();
+  return plan;
+}
+
+function savePlan(quiet) {
+  const plan = readPlanForm();
+  if (!plan) return null;
+  if (!quiet) showToast('บันทึกแผนแล้ว', 'success');
+  renderStoryboardStage();
+  return plan;
+}
+
+// ----- Storyboard breakdown -----
+
+function generateBreakdown() {
+  const candidate = currentCandidate();
+  if (!candidate) { showToast('เลือกงานก่อนแยกย่อย', 'warning'); return; }
+  const plan = savePlan(true);
+
+  const shots = [];
+  plan.beats.forEach(function(beat, index) {
+    const duration = Math.max(1, beat.end - beat.start);
+    const split = beat.start + Math.round(duration * 0.6);
+    shots.push({
+      id: (index + 1) + 'a',
+      start: beat.start,
+      end: split,
+      shotFormat: plan.contentType === 'live_action' ? plan.shotFormat
+        : (plan.contentType === 'still' ? 'ภาพนิ่งสินค้า' : 'Motion graphic still'),
+      lighting: plan.lighting,
+      composition: plan.composition,
+      action: beat.action,
+      beat: beat.label,
+      actorRequired: plan.contentType === 'live_action' && !!plan.actorId,
+      contentType: plan.contentType,
+    });
+    shots.push({
+      id: (index + 1) + 'b',
+      start: split,
+      end: beat.end,
+      shotFormat: plan.contentType === 'live_action' ? 'Close-up' : (plan.contentType === 'still' ? 'ภาพนิ่งสินค้า' : 'Motion graphic still'),
+      lighting: plan.lighting,
+      composition: plan.composition === 'Center hero' ? 'Product in hand' : plan.composition,
+      action: beat.action,
+      beat: beat.label,
+      actorRequired: plan.contentType === 'live_action' && !!plan.actorId,
+      contentType: plan.contentType,
+    });
+  });
+
+  candidate.storyboard = shots;
+  renderStoryboardStage();
+  switchStage('storyboard');
+  showToast('แยกย่อยเป็น ' + shots.length + ' ช็อตบน Storyboard แล้ว', 'success');
+}
+
+function renderStoryboardStage() {
+  const panel = document.getElementById('storyboard-stage');
+  if (!panel) return;
+
+  const candidate = currentCandidate();
+  const host = document.getElementById('sb-list');
+  const head = document.getElementById('sb-work');
+  const count = document.getElementById('sb-count');
+  const actor = candidate && candidate.plan && candidate.plan.actorId ? actorById(candidate.plan.actorId) : null;
+
+  if (head) head.textContent = candidate ? candidate.name : 'ยังไม่เลือกงาน';
+  if (count) count.textContent = candidate && candidate.storyboard ? candidate.storyboard.length + ' ช็อต' : '';
+  if (!host) return;
+
+  if (!candidate) { host.innerHTML = '<p class="muted small">เลือกงานในหน้า Research ก่อน</p>'; return; }
+  if (!candidate.storyboard || !candidate.storyboard.length) {
+    host.innerHTML = '<p class="muted small">ยังไม่มี breakdown — กลับไปที่ Plan แล้วกด “แยกย่อยเป็น Breakdown”</p>';
+    return;
+  }
+
+  const typeLabel = { live_action: 'Live action', motion_graphic: 'Motion Graphic', still: 'ภาพนิ่ง' }[candidate.storyboard[0].contentType || 'live_action'];
+  host.innerHTML = '<div class="sb-actor">' +
+    'รูปแบบ: <b>' + escapeHtml(typeLabel) + '</b> · ' +
+    (actor ? 'นักแสดง: <b>' + escapeHtml(actor.name) + '</b> (' + escapeHtml(actorTypeLabel(actor.type)) + ')' : 'ไม่ใช้นักแสดง') +
+    ' · แสง: ' + escapeHtml(candidate.storyboard[0].lighting) + '</div>' +
+    candidate.storyboard.map(function(shot) {
+      return '<div class="sb-row">' +
+        '<span class="sb-time">' + sbTimecode(shot.start) + '<br>' + sbTimecode(shot.end) + '</span>' +
+        '<span class="sb-shot">' + escapeHtml(shot.shotFormat) + '</span>' +
+        '<span class="sb-meta">' + escapeHtml(shot.lighting) + '<br>' + escapeHtml(shot.composition) + '</span>' +
+        '<span class="sb-action">' + escapeHtml(shot.action || '—') + '<small>' + escapeHtml(shot.beat || '') + '</small></span>' +
+        '</div>';
+    }).join('');
+}
+
+// ----- Production summary (downstream of storyboard) -----
+
+function renderProductionStage() {
+  const host = document.getElementById('production-body');
+  if (!host) return;
+
+  const candidate = currentCandidate();
+  const plan = candidate ? ensurePlan(candidate) : null;
+  const actor = plan && plan.actorId ? actorById(plan.actorId) : null;
+  const shots = candidate && candidate.storyboard ? candidate.storyboard.length : 0;
+
+  if (!candidate) { host.innerHTML = '<p class="muted small">เลือกงานก่อน</p>'; return; }
+  if (!shots) {
+    host.innerHTML = '<p class="muted small">งานนี้ยังไม่มี storyboard — เริ่มจาก Plan แล้วแยกย่อยก่อน</p>';
+    return;
+  }
+
+  host.innerHTML = '<div class="prod-summary">' +
+    '<p><b>' + escapeHtml(candidate.name) + '</b></p>' +
+    '<p class="muted small">' + escapeHtml(plan.synopsis || 'ยังไม่มีเรื่องย่อ') + '</p>' +
+    '<ul class="prod-facts">' +
+    '<li>Storyboard: ' + shots + ' ช็อต</li>' +
+    '<li>แสง: ' + escapeHtml(plan.lighting) + ' · องค์ประกอบ: ' + escapeHtml(plan.composition) + '</li>' +
+    '<li>รูปแบบ: ' + escapeHtml({ live_action: 'Live action', motion_graphic: 'Motion Graphic', still: 'ภาพนิ่ง' }[plan.contentType || 'live_action']) + '</li>' +
+    '<li>นักแสดง: ' + (actor ? escapeHtml(actor.name) + ' (' + escapeHtml(actorTypeLabel(actor.type)) + ')' : 'ไม่ใช้นักแสดง') + '</li>' +
+    '</ul></div>' +
+    '<div class="prod-actions">' +
+    '<button type="button" class="btn btn-sm btn-outline" id="prod-open-plan">แก้ไข Plan</button>' +
+    '<button type="button" class="btn btn-sm btn-ghost" id="prod-open-sb">ดู Storyboard</button>' +
+    '</div>';
+
+  const toPlan = document.getElementById('prod-open-plan');
+  if (toPlan) toPlan.addEventListener('click', function() { switchStage('plan'); });
+  const toSb = document.getElementById('prod-open-sb');
+  if (toSb) toSb.addEventListener('click', function() { switchStage('storyboard'); });
+}
+
+function bindPlanStages() {
+  const save = document.getElementById('plan-save');
+  if (save && save.dataset.bound !== '1') {
+    save.dataset.bound = '1';
+    save.addEventListener('click', function() { savePlan(false); });
+  }
+
+  const breakdown = document.getElementById('plan-breakdown');
+  if (breakdown && breakdown.dataset.bound !== '1') {
+    breakdown.dataset.bound = '1';
+    breakdown.addEventListener('click', generateBreakdown);
+  }
+
+  const contentType = document.getElementById('plan-content-type');
+  if (contentType && contentType.dataset.bound !== '1') {
+    contentType.dataset.bound = '1';
+    contentType.addEventListener('change', function() {
+      const candidate = currentCandidate();
+      if (candidate && candidate.plan) candidate.plan.contentType = contentType.value;
+      renderPlanActor();
+    });
+  }
+
+  const synopsis = document.getElementById('plan-synopsis');
+  if (synopsis && synopsis.dataset.bound !== '1') {
+    synopsis.dataset.bound = '1';
+    synopsis.addEventListener('input', function() {
+      const candidate = currentCandidate();
+      if (candidate && candidate.plan) candidate.plan.synopsis = synopsis.value;
+    });
+  }
+}
+
+// ===========================================================
+// Capture bridge — reads the logged-in Shopee Affiliate Offer page
+// from the user's own browser (no Open API permission needed) and
+// hands the products to ACE through the page URL hash.
+// ===========================================================
+
+const CAPTURE_HASH_PREFIX = '#capture=';
+
+function captureBookmarkletSource() {
+  const script = [
+    '(function(){',
+    'var checked=document.querySelectorAll(\'input[type=checkbox]:checked\');',
+    'var cards=[].slice.call(document.querySelectorAll(\'div,li,article\')).filter(function(el){',
+    'var t=el.innerText||\'\';',
+    'return /\u0e04\u0e48\u0e32\u0e04\u0e2d\u0e21\u0e21\u0e34\u0e0a\u0e0a\u0e31\u0e19\\s*[\\d.]+\\s*%/.test(t)&&el.querySelector(\'img\');',
+    '});',
+    'cards=cards.filter(function(el){return !cards.some(function(o){return o!==el&&el.contains(o);});});',
+    'if(checked.length){cards=cards.filter(function(el){return el.querySelector(\'input[type=checkbox]:checked\');});}',
+    'var items=cards.map(function(el){',
+    'var t=el.innerText||\'\';',
+    'var lines=t.split(\'\\n\').map(function(x){return x.trim();}).filter(Boolean);',
+    'var pm=t.match(/[\u0e3f]\\s*([\\d,]+(?:\\.\\d{1,2})?)/);',
+    'var rm=t.match(/\u0e04\u0e48\u0e32\u0e04\u0e2d\u0e21\u0e21\u0e34\u0e0a\u0e0a\u0e31\u0e19\\s*([\\d.]+)\\s*%/);',
+    'var sm=t.match(/\u0e02\u0e32\u0e22\u0e44\u0e14\u0e49\\s*([^\\n]{1,20}?)\\s*\u0e0a\u0e34\u0e49\u0e19/);',
+    'var img=el.querySelector(\'img\');',
+    'var src=img?(img.currentSrc||img.src||\'\'):\'\';',
+    'var a=el.querySelector(\'a[href]\');',
+    'var name=lines.filter(function(l){return l.length>12&&!/^[\u0e3f\\d]/.test(l)&&!/\u0e04\u0e48\u0e32\u0e04\u0e2d\u0e21|\u0e02\u0e32\u0e22\u0e44\u0e14\u0e49|EXTRA/i.test(l);}).sort(function(x,y){return y.length-x.length;})[0]||\'\';',
+    'return {name:name,price:pm?Number(pm[1].replace(/,/g,\'\')):null,commission_rate:rm?Number(rm[1]):null,sold:sm?(sm[1]+\' \u0e0a\u0e34\u0e49\u0e19\'):null,image:src,link:a?a.href:\'\'};',
+    '}).filter(function(i){return i.name;});',
+    'if(!items.length){alert(\'ACE: \u0e44\u0e21\u0e48\u0e1e\u0e1a\u0e2a\u0e34\u0e19\u0e04\u0e49\u0e32\u0e1a\u0e19\u0e2b\u0e19\u0e49\u0e32\u0e19\u0e35\u0e49 \u2014 \u0e25\u0e2d\u0e07\u0e40\u0e25\u0e37\u0e48\u0e2d\u0e19\u0e2b\u0e19\u0e49\u0e32\u0e43\u0e2b\u0e49\u0e42\u0e2b\u0e25\u0e14\u0e2a\u0e34\u0e19\u0e04\u0e49\u0e32\u0e01\u0e48\u0e2d\u0e19\');return;}',
+    'var url=\'http://127.0.0.1:4173/mvp.html#capture=\'+encodeURIComponent(JSON.stringify({page:location.href,items:items}));',
+    'window.open(url,\'_blank\');',
+    '})();',
+  ].join('');
+  return 'javascript:' + encodeURIComponent(script);
+}
+
+function setCaptureStatus(message, kind) {
+  const el = document.getElementById('capture-status');
+  if (!el) return;
+  el.textContent = message;
+  el.dataset.kind = kind || 'info';
+}
+
+function normalizeCapturedItem(item) {
+  if (!item || typeof item !== 'object') return null;
+  const name = String(item.name || '').replace(/\s+/g, ' ').trim().slice(0, 200);
+  if (!name) return null;
+  const price = Number(item.price);
+  const rate = Number(item.commission_rate);
+  const commission = price > 0 && rate > 0 ? Math.round(price * rate) / 100 : null;
+  return {
+    name: name,
+    price: Number.isFinite(price) && price > 0 ? price : null,
+    sold: item.sold || null,
+    commission_rate: Number.isFinite(rate) && rate > 0 ? rate : null,
+    commission: commission,
+    image: typeof item.image === 'string' && item.image ? item.image : null,
+    link: typeof item.link === 'string' ? item.link : '',
+  };
+}
+
+function importCapturedItems(rawItems) {
+  const items = (Array.isArray(rawItems) ? rawItems : []).map(normalizeCapturedItem).filter(Boolean);
+  if (!items.length) return { added: 0, skipped: 0 };
+
+  let added = 0;
+  let skipped = 0;
+
+  items.forEach(function(item) {
+    const duplicate = candidatePool.some(function(c) {
+      return c.name === item.name && Number(c.price || 0) === Number(item.price || 0);
+    });
+    if (duplicate) { skipped += 1; return; }
+
+    candidatePool.push({
+      id: nextCandidateId(),
+      name: item.name,
+      platform: 'Shopee',
+      price: item.price || 0,
+      commission: item.commission || 0,
+      commissionRate: item.commission_rate || null,
+      rating: null,
+      sold: item.sold,
+      shopName: null,
+      image: item.image,
+      affiliateLink: '',
+      sourceUrl: item.link,
+      subIds: { 1: '', 2: '', 3: '', 4: '', 5: '' },
+      channels: ['shopee_video'],
+      quality: offerQuality(item.commission || 0),
+      status: 'DRAFT',
+      views: 0,
+      clicks: 0,
+      estimatedSale: 0,
+      evidence: 'Capture จาก Shopee Affiliate (เบราว์เซอร์)',
+    });
+    added += 1;
+  });
+
+  renderCandidatePool();
+  if (typeof seedSourceLibraryFromPool === 'function') seedSourceLibraryFromPool();
+  if (typeof renderSourceLibrary === 'function') renderSourceLibrary();
+  renderStudioMeta();
+  return { added: added, skipped: skipped };
+}
+
+function readCaptureHash() {
+  const hash = window.location.hash || '';
+  if (hash.indexOf(CAPTURE_HASH_PREFIX) !== 0) return null;
+  try {
+    const payload = JSON.parse(decodeURIComponent(hash.slice(CAPTURE_HASH_PREFIX.length)));
+    return payload && Array.isArray(payload.items) ? payload : null;
+  } catch (error) {
+    return null;
+  }
+}
+
+function consumeCaptureHash() {
+  const payload = readCaptureHash();
+  if (!payload) return false;
+
+  const result = importCapturedItems(payload.items);
+  try {
+    history.replaceState(null, '', window.location.pathname + window.location.search);
+  } catch (error) {
+    /* hash clearing is best effort */
+  }
+
+  switchStage('research');
+  showToast(
+    'Capture สำเร็จ: เพิ่ม ' + result.added + ' สินค้า' + (result.skipped ? ' (ข้ามซ้ำ ' + result.skipped + ')' : ''),
+    result.added ? 'success' : 'warning'
+  );
+  setCaptureStatus('รับข้อมูลจากเบราว์เซอร์แล้ว ' + result.added + ' รายการ', 'success');
+  return true;
+}
+
+function connectCaptureBridge() {
+  const toggle = document.getElementById('capture-toggle');
+  const panel = document.getElementById('capture-panel');
+  const link = document.getElementById('capture-bookmarklet');
+  const copy = document.getElementById('capture-copy');
+  const source = captureBookmarkletSource();
+
+  if (link) link.setAttribute('href', source);
+
+  if (toggle && toggle.dataset.bound !== '1') {
+    toggle.dataset.bound = '1';
+    toggle.addEventListener('click', function() {
+      if (panel) panel.classList.toggle('hidden');
+      if (copy) copy.classList.toggle('hidden', !panel || panel.classList.contains('hidden'));
+    });
+  }
+
+  if (copy && copy.dataset.bound !== '1') {
+    copy.dataset.bound = '1';
+    copy.addEventListener('click', function() {
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(source).then(function() {
+          setCaptureStatus('คัดลอกโค้ดแล้ว — สร้างบุ๊กมาร์กใหม่แล้ววางโค้ดนี้', 'success');
+        }).catch(function() {
+          setCaptureStatus('คัดลอกไม่สำเร็จ — ลากปุ่มไปที่แถบบุ๊กมาร์กแทน', 'error');
+        });
+      } else {
+        setCaptureStatus('เบราว์เซอร์นี้ไม่ให้คัดลอกอัตโนมัติ — ลากปุ่มไปที่แถบบุ๊กมาร์กแทน', 'warning');
+      }
+    });
+  }
+
+  if (window.__captureHashBound !== '1') {
+    window.__captureHashBound = '1';
+    window.addEventListener('hashchange', function() { consumeCaptureHash(); });
+  }
+
+  consumeCaptureHash();
+}
+
+// ----- Boot -----
+
+function boot() {
+  initDomElements();
+  attachEventListeners();
+
+  document.querySelectorAll('.footer-nav-btn').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      switchStage(btn.dataset.stage);
+    });
+  });
+
+  loadFixtures();
+  refreshAiStatus();
+  seedSourceLibraryFromPool();
+  bindStudioShell();
+  bindActorStudio();
+  bindPlanStages();
+  bindOffersImport();
+  bindSourceLibraryRemove();
+  connectCaptureBridge();
+  bindAffiliatePanel();
+  renderPublishQueue();
+  initStage();
+}
+
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', boot);
+} else {
+  boot();
+}

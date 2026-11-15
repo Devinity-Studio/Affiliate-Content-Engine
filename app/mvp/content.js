@@ -28,7 +28,7 @@ const path = require('node:path');
 
 const thaiQa = require('./thai-qa');
 const renderer = require('../remotion/render');
-const providerModule = require('./provider/openrouter');
+const providerModule = require('./provider/gateway');
 const provenance = require('./provider/provenance');
 
 const STATUSES = ['DRAFT', 'REVIEW', 'FINALIZED', 'EXPORTED', 'READY_TO_PUBLISH'];
@@ -1588,6 +1588,7 @@ async function createScriptDraftWithProvider(input = {}) {
     projectInput,
     traceId,
     model,
+    provider,
     timeoutMs,
     maxOutputTokens,
     fetchImpl,
@@ -1608,6 +1609,7 @@ async function createScriptDraftWithProvider(input = {}) {
   const result = await providerModule.generateScriptDraft({
     prompt,
     model,
+    provider,
     timeoutMs,
     maxOutputTokens,
     fetchImpl,

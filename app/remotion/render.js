@@ -222,7 +222,10 @@ function buildFilterGraph(scenes, assFile, fontDir) {
   chains.push(`${segmentLabels}concat=n=${chains.length}:v=1:a=0[vcat]`);
   chains.push(`[vcat]${assFilter}[vout]`);
 
-  return { inputs, filter: chains.join(';'), audioSegments };
+  // `index` is the true ffmpeg input ordinal (one per scene visual + one per
+  // narration file) — the inputs array above holds multiple ARGUMENT elements
+  // per input, so its .length is NOT the input count.
+  return { inputs, filter: chains.join(';'), audioSegments, inputCount: index };
 }
 
 /**
@@ -244,7 +247,7 @@ function remainingLength(audioSegments) {
   return audioSegments.reduce((sum, segment) => sum + Math.max(0.5, Number(segment.duration) || 3), 0);
 }
 
-function buildAudioGraph(audioSegments) {
+function buildAudioGraph(audioSegments, baseInputIndex) {
   const inputs = [];
   const hasAudio = audioSegments.some((segment) => segment.inputIndex !== null);
 
@@ -253,7 +256,9 @@ function buildAudioGraph(audioSegments) {
     return { inputs, filter: null, hasAudio: false };
   }
 
-  const bedInputIndex = inputs.length;
+  // The silent bed is appended AFTER every video/image/narration input, so its
+  // ffmpeg index is the caller's input count (see renderVideo).
+  const bedInputIndex = baseInputIndex;
   inputs.push('-f', 'lavfi', '-t', String(remainingLength(audioSegments)), '-i', 'anullsrc=channel_layout=stereo:sample_rate=48000');
 
   const chains = [];
@@ -263,11 +268,12 @@ function buildAudioGraph(audioSegments) {
 
   // One asplit call carves the shared silent bed into one stream per silent
   // scene; each copy is trimmed to that scene's duration in the loop below.
+  // Positional argument form: the repo-local ffmpeg 4.1.5 rejects `n=`.
   if (silentScenes.length === 1) {
     chains.push(`[${bedInputIndex}:a]aformat=sample_fmts=fltp:channel_layouts=stereo[s0]`);
   } else if (silentScenes.length > 1) {
     const outputs = silentScenes.map((_, i) => `[s${i}]`).join('');
-    chains.push(`[${bedInputIndex}:a]aformat=sample_fmts=fltp:channel_layouts=stereo,asplit=n=${silentScenes.length}${outputs}`);
+    chains.push(`[${bedInputIndex}:a]aformat=sample_fmts=fltp:channel_layouts=stereo,asplit=${silentScenes.length}${outputs}`);
   }
 
   const segmentLabels = audioSegments.map((_, scene) => `[a${scene}]`);
@@ -352,7 +358,7 @@ function renderVideo(options) {
   );
 
   const graph = buildFilterGraph(resolvedScenes, assFile, fontSearchDir(font));
-  const audioGraph = buildAudioGraph(graph.audioSegments);
+  const audioGraph = buildAudioGraph(graph.audioSegments, graph.inputCount);
 
   const filterScript = path.join(workDir, 'filter.txt');
   fs.writeFileSync(filterScript, [graph.filter, audioGraph.filter].filter(Boolean).join(';'), 'utf8');

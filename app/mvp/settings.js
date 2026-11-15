@@ -15,6 +15,7 @@
  */
 
 const provider = require('./provider/openrouter');
+const gateway = require('./provider/gateway');
 const aiEnv = require('./env');
 
 const MIN_KEY_LENGTH = 20;
@@ -22,12 +23,29 @@ const MAX_KEY_LENGTH = 256;
 const MAX_MODEL_LENGTH = 120;
 const MODEL_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._:@/-]*$/;
 
+const PROVIDER_KEYS = gateway.PROVIDER_NAMES;
+
 const override = {
-  api_key: null,
-  model: null,
+  // Runtime key/model overrides are per provider, so both credentials can be
+  // bound at once and the active provider switches without rebinding.
+  api_keys: { openrouter: null, orcarouter: null, gemini: null },
+  models: { openrouter: null, orcarouter: null, gemini: null },
+  provider: null,
   live_drafting: false,
   updated_at: null,
 };
+
+/**
+ * The provider every AI step uses when the caller does not name one:
+ * runtime override first, then ACE_LLM_PROVIDER from the environment (.env),
+ * then the gateway default (openrouter).
+ */
+function activeProvider(env = process.env) {
+  const fromEnv = env && typeof env.ACE_LLM_PROVIDER === 'string' && env.ACE_LLM_PROVIDER.trim() !== ''
+    ? env.ACE_LLM_PROVIDER.trim()
+    : null;
+  return gateway.resolveProviderName(override.provider || fromEnv);
+}
 
 function nowIso() {
   return new Date().toISOString();
@@ -71,39 +89,68 @@ function validateModel(value) {
 /** The environment the provider should see right now. */
 function effectiveEnv(baseEnv = process.env) {
   const env = { ...(baseEnv || {}) };
-  if (override.api_key) env[provider.KEY_VAR] = override.api_key;
-  if (override.model) env[provider.MODEL_VAR] = override.model;
+  for (const name of PROVIDER_KEYS) {
+    const impl = gateway.PROVIDERS[name];
+    if (override.api_keys[name]) env[impl.KEY_VAR] = override.api_keys[name];
+    if (override.models[name]) env[impl.MODEL_VAR] = override.models[name];
+  }
   if (override.live_drafting) env[provider.LIVE_INTERLOCK_VAR || 'ACE_LLM_LIVE_ENABLED'] = '1';
   return env;
 }
 
-function keyPresent(env = process.env) {
-  return Boolean(clean((env || {})[provider.KEY_VAR]));
+function providerKeyPresent(name, env = process.env) {
+  const impl = gateway.PROVIDERS[name];
+  return Boolean(override.api_keys[name] || impl.readApiKey(env).present);
 }
 
 /** Where the credential currently in force came from. */
-function keySource(env = process.env) {
-  if (override.api_key) return 'runtime';
-  return keyPresent(env) ? aiEnv.sourceOf(provider.KEY_VAR, env) : 'missing';
+function providerKeySource(name, env = process.env) {
+  const impl = gateway.PROVIDERS[name];
+  if (override.api_keys[name]) return 'runtime';
+  return impl.readApiKey(env).present ? aiEnv.sourceOf(impl.KEY_VAR, env) : 'missing';
 }
 
-function modelSource(env = process.env) {
-  if (override.model) return 'runtime';
-  const fromEnv = clean((env || {})[provider.MODEL_VAR]);
-  return fromEnv ? 'env' : 'default';
+function providerModel(name, env = process.env) {
+  const impl = gateway.PROVIDERS[name];
+  return override.models[name] || impl.resolveModel(undefined, env);
 }
 
 function describe(env = process.env) {
   const effective = effectiveEnv(env);
-  const { key } = provider.readApiKey(effective);
+  const active = activeProvider(env);
+  const activeImpl = gateway.PROVIDERS[active];
+  const providers = {};
+  for (const name of PROVIDER_KEYS) {
+    const impl = gateway.PROVIDERS[name];
+    const { present } = impl.readApiKey(effective);
+    const keyStr = override.api_keys[name] || impl.readApiKey(effective).key;
+    providers[name] = {
+      provider: impl.PROVIDER,
+      configured: present,
+      key_present: present,
+      key_source: providerKeySource(name, effective),
+      key_hint: present ? maskKey(keyStr) : null,
+      key_var: impl.KEY_VAR,
+      model: providerModel(name, effective),
+      model_source: override.models[name] ? 'runtime' : (impl.resolveModel(undefined, effective) === impl.DEFAULT_MODEL ? 'default' : 'env'),
+      default_model: impl.DEFAULT_MODEL,
+      endpoint: impl.ENDPOINT || (impl.ENDPOINT_BASE ? impl.ENDPOINT_BASE + '{model}:generateContent' : null),
+    };
+  }
+  const activeKeyStr = override.api_keys[active] || activeImpl.readApiKey(effective).key;
   return {
-    key_present: Boolean(key),
-    key_source: keySource(env),
-    key_hint: maskKey(override.api_key || key),
-    key_var: provider.KEY_VAR,
-    model: provider.resolveModel(undefined, effective),
-    model_source: modelSource(env),
-    model_var: provider.MODEL_VAR,
+    provider: active,
+    provider_source: override.provider ? 'runtime' : (env && typeof env.ACE_LLM_PROVIDER === 'string' && env.ACE_LLM_PROVIDER.trim() !== '' ? 'env' : 'default'),
+    providers,
+    // Legacy single-provider fields describe the ACTIVE provider so the
+    // existing Settings UI keeps working unchanged.
+    key_present: Boolean(activeKeyStr),
+    key_source: providerKeySource(active, effective),
+    key_hint: activeKeyStr ? maskKey(activeKeyStr) : null,
+    key_var: activeImpl.KEY_VAR,
+    model: providers[active].model,
+    model_source: providers[active].model_source,
+    model_var: activeImpl.MODEL_VAR,
     live_drafting: override.live_drafting,
     interlock: provider.isLiveEnabled(effective),
     updated_at: override.updated_at,
@@ -120,24 +167,39 @@ function apply(payload = {}) {
   const body = payload && typeof payload === 'object' ? payload : {};
   let changed = false;
   if (body.reset === true) {
-    override.api_key = null;
-    override.model = null;
+    for (const name of PROVIDER_KEYS) {
+      override.api_keys[name] = null;
+      override.models[name] = null;
+    }
+    override.provider = null;
     override.live_drafting = false;
     override.updated_at = nowIso();
     return describe();
   }
+  // The provider named in the same payload is the binding target for key and
+  // model changes, so one Save switches provider AND binds its key together.
+  let target = activeProvider();
+  if (body.provider !== undefined && body.provider !== null && clean(body.provider) !== '') {
+    const resolved = gateway.resolveProviderName(body.provider);
+    if (!resolved) throw httpError(400, 'provider must be one of ' + PROVIDER_KEYS.join(', '));
+    target = resolved;
+    if (override.provider !== resolved) {
+      override.provider = resolved;
+      changed = true;
+    }
+  }
   if (body.clear_key === true) {
-    override.api_key = null;
+    override.api_keys[target] = null;
     changed = true;
   } else if (body.api_key !== undefined && body.api_key !== null && clean(body.api_key) !== '') {
-    override.api_key = validateKey(body.api_key);
+    override.api_keys[target] = validateKey(body.api_key);
     changed = true;
   }
   if (body.clear_model === true) {
-    override.model = null;
+    override.models[target] = null;
     changed = true;
   } else if (body.model !== undefined && body.model !== null && clean(body.model) !== '') {
-    override.model = validateModel(body.model);
+    override.models[target] = validateModel(body.model);
     changed = true;
   }
   if (body.live_drafting !== undefined) {
@@ -153,7 +215,7 @@ module.exports = {
   MAX_KEY_LENGTH,
   MAX_MODEL_LENGTH,
   effectiveEnv,
-  keySource,
+  activeProvider,
   describe,
   apply,
   validateKey,

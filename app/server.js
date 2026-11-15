@@ -254,7 +254,7 @@ function cwiContractErrors(record) {
 
 const SECURITY_HEADERS = {
   'Content-Security-Policy':
-    "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; " +
+    "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; " +
     "connect-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'",
   'X-Content-Type-Options': 'nosniff',
   'Referrer-Policy': 'no-referrer',

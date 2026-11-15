@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="light" />
+    <title>ACE · Mission 1 vertical slice</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <a class="skip-link" href="#workspace">Skip to workspace</a>
+
+    <div class="shell">
+      <aside class="sidebar" aria-label="Content workflow">
+        <div class="brand">
+          <span class="brand-mark" aria-hidden="true">ACE</span>
+          <div>
+            <p class="brand-name">Affiliate Content Engine</p>
+            <p class="brand-sub">Mission 1 · Cycle 1</p>
+          </div>
+        </div>
+
+        <section class="gate-card" aria-label="Approval gates">
+          <p class="gate-title">Approval state</p>
+          <div class="gate-row">
+            <span class="gate-chip gate-approved">G1 approved</span>
+            <span class="gate-note">with notes</span>
+          </div>
+          <div class="gate-row">
+            <span class="gate-chip gate-open">G2–G5</span>
+            <span class="gate-note">not requested</span>
+          </div>
+          <div class="gate-row">
+            <span class="gate-chip gate-open">G-pay</span>
+            <span class="gate-note">none · THB 0</span>
+          </div>
+        </section>
+
+        <div class="step-heading">
+          <p>Content workflow</p>
+          <span id="step-count" class="step-count">1 / 10</span>
+        </div>
+        <nav aria-label="Ten-step workflow">
+          <ol id="step-list" class="step-list"></ol>
+        </nav>
+
+        <div class="sidebar-foot">
+          <p class="foot-label">Slice boundary</p>
+          <p>Opportunity review only. Recording a decision does not advance the workflow or approve a gate.</p>
+        </div>
+      </aside>
+
+      <main id="workspace" class="workspace" tabindex="-1">
+        <header class="topbar">
+          <div class="topbar-text">
+            <p id="crumb" class="eyebrow">S1 · Research</p>
+            <h1 id="workspace-title">Market opportunity review</h1>
+          </div>
+          <div class="topbar-status">
+            <span class="badge badge-mock">Mock data</span>
+            <span id="save-state" class="save-state" role="status">Loading state…</span>
+          </div>
+        </header>
+
+        <div id="workspace-body" class="workspace-body"></div>
+      </main>
+    </div>
+
+    <div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+    <script src="/app.js" defer></script>
+  </body>
+</html>

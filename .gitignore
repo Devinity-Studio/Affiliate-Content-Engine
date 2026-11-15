@@ -26,3 +26,7 @@ data/site/
 # Live provider evidence bundles stay on this machine only (Owner policy,
 # 2026-11-10): they hold accepted Thai copy and must never be committed.
 verification/evidence/
+
+# Agent scratch files and background logs
+.tmp-patch/
+.zwork/

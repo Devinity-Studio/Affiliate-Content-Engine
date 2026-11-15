@@ -28,6 +28,9 @@ const contentModule = require('./content');
 const thaiQa = require('./thai-qa');
 const voiceover = require('./voiceover');
 const researchAi = require('./research-ai');
+const gateway = require('./provider/gateway');
+const clipPreview = require('./clip-preview');
+const fsSync = require('node:fs');
 const traceModule = require('./trace');
 const profilesModule = require('./profiles');
 const settingsModule = require('./settings');
@@ -42,6 +45,10 @@ const complianceGuardian = require('./skills/05-compliance-guardian');
 const libraryScheduler = require('./skills/06-library-scheduler');
 const csvReconciler = require('./skills/07-csv-reconciler');
 const ruleEvolver = require('./skills/08-rule-evolver');
+const productLink = require('./product-link');
+const snapAssistant = require('./snap');
+const offersParser = require('./offers');
+const actorsAssistant = require('./actors');
 
 const APP_DIR = path.join(__dirname, '..');
 const REPO_DIR = path.join(APP_DIR, '..');
@@ -2331,6 +2338,106 @@ function parseDateOnly(value, field) {
   return text;
 }
 
+async function handleProductPreview(req, res, ctx) {
+  const raw = await ctx.readBody(req, 8 * 1024);
+  const body = parseJsonBody(raw);
+  const url = requireString(body.url, 'url', { max: 2048 });
+
+  const preview = await productLink.preview(url);
+  ctx.sendJson(res, 200, preview);
+}
+
+/**
+ * Reads product facts out of text the user copied from a Shopee page (or typed
+ * from a snapped screenshot). Advisory only: the client shows the result for
+ * confirmation before anything enters the candidate pool.
+ */
+async function handleSnapExtract(req, res, ctx) {
+  const raw = await ctx.readBody(req, 16 * 1024);
+  const body = parseJsonBody(raw);
+  const text = requireString(body.text, 'text', { max: snapAssistant.MAX_INPUT_CHARS });
+  const model = typeof body.model === 'string' && body.model.trim() !== '' ? body.model.trim() : undefined;
+
+  const result = await snapAssistant.extractProduct(text, {
+    model,
+    provider: providerOption(body),
+    env: settingsModule.effectiveEnv(),
+  });
+  ctx.sendJson(res, result.ok ? 200 : 422, result);
+}
+
+/**
+ * Casts a new AI actor (casting sheet) from a short brief so Plan can pull a
+ * freshly generated persona straight into Actor Studio.
+ */
+async function handleActorGenerate(req, res, ctx) {
+  const raw = await ctx.readBody(req, 16 * 1024);
+  const body = parseJsonBody(raw);
+  const brief = requireString(body.brief, 'brief', { max: 1200 });
+  const model = typeof body.model === 'string' && body.model.trim() !== '' ? body.model.trim() : undefined;
+  const count = Number(body.count) || 1;
+  const type = typeof body.type === 'string' ? body.type : 'human';
+
+  const result = await actorsAssistant.generateActors(brief, {
+    model,
+    count,
+    type,
+    provider: providerOption(body),
+    env: settingsModule.effectiveEnv(),
+  });
+  ctx.sendJson(res, result.ok ? 200 : 422, result);
+}
+
+/**
+ * Rule-based reader for the Shopee Affiliate Product Offer page (the primary
+ * catalogue). Handles a full 100-item page without any model call.
+ */
+async function handleOffersParse(req, res, ctx) {
+  const raw = await ctx.readBody(req, 1024 * 1024);
+  const body = parseJsonBody(raw);
+  const text = requireString(body.text, 'text', { max: 400000 });
+  const result = offersParser.parseOfferText(text);
+  ctx.sendJson(res, result.ok ? 200 : 400, result);
+}
+
+/**
+ * Reads the Shopee Affiliate “Product Offer” list (the dashboard's only data
+ * source) from copied page text and returns one row per product.
+ */
+async function handleOffersExtract(req, res, ctx) {
+  const raw = await ctx.readBody(req, 32 * 1024);
+  const body = parseJsonBody(raw);
+  const text = requireString(body.text, 'text', { max: snapAssistant.MAX_INPUT_CHARS });
+  const model = typeof body.model === 'string' && body.model.trim() !== '' ? body.model.trim() : undefined;
+
+  const result = await snapAssistant.extractOffers(text, {
+    model,
+    provider: providerOption(body),
+    env: settingsModule.effectiveEnv(),
+  });
+  ctx.sendJson(res, result.ok ? 200 : 422, result);
+}
+
+/**
+ * Drafts Thai short-video content from the product the user confirmed.
+ */
+async function handleSnapContent(req, res, ctx) {
+  const raw = await ctx.readBody(req, 16 * 1024);
+  const body = parseJsonBody(raw);
+  const product = body.product;
+  if (!product || typeof product !== 'object' || Array.isArray(product)) {
+    throw httpError(400, 'product must be a JSON object');
+  }
+  const model = typeof body.model === 'string' && body.model.trim() !== '' ? body.model.trim() : undefined;
+
+  const result = await snapAssistant.draftContent(product, {
+    model,
+    provider: providerOption(body),
+    env: settingsModule.effectiveEnv(),
+  });
+  ctx.sendJson(res, result.ok ? 200 : 422, result);
+}
+
 async function handleImportPreview(req, res, ctx) {
   const raw = await ctx.readBody(req, 8 * 1024 * 1024);
   const body = parseJsonBody(raw);
@@ -2911,6 +3018,9 @@ async function handleContentDraft(req, res, ctx) {
         model: scriptDraftOptions && typeof scriptDraftOptions.model === 'string'
           ? scriptDraftOptions.model
           : undefined,
+        provider: scriptDraftOptions && typeof scriptDraftOptions.provider === 'string'
+          ? scriptDraftOptions.provider
+          : undefined,
         timeoutMs: scriptDraftOptions && Number.isFinite(scriptDraftOptions.timeoutMs)
           ? scriptDraftOptions.timeoutMs
           : undefined,
@@ -3070,6 +3180,21 @@ async function handleContentAssets(req, res, ctx, contentId) {
 /* Research AI (OpenRouter)                                            */
 /* ------------------------------------------------------------------ */
 
+/**
+ * Per-call provider override from a request body. Undefined = the configured
+ * default provider; an unknown name is a 400, not a silent fallback.
+ */
+function providerOption(body) {
+  if (!body || body.provider === undefined || body.provider === null || String(body.provider).trim() === '') {
+    return undefined;
+  }
+  const resolved = gateway.resolveProviderName(body.provider);
+  if (!resolved) {
+    throw httpError(400, 'provider must be one of ' + gateway.PROVIDER_NAMES.join(', '));
+  }
+  return resolved;
+}
+
 function aiStatusPayload() {
   // One resolver for every caller: Settings override first, then `.env`, then
   // the built-in default. The key itself never leaves the server.
@@ -3078,7 +3203,7 @@ function aiStatusPayload() {
     ai: researchAi.status(settingsModule.effectiveEnv(), {
       key_source: described.key_source,
       model_source: described.model_source,
-    }),
+    }, described.provider),
     settings: described,
     env: aiEnv.describeLoad(),
   };
@@ -3101,24 +3226,144 @@ async function handleSettingsReset(req, res, ctx) {
 
 async function handleAiPing(req, res, ctx) {
   // Operator-pressed connectivity test: one tiny request, nothing stored.
-  const result = await researchAi.ping({ allowNetwork: true, env: settingsModule.effectiveEnv() });
+  const body = await readJsonBody(req, ctx, 4 * 1024).catch(function() { return {}; });
+  const result = await researchAi.ping({
+    provider: providerOption(body),
+    allowNetwork: true,
+    env: settingsModule.effectiveEnv(),
+  });
   ctx.sendJson(res, 200, { ping: result, ...aiStatusPayload() });
+}
+
+/**
+ * Upper bound for one shortlist run over the MVP client pool. The provider
+ * prompt is hard-capped at 8000 characters, so a snapshot larger than this
+ * would be truncated by offerLines anyway; the client is told the count so the
+ * panel can state coverage honestly.
+ */
+const TRANSIENT_POOL_MAX = 12;
+
+function transientText(value, max) {
+  return typeof value === 'string' ? value.replace(/\s+/g, ' ').trim().slice(0, max) : null;
+}
+
+function transientNumber(value, max) {
+  if (value === null || value === undefined || value === '') return null;
+  const n = typeof value === 'number' ? value : Number(String(value).replace(/[^0-9.]/g, ''));
+  if (!Number.isFinite(n) || n < 0 || n > max) return null;
+  return Math.round(n * 100) / 100;
+}
+
+/**
+ * Builds an in-memory pool snapshot from the items the MVP UI imported from
+ * real Shopee data, shaped for research-ai.analyzePool. The client keeps
+ * ownership of its pool: nothing here is persisted as candidate/offer data and
+ * the model only reads these fields — it cannot invent pool entries because
+ * research-ai drops picks that do not name one of these ids.
+ */
+function buildTransientPoolState(body) {
+  if (!body || !Array.isArray(body.products) || body.products.length === 0) return null;
+  if (body.products.length > TRANSIENT_POOL_MAX) {
+    throw httpError(400, `products accepts at most ${TRANSIENT_POOL_MAX} items per shortlist run`);
+  }
+  const snapshot = { candidateOrder: [], candidates: {}, products: {}, offers: {} };
+  body.products.forEach((item, index) => {
+    if (!item || typeof item !== 'object' || Array.isArray(item)) {
+      throw httpError(400, `products[${index}] must be an object`);
+    }
+    const name = transientText(item.name, 200);
+    if (!name) throw httpError(400, `products[${index}].name is required`);
+    let id = item.id === undefined || item.id === null ? String(index + 1) : String(item.id);
+    id = id.trim().slice(0, 32) || String(index + 1);
+    if (snapshot.candidates[id]) id = (id + '-' + (index + 1)).slice(0, 32);
+    const priceThb = transientNumber(item.price, 10000000);
+    const commissionPercent = transientNumber(item.commissionRate, 100);
+    const rating = transientNumber(item.rating, 5);
+    const sold = transientText(item.sold, 40);
+    const shopName = transientText(item.shopName, 120);
+    const promo = transientText(item.promo, 160);
+
+    const offer = { id: 'O-' + id };
+    if (priceThb !== null) offer.price_thb = priceThb;
+    if (commissionPercent !== null) offer.commission_rate = commissionPercent / 100;
+    if (promo) offer.promo = { label: promo };
+    if (rating !== null) offer.reviews = { rating };
+    snapshot.offers[offer.id] = offer;
+    snapshot.products['P-' + id] = { id: 'P-' + id, name };
+    snapshot.candidates[id] = {
+      id,
+      title: name,
+      product_id: 'P-' + id,
+      offer_id: offer.id,
+      shop: shopName ? { name: shopName } : null,
+      claims: sold ? [{ text: 'ยอดขาย ' + sold }] : [],
+    };
+    snapshot.candidateOrder.push(id);
+  });
+  return snapshot;
 }
 
 /**
  * Advisory shortlist: the model reads the imported pool and proposes five items
  * with a hook and a short script. It never changes ranks, claims or candidates —
  * a human still decides what to produce from the pool.
+ *
+ * Two pool sources are supported:
+ *   - `body.products` — the MVP UI's client-side pool of REAL imported items
+ *     (Product Offer paste / Capture / AI text read). Analyzed as a snapshot;
+ *     the server state only records the analysis itself.
+ *   - no body — the legacy server-side pool built by the import pipeline.
  */
 async function handleAiResearch(req, res, ctx) {
   const body = await readJsonBody(req, ctx, 16 * 1024);
+  const snapshot = buildTransientPoolState(body);
+  const aiStatus = () => researchAi.status(settingsModule.effectiveEnv(), {
+    key_source: settingsModule.describe().key_source,
+    model_source: settingsModule.describe().model_source,
+  });
+  const model = typeof body.model === 'string' && body.model.trim() !== '' ? body.model.trim() : undefined;
+  const maxPicks = Number.isInteger(body.maxPicks) && body.maxPicks >= 1 && body.maxPicks <= researchAi.MAX_PICKS
+    ? body.maxPicks
+    : undefined;
+
+  if (snapshot) {
+    const result = await researchAi.analyzePool(snapshot, {
+      model,
+      maxPicks,
+      provider: providerOption(body),
+      allowNetwork: true,
+      env: settingsModule.effectiveEnv(),
+      dataLabel: 'ข้อมูลสินค้าจริงที่ผู้ใช้นำเข้าจาก Shopee Affiliate (Product Offer / Capture)',
+    });
+    if (result.ok) {
+      const state = await readState();
+      state.ai_research = {
+        ran_at: nowIso(),
+        model: result.model,
+        latency_ms: result.latency_ms,
+        usage: result.usage,
+        provenance: 'client_pool_snapshot',
+        pool_size: snapshot.candidateOrder.length,
+        analysis: result.analysis,
+      };
+      await writeState(state);
+    }
+    ctx.sendJson(res, 200, {
+      result,
+      considered: snapshot.candidateOrder.length,
+      ai: aiStatus(),
+    });
+    return;
+  }
+
   const state = await readState();
   if (!state.candidateOrder || state.candidateOrder.length === 0) {
     throw httpError(409, 'no candidates in the pool yet — generate the candidate pool first');
   }
-  const model = typeof body.model === 'string' && body.model.trim() !== '' ? body.model.trim() : undefined;
   const result = await researchAi.analyzePool(state, {
     model,
+    maxPicks,
+    provider: providerOption(body),
     allowNetwork: true,
     env: settingsModule.effectiveEnv(),
   });
@@ -3134,12 +3379,35 @@ async function handleAiResearch(req, res, ctx) {
   await writeState(state);
   ctx.sendJson(res, 200, {
     result,
-    ai: researchAi.status(settingsModule.effectiveEnv(), {
-      key_source: settingsModule.describe().key_source,
-      model_source: settingsModule.describe().model_source,
-    }),
+    ai: aiStatus(),
     state: viewState(state),
   });
+}
+
+/* ------------------------------------------------------------------ */
+/* Clip preview (render a draft to MP4 before publishing)              */
+/* ------------------------------------------------------------------ */
+
+async function handlePreviewRender(req, res, ctx) {
+  const body = await readJsonBody(req, ctx, 12 * 1024 * 1024);
+  const result = await clipPreview.prepareAndRender(body);
+  ctx.sendJson(res, 201, result);
+}
+
+/** Streams a rendered preview MP4 with its real size. */
+function handlePreviewFile(req, res, ctx, name) {
+  const file = clipPreview.resolvePreviewFile(name);
+  if (!file) {
+    ctx.sendJson(res, 404, { error: 'preview file not found' });
+    return;
+  }
+  const stat = fsSync.statSync(file);
+  res.writeHead(200, {
+    'Content-Type': 'video/mp4',
+    'Content-Length': stat.size,
+    'Cache-Control': 'no-store',
+  });
+  fsSync.createReadStream(file).pipe(res);
 }
 
 /* ------------------------------------------------------------------ */
@@ -3971,6 +4239,12 @@ async function handleMvp(req, res, ctx) {
         },
         endpoints: [
           'GET /api/mvp/meta',
+          'POST /api/mvp/products/preview',
+          'POST /api/mvp/snap/extract',
+          'POST /api/mvp/snap/offers',
+          'POST /api/mvp/offers/parse',
+          'POST /api/mvp/actors/generate',
+          'POST /api/mvp/snap/content',
           'POST /api/mvp/import',
           'POST /api/mvp/import/preview',
           'POST /api/mvp/import/commit',
@@ -4012,6 +4286,8 @@ async function handleMvp(req, res, ctx) {
           'GET /api/mvp/settings/ai',
           'POST /api/mvp/settings/ai',
           'POST /api/mvp/settings/ai/reset',
+          'POST /api/mvp/preview/render',
+          'GET /api/mvp/preview/file/:name',
           'GET /api/mvp/profiles',
           'POST /api/mvp/profiles',
           'PATCH /api/mvp/profiles/:id',
@@ -4024,6 +4300,36 @@ async function handleMvp(req, res, ctx) {
           'GET /api/mvp/library/:id/file',
         ],
       });
+      return true;
+    }
+
+    if (pathname === '/api/mvp/snap/extract' && method === 'POST') {
+      await handleSnapExtract(req, res, ctx);
+      return true;
+    }
+
+    if (pathname === '/api/mvp/actors/generate' && method === 'POST') {
+      await handleActorGenerate(req, res, ctx);
+      return true;
+    }
+
+    if (pathname === '/api/mvp/offers/parse' && method === 'POST') {
+      await handleOffersParse(req, res, ctx);
+      return true;
+    }
+
+    if (pathname === '/api/mvp/snap/offers' && method === 'POST') {
+      await handleOffersExtract(req, res, ctx);
+      return true;
+    }
+
+    if (pathname === '/api/mvp/snap/content' && method === 'POST') {
+      await handleSnapContent(req, res, ctx);
+      return true;
+    }
+
+    if (pathname === '/api/mvp/products/preview' && method === 'POST') {
+      await handleProductPreview(req, res, ctx);
       return true;
     }
 
@@ -4252,6 +4558,21 @@ async function handleMvp(req, res, ctx) {
     if (pathname.match(/^\/api\/mvp\/content\/[^/]+\/assets$/) && method === 'POST') {
       const id = decodeURIComponent(pathname.split('/')[4]);
       await handleContentAssets(req, res, ctx, id);
+      return true;
+    }
+
+    if (pathname === '/api/mvp/preview/render' && method === 'POST') {
+      await handlePreviewRender(req, res, ctx);
+      return true;
+    }
+
+    if (method === 'GET' && /^\/api\/mvp\/preview\/file\/[A-Za-z0-9._-]+$/.test(pathname)) {
+      handlePreviewFile(req, res, ctx, pathname.split('/').pop());
+      return true;
+    }
+
+    if (pathname === '/api/mvp/settings/ai' && method === 'GET') {
+      await handleAiStatus(req, res, ctx);
       return true;
     }
 
