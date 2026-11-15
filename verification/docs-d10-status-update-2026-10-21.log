@@ -1,0 +1,33 @@
+Docs-only status update — D10 = Verified (scoped), accepted 2026-10-21
+generated: 2026-10-21T05:57:14Z (final pass, after the last doc edit)
+
+1. link check (relative links + #L anchors)
+PASS  86 relative links checked in 4 files, 0 problems
+   exit=0
+
+2. runtime / schema / state checksums (must be unchanged)
+   e8ebd7ba425731c1ae040f27ee50aacd *app/server.js
+   dc27941bf7c3ff03e52f67dc91b8b1ce *docs/mission1/schemas/content-work-item.schema.json
+   5d29cdbdace0a73580bc2e0633f2e8cb *data/app/state.json
+   expected: server.js e8ebd7ba425731c1ae040f27ee50aacd
+   expected: schema    dc27941bf7c3ff03e52f67dc91b8b1ce
+   expected: state     5d29cdbdace0a73580bc2e0633f2e8cb
+
+3. git state
+   existing commit count          : 9
+   new commits created this round : 0
+   HEAD now                       : 9749f38e7bdb1ec6ee56be0e2227473c3b973f2b
+   HEAD baseline (pre-round)      : 9749f38e7bdb1ec6ee56be0e2227473c3b973f2b
+   check: HEAD unchanged -> no commit, tag, merge, or reset this round
+
+4. docs touched this round (all documentation; no runtime, schema, or state file)
+    M docs/mission1/D-data-model.md
+   ?? docs/mission1/-final-contract-id-concurrency.md
+   ?? verification/check-md-links.js
+   ?? verification/d5-reserved-fields-review-2026-10-21.md
+   ?? verification/docs-d10-status-update-2026-10-21.log
+   ?? verification/mission1-acceptance-gap-matrix.md
+
+5. anchors cited elsewhere still resolve
+   148:| D10 | Duplicate (plan_id, version) pair rejected | Sta
+   150:### 4.1 D10 evidence record — `Verified (scoped)`, acc

@@ -1,0 +1,37 @@
+temp workspace: C:\Users\bomb_\AppData\Local\Temp\ace-d1d2-y7GmrB
+real repository files are NOT mounted here — only the copy is.
+
+1. POST create (Plan A)     status=201 body={"id":"PLAN-1-1-v1","plan_id":"PLAN-1-1","version":"v1","content":"Plan A","schemaVersion":1,"createdAt":"2026-10-21T06:02:46.623Z"}
+PASS  D1 create returns 201 — status=201
+PASS  D1 id is the immutable snapshot id — id="PLAN-1-1-v1"
+PASS  D1 plan_id is the Plan identity — plan_id="PLAN-1-1"
+PASS  D1 version is v1 — version="v1"
+PASS  D1 content is preserved — content="Plan A"
+PASS  D1 schemaVersion is 1 — schemaVersion=1
+PASS  D1 createdAt is a parseable ISO timestamp — createdAt="2026-10-21T06:02:46.623Z"
+PASS  D1 id is NOT the plan_id — the two identifiers are distinct
+PASS  D1 id equals plan_id + "-" + version — PLAN-1-1 + v1 -> PLAN-1-1-v1
+2. GET /api/plan-version/PLAN-1-1-v1  status=200 body={"id":"PLAN-1-1-v1","plan_id":"PLAN-1-1","version":"v1","content":"Plan A","schemaVersion":1,"createdAt":"2026-10-21T06:02:46.623Z"}
+PASS  D1 snapshot id resolves through GET — status=200
+PASS  D1 GET returns the same record as create — create body == GET body
+3. POST create (Plan B)     status=201 body={"id":"PLAN-1-2-v1","plan_id":"PLAN-1-2","version":"v1","content":"Plan B","schemaVersion":1,"createdAt":"2026-10-21T06:02:46.653Z"}
+PASS  D2 create returns 201 — status=201
+PASS  D2 id is the immutable snapshot id — id="PLAN-1-2-v1"
+PASS  D2 plan_id is the Plan identity — plan_id="PLAN-1-2"
+PASS  D2 version is v1 — version="v1"
+PASS  D2 content is preserved — content="Plan B"
+PASS  D2 id is NOT the plan_id — the two identifiers are distinct
+PASS  D2 is a different Plan from D1 — PLAN-1-1 vs PLAN-1-2
+4. GET /api/plan-version/PLAN-1-2-v1  status=200 body={"id":"PLAN-1-2-v1","plan_id":"PLAN-1-2","version":"v1","content":"Plan B","schemaVersion":1,"createdAt":"2026-10-21T06:02:46.653Z"}
+PASS  D2 snapshot id resolves through GET — status=200
+5. state planVersions keys  ["PLAN-1-1-v1","PLAN-1-2-v1"]
+   mapping: plan_id=PLAN-1-1 id=PLAN-1-1-v1 version=v1 | plan_id=PLAN-1-2 id=PLAN-1-2-v1 version=v1
+PASS  state stores exactly the two snapshot ids — keys=["PLAN-1-1-v1","PLAN-1-2-v1"]
+PASS  state entries are keyed by their own id — key == record.id
+PASS  state entries carry the Plan identity in plan_id — plan_id separates the two Plans
+PASS  no Plan is stored under its bare plan_id — the plan_id alone is not a stored snapshot key
+
+PASS  real app/server.js, schema, and state.json unchanged — server same, schema same, state same
+PASS  no commit created — HEAD 9749f38e7bdb1ec6ee56be0e2227473c3b973f2b -> 9749f38e7bdb1ec6ee56be0e2227473c3b973f2b
+
+D1/D2 evidence test passed

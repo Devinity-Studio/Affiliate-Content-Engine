@@ -1,0 +1,24 @@
+=== 1. server starts with all four claim classes ===
+PASS  server starts with FACT/INFERENCE/HYPOTHESIS/UNKNOWN
+
+=== 2. API returns every claimClass verbatim ===
+PASS  all four classes come back in the API response — returned: ["FACT","INFERENCE","HYPOTHESIS","UNKNOWN"]
+PASS  no class was rewritten or re-ordered — returned: ["FACT","INFERENCE","HYPOTHESIS","UNKNOWN"]
+PASS  response stays labelled as mock data
+
+=== 3. a class outside the four is rejected ===
+PASS  server refuses a dataset with an invalid claim class — [ace] failed to initialise: Error: Mock dataset is invalid: opportunities[0].evidence[0].claimClass is invalid
+    at readMock (C:\Users\bomb_\AppData\Local\Temp\ace-claim-classes-XcI1xf\app\server.js
+
+=== 3b. the previous three-class allowlist would have rejected it ===
+PASS  the old three-class allowlist rejects a HYPOTHESIS record — [ace] failed to initialise: Error: Mock dataset is invalid: opportunities[0].evidence[2].claimClass is invalid
+    at readMock (C:\Users\bomb_\AppData\Local\Tem
+
+=== 4. existing records are not migrated or rewritten ===
+PASS  app/mock/opportunities.json unchanged
+PASS  data/mission1/evidence-log.md unchanged
+PASS  data/app/state.json unchanged
+PASS  every evidence-log claim_class is one of the four — values: ["FACT","UNKNOWN"]
+PASS  evidence-log entries were not re-classified — entries: 10
+
+all claim-class checks passed

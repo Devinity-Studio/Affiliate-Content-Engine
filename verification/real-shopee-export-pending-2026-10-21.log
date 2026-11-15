@@ -1,0 +1,29 @@
+=== Real Shopee Affiliate export check ===
+repository: Y:\DevProject\Affiliate Content Engine
+checked at: 2026-10-21T16:27:28.574Z
+
+No real export was found
+------------------------
+Searched:
+  (no explicit path given)
+  Y:\DevProject\Affiliate Content Engine\data\imports (does not exist)
+  Y:\DevProject\Affiliate Content Engine\data\mvp\real (does not exist)
+
+REAL SHOPEE EXPORT PENDING
+
+What is verified without it:
+  - the parser contract (format, encoding, header mapping, row status)
+    against SYNTHETIC-labelled fixtures only;
+  - the staging-only import, duplicate detection, promote, Source
+    Library, archive, validation and freshness guards.
+
+What is NOT verified and NOT claimed:
+  - that a real Shopee Affiliate export parses with this mapping;
+  - the real status/body/exit code of a real-file import;
+  - that the detected column mapping matches a real export header.
+
+To unblock: export the file from Shopee Affiliate and either
+  - drop it in data/imports/ (or data/mvp/real/), or
+  - run: node verification/real-shopee-export-check.js <path>
+
+exit code 2 = PENDING (not a failure, not a pass)

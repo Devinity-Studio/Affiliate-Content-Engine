@@ -1,0 +1,64 @@
+temporary server: http://127.0.0.1:4273 (isolated copy)
+
+PASS  plan v1 created for the probe — plan_id=PLAN-1-1 version=v1
+
+=== 1. PRODUCT with a valid product_id ===
+PASS  201 Created — status=201 body={"id":"CWI-1","plan_id":"PLAN-1-1","plan_version":"v1","decision":"PENDING","createdAt":"2026-10-21T10:19:12.871Z","type":"PRODUCT","product_id":"P-1001"}
+PASS  response contains type — type=PRODUCT
+PASS  response contains product_id — product_id=P-1001
+
+=== 2. PRODUCT with product_id missing ===
+PASS  400 Bad Request — status=400 body={"error":"product_id is required for type PRODUCT"}
+PASS  error names product_id — error=product_id is required for type PRODUCT
+
+=== 3. PRODUCT with product_id null ===
+PASS  400 Bad Request — status=400 body={"error":"product_id must be a string for type PRODUCT"}
+PASS  error names product_id — error=product_id must be a string for type PRODUCT
+
+=== 4. REVIEW with a valid product_id ===
+PASS  201 Created — status=201 body={"id":"CWI-2","plan_id":"PLAN-1-1","plan_version":"v1","decision":"PENDING","createdAt":"2026-10-21T10:19:12.918Z","type":"REVIEW","product_id":"P-2002"}
+PASS  response contains type and product_id — type=REVIEW product_id=P-2002
+
+=== 4b. REVIEW is product-bound too: null and missing are rejected ===
+PASS  REVIEW + product_id null -> 400 — status=400 body={"error":"product_id must be a string for type REVIEW"}
+PASS  REVIEW without product_id -> 400 — status=400 body={"error":"product_id is required for type REVIEW"}
+
+=== 5. METHOD / WORKFLOW without a product_id ===
+PASS  METHOD without product_id -> 201 — status=201 body={"id":"CWI-3","plan_id":"PLAN-1-1","plan_version":"v1","decision":"PENDING","createdAt":"2026-10-21T10:19:12.965Z","type":"METHOD"}
+PASS  METHOD record has no product_id — {"id":"CWI-3","plan_id":"PLAN-1-1","plan_version":"v1","decision":"PENDING","createdAt":"2026-10-21T10:19:12.965Z","type":"METHOD"}
+PASS  WORKFLOW with product_id null -> 201 — status=201 body={"id":"CWI-4","plan_id":"PLAN-1-1","plan_version":"v1","decision":"PENDING","createdAt":"2026-10-21T10:19:12.980Z","type":"WORKFLOW","product_id":null}
+PASS  WORKFLOW record keeps product_id null — {"id":"CWI-4","plan_id":"PLAN-1-1","plan_version":"v1","decision":"PENDING","createdAt":"2026-10-21T10:19:12.980Z","type":"WORKFLOW","product_id":null}
+
+=== 6. type and product_id are stored and returned by GET ===
+PASS  GET returns 200 — status=200
+PASS  stored record keeps type — type=PRODUCT
+PASS  stored record keeps product_id — product_id=P-1001
+PASS  state file stores type and product_id — {"id":"CWI-1","plan_id":"PLAN-1-1","plan_version":"v1","decision":"PENDING","createdAt":"2026-10-21T10:19:12.871Z","type":"PRODUCT","product_id":"P-1001"}
+
+=== regression: error strings verified by earlier acceptance evidence ===
+PASS  malformed JSON -> 400 "Body must be valid JSON" — {"error":"Body must be valid JSON"}
+PASS  array body -> 400 "Body must be a JSON object" — {"error":"Body must be a JSON object"}
+PASS  missing plan_id -> 400 "plan_id is required" — {"error":"plan_id is required"}
+PASS  missing plan_version -> 400 "plan_version is required" — {"error":"plan_version is required"}
+PASS  unknown plan version -> 404 — {"error":"plan_id/plan_version not found: PLAN-9-9/v1"}
+
+=== regression: contract rejections ===
+PASS  missing type -> 400 — {"error":"type is required"}
+PASS  unknown type -> 400 — {"error":"type must be one of PRODUCT, REVIEW, METHOD, WORKFLOW"}
+PASS  unknown field -> 400 — {"error":"prodcut_id is not a recognised field"}
+PASS  blank product_id -> 400 — {"error":"product_id must not be empty; product_id must not be empty for type PRODUCT"}
+PASS  numeric product_id -> 400 — status=400 body={"error":"product_id must be a string or null; product_id must be a string for type PRODUCT"}
+PASS  numeric product_id on REVIEW -> 400 — status=400 body={"error":"product_id must be a string or null; product_id must be a string for type REVIEW"}
+
+=== cwi_id policy: server-generated, immutable, client-supplied rejected ===
+PASS  client-supplied cwi_id -> 400 — status=400 body={"error":"client-supplied cwi_id is not allowed; server generates cwi_id"}
+PASS  error message is the policy message — error=client-supplied cwi_id is not allowed; server generates cwi_id
+PASS  cwi_id equal to the next server id is still rejected -> 400 — status=400 body={"error":"client-supplied cwi_id is not allowed; server generates cwi_id"}
+PASS  cwi_id: null -> 400 — status=400 body={"error":"client-supplied cwi_id is not allowed; server generates cwi_id"}
+PASS  rejected cwi_id attempts created no record — count 4 -> 4
+PASS  the server still assigns its own sequential id — id=CWI-1
+
+=== repository state must be untouched ===
+PASS  real data/app/state.json unchanged — md5 5d29cdbdace0a73580bc2e0633f2e8cb -> 5d29cdbdace0a73580bc2e0633f2e8cb
+
+all CWI contract-enforcement checks passed

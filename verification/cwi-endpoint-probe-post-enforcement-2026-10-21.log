@@ -1,0 +1,45 @@
+temp workspace : C:\Users\bomb_\AppData\Local\Temp\ace-cwi-probe-MPfoww
+server         : http://127.0.0.1:4271 (isolated copy)
+
+--- health (GET /api/health)
+    sent  : (no body)
+    note  : liveness + mock flag
+    -> 200 {"ok":true,"mock":true,"stateFile":"data/app/state.json"}
+--- create plan v1 (POST /api/plan-version)
+    note : needed before a CWI can reference it
+    -> 201 {"id":"PLAN-1-1-v1","plan_id":"PLAN-1-1","version":"v1","content":"Probe plan v1","schemaVersion":1,"createdAt":"2026-10-21T02:52:11.588Z"}
+--- CWI minimal (no type) (POST /api/content-work-item)
+    sent  : {"plan_id":"PLAN-1-1","plan_version":"v1"}
+    note  : contract requires type -> expect 400
+    -> 400 {"error":"type is required"}
+--- CWI with type + product_id (POST /api/content-work-item)
+    sent  : {"plan_id":"PLAN-1-1","plan_version":"v1","type":"PRODUCT","product_id":"P-1001"}
+    note  : expect 201 and both fields stored
+    -> 201 {"id":"CWI-1","plan_id":"PLAN-1-1","plan_version":"v1","decision":"PENDING","createdAt":"2026-10-21T02:52:11.616Z","type":"PRODUCT","product_id":"P-1001"}
+--- CWI PRODUCT + product_id null (POST /api/content-work-item)
+    sent  : {"plan_id":"PLAN-1-1","plan_version":"v1","type":"PRODUCT","product_id":null}
+    note  : contract says this MUST be rejected
+    -> 400 {"error":"product_id must be a string for type PRODUCT"}
+--- CWI PRODUCT + product_id missing (POST /api/content-work-item)
+    sent  : {"plan_id":"PLAN-1-1","plan_version":"v1","type":"PRODUCT"}
+    note  : contract says this MUST be rejected
+    -> 400 {"error":"product_id is required for type PRODUCT"}
+--- CWI unknown plan version (POST /api/content-work-item)
+    sent  : {"plan_id":"PLAN-9-9","plan_version":"v1"}
+    note  : expect 404
+    -> 404 {"error":"plan_id/plan_version not found: PLAN-9-9/v1"}
+--- CWI missing plan_id (POST /api/content-work-item)
+    sent  : {"plan_version":"v1"}
+    note  : expect 400
+    -> 400 {"error":"plan_id is required"}
+--- CWI GET by id (GET /api/content-work-item/CWI-1)
+    sent  : (no body)
+    note  : stored record shape (CWI-1 is the first PRODUCT record)
+    -> 200 {"id":"CWI-1","plan_id":"PLAN-1-1","plan_version":"v1","decision":"PENDING","createdAt":"2026-10-21T02:52:11.616Z","type":"PRODUCT","product_id":"P-1001"}
+
+=== state file written by the isolated server ===
+cwis stored: {"CWI-1":{"id":"CWI-1","plan_id":"PLAN-1-1","plan_version":"v1","decision":"PENDING","createdAt":"2026-10-21T02:52:11.616Z","type":"PRODUCT","product_id":"P-1001"}}
+
+real data/app/state.json md5 before: 5d29cdbdace0a73580bc2e0633f2e8cb
+real data/app/state.json md5 after : 5d29cdbdace0a73580bc2e0633f2e8cb
+real state UNCHANGED

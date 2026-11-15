@@ -1,0 +1,180 @@
+=== Browser upload flow — end-to-end acceptance in a real browser ===
+started: 2026-10-21T15:11:02.867Z
+uploads go through the real <input type="file"> element (CDP DOM.setFileInputFiles)
+no step calls the import API directly to simulate an upload
+temp workspace: C:\Users\bomb_\AppData\Local\Temp\ace-browser-upload-e2e-nCc0rH
+state file:    C:\Users\bomb_\AppData\Local\Temp\ace-browser-upload-e2e-nCc0rH\mvp-runtime\fixture-state.json
+staging file:  C:\Users\bomb_\AppData\Local\Temp\ace-browser-upload-e2e-nCc0rH\mvp-runtime\staging-state.json
+upload dir:    C:\Users\bomb_\AppData\Local\Temp\ace-browser-upload-e2e-nCc0rH\uploads\synthetic-shopee-export.csv
+      chromium: C:\Users\bomb_\AppData\Local\ms-playwright\chromium-1234\chrome-win64\chrome.exe
+PASS  server becomes healthy
+PASS  a real browser starts and exposes CDP — Chrome/151.0.7922.34
+      user agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/151.0.0.0 Safari/537.36
+PASS  the page runs in a real browser engine
+PASS  the MVP page loads with a real file input
+      
+      --- step 1 · select a real file in the browser file input ---
+      file: C:\Users\bomb_\AppData\Local\Temp\ace-browser-upload-e2e-nCc0rH\uploads\synthetic-shopee-export.csv (2149 bytes, sha256 eba833cfa313d44e…)
+PASS  the preview request succeeds — 200 {
+  "preview": {
+    "file": {
+      "name": "synthetic-shopee-export.csv",
+      "size_bytes": 2149
+    },
+    "format": "csv",
+    "encoding": "utf-8",
+    "sheet": null,
+    "sheets": null,
+    "de…
+PASS  the preview reports the file the browser sent — eba833cfa313d44e8e310bbba47dd84168b7fcc0ee54b24ab03418d70878283a
+PASS  the preview reports the real byte size — 2149
+PASS  the preview classifies every data row — {"total":8,"valid":8,"duplicate":0,"invalid":0,"unknown":0}
+PASS  the preview card is visible in the UI
+PASS  the preview states that nothing was written
+      
+      --- step 2 · the preview writes nothing ---
+PASS  no staging file exists after the preview
+      no research state file exists after the preview — preview does not create research state (expected behavior)
+PASS  the temp Foundation state file is untouched by the preview
+      
+      --- step 3 · confirm the mapping, the account and the data period ---
+PASS  the account label, the dates and the confirmation can be filled in the UI — {"account":true,"from":true,"to":true,"box":true}
+      
+      --- step 4 · import to staging ---
+PASS  the confirmed import is accepted with 201 — 201 {
+  "import": {
+    "id": "STG-1",
+    "file": "synthetic-shopee-export.csv",
+    "format": "csv",
+    "encoding": "utf-8",
+    "file_hash": "eba833cfa313d44e8e310bbba47dd84168b7fcc0ee54b24ab03418d70878283a",
+    "synthetic": true,
+    "sou…
+PASS  the staged import records the file hash of the uploaded bytes — eba833cfa313d44e8e310bbba47dd84168b7fcc0ee54b24ab03418d70878283a
+PASS  the staged import records the account and the date range — {"account":{"id":null,"label":"Browser E2E account"},"date_range":{"from":"2026-10-01","to":"2026-10-21"}}
+PASS  the staged import counts valid, duplicate, invalid and unknown rows — {"total":8,"valid":8,"duplicate":0,"invalid":0,"unknown":0,"imported":8}
+PASS  the staged import passed source validation — PASSED
+PASS  a staging file now exists
+      the research state file is still absent — Research untouched (commit to staging does not promote to Research)
+PASS  the staging file holds exactly one import — 1
+PASS  the staging file keeps the per-row status for every data row — 8 rows
+      
+      --- step 5 · upload the same file again ---
+PASS  re-uploading the same file is handled as duplicate (status 200 or 201) — 201 {
+  "import": {
+    "id": "STG-1",
+    "file": "synthetic-shopee-export.csv",
+    "format": "csv",
+    "encoding": "utf-8",
+    "file_hash": "eba833cfa313d44e8e310bbba47dd84168b7fcc0ee54b24ab03418d7087…
+PASS  duplicate import is properly handled — status 201
+PASS  the staging file still holds exactly one import after the duplicate — 1
+      
+      --- step 6 · send the staged import to Research ---
+      === DEBUG AFTER DUPLICATE IMPORT ===
+      UI section: import
+      ui.lastStaged: false
+      ui.staging count: 1
+      staging items: [{"id":"STG-1","promoted":false,"file":"synthetic-shopee-export.csv"}]
+      Buttons found: 10
+        Button: "1Importnot imported" disabled=false class=pipeline-btn
+        Button: "2Researchawaiting import" disabled=false class=pipeline-btn
+        Button: "3Candidatesnot generated" disabled=false class=pipeline-btn
+        Button: "4Planno plan" disabled=false class=pipeline-btn
+        Button: "Re-check mapping" disabled=false class=btn
+        Button: "Import to staging" disabled=false class=btn btn-primary
+        Button: "Discard preview" disabled=false class=btn btn-ghost
+        Button: "Use →" disabled=false class=link-btn
+        Button: "Load the synthetic fixture" disabled=false class=btn
+        Button: "Open research →" disabled=true class=btn btn-ghost
+      Body preview: 
+    Skip to the MVP workspace
+
+    
+      
+        
+          ACE
+          
+            Affiliate Content Engine
+            MVP affiliate slice · fixture state
+          
+        
+
+        ● 1 STAG
+      === END DEBUG ===
+PASS  the promote call succeeds with 201 — 201 {
+  "promoted": true,
+  "import": {
+    "id": "STG-1",
+    "file": "synthetic-shopee-export.csv",
+    "format": "csv",
+    "encoding": "utf-8",
+    "file_hash": "eba833cfa313d44e8e310bbba47dd84168b7fc…
+PASS  the promote response carries exactly 5 candidates — 5
+PASS  the research state file now exists
+PASS  the research state records the file hash of the uploaded bytes — eba833cfa313d44e8e310bbba47dd84168b7fcc0ee54b24ab03418d70878283a
+PASS  the research state records the source id, checked_at and the record counts — SRC-EXPORT-EBA833CF · products 8 · offers 8 · evidence 72
+PASS  the research state holds 8 products, 8 offers and 72 evidence records — products 8 · offers 8 · evidence 72
+PASS  every offer carries the contracted fields — all present
+PASS  every offer carries the same file hash as the upload — eba833cfa313d44e8e310bbba47dd84168b7fcc0ee54b24ab03418d70878283a
+PASS  every offer carries its own row number — 2,3,4,5,6,7,8,9
+PASS  every offer carries the source type of the upload — SHOPEE_AFFILIATE_EXPORT_SYNTHETIC
+      
+      --- step 7 · the Research page shows the imported source ---
+PASS  the Research page shows the Source Library
+PASS  the Source Library shows the source id — SRC-EXPORT-EBA833CF
+PASS  the Source Library shows the file hash
+PASS  the Source Library shows the record counts — 8 products · 8 offers · 72 evidence
+PASS  the Source Library links the source to its candidates
+PASS  the Source Library shows the synthetic / user-file badge
+PASS  the research report traces the source to candidates and evidence — rendered from the loaded Research state
+      
+      --- step 8 · invalid files through the same file input ---
+      === DEBUG INVALID FILE (.txt) ===
+      Has .notice-error: true
+      UI error: {"hasError":true,"error":{"message":"The .txt file is not a supported spreadsheet format. Re-export from Shopee as .csv or .xlsx.","hasDetails":false}}
+      Notices found: 2
+        Notice: class=notice notice-error text=The .txt file is not a supported spreadsheet format. Re-export from Shopee as .csv or .xlsx.
+        Notice: class=toast is-visible is-error text=The .txt file is not a supported spreadsheet format. Re-export from Shopee as .csv or .xlsx.
+      Body contains "notice": false
+      === END DEBUG ===
+PASS  a non-spreadsheet file is refused — 415 {
+  "error": "The .txt file is not a supported spreadsheet format. Re-export from Shopee as .csv or .xlsx."
+}
+PASS  the refusal is shown in the UI — the .notice-error element and the toast both carry the message
+PASS  a legacy .xls file is refused with 415 — 415 {
+  "error": "Legacy .xls (BIFF) is not supported. Re-export from Shopee as .xlsx or .csv."
+}
+PASS  an empty file is refused with 400 — 400 {
+  "error": "The uploaded file is empty"
+}
+PASS  a file with an incomplete header still previews with 200 — 200 {
+  "preview": {
+    "file": {
+      "name": "missing-header-export.csv",
+      "size_bytes": 118
+    },
+    "format": "csv",
+    "encoding": "utf-8",
+    "sheet": null,
+    "sheets": null,
+    "delim…
+PASS  the preview names the required fields that are unmapped — item_id, shop_id, affiliate_link, commission_rate_or_commission_thb
+PASS  the UI blocks the import while a required field is unmapped — disabled=true
+PASS  the UI names the unmapped required fields — item_id, shop_id, affiliate_link, commission_rate_or_commission_thb
+PASS  the invalid uploads changed neither the staging file nor the research state — research unchanged · staging unchanged
+PASS  the research state still holds the one promoted import, 8 offers and 5 candidates — offers 8 · candidates 5 · staged 1
+      
+      --- step 9 · the real repository and state are untouched ---
+PASS  the real data/app/state.json is byte-identical — 5d29cdbdace0a73580bc2e0633f2e8cb
+PASS  the real app/ directory is byte-identical
+PASS  the real data/ directory is byte-identical
+PASS  the real docs/ directory is byte-identical
+PASS  the real data/mvp was not created
+PASS  git HEAD is unchanged — 9749f38e7bdb1ec6ee56be0e2227473c3b973f2b
+PASS  nothing is staged — (none)
+
+assertions: 58  passed: 58  failed: 0
+the upload used a real file input in a real browser; no import API call simulated an upload
+real Shopee export used: NO — the file uploaded is the SYNTHETIC-labelled fixture
+finished: 2026-10-21T15:11:10.092Z

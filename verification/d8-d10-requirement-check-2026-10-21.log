@@ -1,0 +1,20 @@
+# D8 / D10 requirement check — 2026-10-21T05:29:35Z
+# command: node /tmp/probe-d8-d10.js  (temp copy of app/ data/ docs/, port 4297)
+# scope: read-only; verifies matrix expectation vs measured behaviour, incl. D10's 'existing v1 unchanged' clause
+
+D8  precondition planVersions : []
+D8  status                    : 400
+D8  body                      : {"error":"plan_id not found: PLAN-999"}
+D8  expected                  : 400 {"error":"plan_id not found: PLAN-999"}
+D8  verdict                   : VERIFIED
+D10 v1 before                 : {"id":"PLAN-1-1-v1","plan_id":"PLAN-1-1","version":"v1","content":"Plan A","schemaVersion":1,"createdAt":"2026-10-21T05:29:36.276Z"}
+D10 status                    : 409
+D10 body                      : {"error":"plan_id/plan_version already exists: PLAN-1-1/v1"}
+D10 v1 after                  : {"id":"PLAN-1-1-v1","plan_id":"PLAN-1-1","version":"v1","content":"Plan A","schemaVersion":1,"createdAt":"2026-10-21T05:29:36.276Z"}
+D10 v1 unchanged              : true
+D10 expected                  : 409 {"error":"plan_id/plan_version already exists: PLAN-1-1/v1"}; existing v1 unchanged
+D10 verdict                   : VERIFIED
+D10 state ids after           : ["PLAN-1-1-v1","PLAN-1-1-v2"]
+D10 duplicate record created  : false
+
+node_exit=0

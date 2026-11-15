@@ -1,0 +1,21 @@
+schema file parses as JSON: OK (docs\mission1\schemas\content-work-item.schema.json)
+base product_id type : ["string","null"]
+if branch            : {"properties":{"type":{"enum":["PRODUCT","REVIEW"]}},"required":["type"]}
+then branch          : {"required":["product_id"],"properties":{"product_id":{"type":"string","minLength":1}}}
+
+base schema alone, product_id: null -> valid (base is nullable)
+
+PASS  PRODUCT + product_id string -> valid
+PASS  REVIEW + product_id string -> valid
+PASS  METHOD + no product_id -> valid
+PASS  WORKFLOW + product_id null -> valid
+PASS  PRODUCT + product_id null -> invalid
+PASS  PRODUCT + product_id missing -> invalid
+PASS  PRODUCT + product_id empty string -> invalid
+PASS  PRODUCT + product_id number -> invalid
+PASS  PRODUCT + unknown extra field -> invalid
+PASS  type outside the enum -> invalid
+PASS  missing required id -> invalid
+
+11/11 behavioural cases passed
+all checks passed

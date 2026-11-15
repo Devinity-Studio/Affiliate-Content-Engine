@@ -1,0 +1,555 @@
+{
+  "run": "Decision API workflow on temporary state",
+  "date": "2026-10-21",
+  "summary": {
+    "assertions": 17,
+    "passed": 17,
+    "failed": 0
+  },
+  "results": [
+    {
+      "name": "Temporary server startup",
+      "status": 200,
+      "body": {
+        "ok": true,
+        "mock": true,
+        "stateFile": "data/app/state.json"
+      },
+      "expected": {
+        "status": 200,
+        "body": {
+          "ok": true
+        }
+      },
+      "passed": true,
+      "notes": ""
+    },
+    {
+      "name": "Load synthetic opportunities",
+      "status": 200,
+      "body": {
+        "opportunityIds": [
+          "OPP-MOCK-1",
+          "OPP-MOCK-2",
+          "OPP-MOCK-3"
+        ]
+      },
+      "expected": {
+        "status": 200,
+        "minimum": 1
+      },
+      "passed": true,
+      "notes": ""
+    },
+    {
+      "name": "Record SELECT",
+      "status": 201,
+      "body": {
+        "recorded": {
+          "id": "DEC-APP-1",
+          "at": "2026-10-20T21:46:39.133Z",
+          "opportunityId": "OPP-MOCK-1",
+          "decision": "SELECT",
+          "reason": "Selection workflow test",
+          "actor": "owner",
+          "kind": "OPPORTUNITY_DECISION",
+          "gate": "NONE",
+          "mock": true,
+          "note": "Recorded by the app. This is not a gate approval; G1 stays plan-level and G2 remains unapproved."
+        },
+        "state": {
+          "schemaVersion": 1,
+          "cycle": 1,
+          "selectedOpportunityId": "OPP-MOCK-1",
+          "lastDecisionAt": "2026-10-20T21:46:39.133Z",
+          "decisions": [
+            {
+              "id": "DEC-APP-1",
+              "at": "2026-10-20T21:46:39.133Z",
+              "opportunityId": "OPP-MOCK-1",
+              "decision": "SELECT",
+              "reason": "Selection workflow test",
+              "actor": "owner",
+              "kind": "OPPORTUNITY_DECISION",
+              "gate": "NONE",
+              "mock": true,
+              "note": "Recorded by the app. This is not a gate approval; G1 stays plan-level and G2 remains unapproved."
+            }
+          ],
+          "planVersions": {},
+          "cwis": {}
+        }
+      },
+      "expected": {
+        "status": 201,
+        "decision": "SELECT",
+        "opportunityId": "OPP-MOCK-1"
+      },
+      "passed": true,
+      "notes": ""
+    },
+    {
+      "name": "Record REJECT",
+      "status": 201,
+      "body": {
+        "recorded": {
+          "id": "DEC-APP-2",
+          "at": "2026-10-20T21:46:39.147Z",
+          "opportunityId": "OPP-MOCK-2",
+          "decision": "REJECT",
+          "reason": "Rejection workflow test",
+          "actor": "owner",
+          "kind": "OPPORTUNITY_DECISION",
+          "gate": "NONE",
+          "mock": true,
+          "note": "Recorded by the app. This is not a gate approval; G1 stays plan-level and G2 remains unapproved."
+        },
+        "state": {
+          "schemaVersion": 1,
+          "cycle": 1,
+          "selectedOpportunityId": null,
+          "lastDecisionAt": "2026-10-20T21:46:39.147Z",
+          "decisions": [
+            {
+              "id": "DEC-APP-1",
+              "at": "2026-10-20T21:46:39.133Z",
+              "opportunityId": "OPP-MOCK-1",
+              "decision": "SELECT",
+              "reason": "Selection workflow test",
+              "actor": "owner",
+              "kind": "OPPORTUNITY_DECISION",
+              "gate": "NONE",
+              "mock": true,
+              "note": "Recorded by the app. This is not a gate approval; G1 stays plan-level and G2 remains unapproved."
+            },
+            {
+              "id": "DEC-APP-2",
+              "at": "2026-10-20T21:46:39.147Z",
+              "opportunityId": "OPP-MOCK-2",
+              "decision": "REJECT",
+              "reason": "Rejection workflow test",
+              "actor": "owner",
+              "kind": "OPPORTUNITY_DECISION",
+              "gate": "NONE",
+              "mock": true,
+              "note": "Recorded by the app. This is not a gate approval; G1 stays plan-level and G2 remains unapproved."
+            }
+          ],
+          "planVersions": {},
+          "cwis": {}
+        }
+      },
+      "expected": {
+        "status": 201,
+        "decision": "REJECT",
+        "opportunityId": "OPP-MOCK-2"
+      },
+      "passed": true,
+      "notes": ""
+    },
+    {
+      "name": "Record DEFER",
+      "status": 201,
+      "body": {
+        "recorded": {
+          "id": "DEC-APP-3",
+          "at": "2026-10-20T21:46:39.162Z",
+          "opportunityId": "OPP-MOCK-3",
+          "decision": "DEFER",
+          "reason": "Deferral workflow test",
+          "actor": "owner",
+          "kind": "OPPORTUNITY_DECISION",
+          "gate": "NONE",
+          "mock": true,
+          "note": "Recorded by the app. This is not a gate approval; G1 stays plan-level and G2 remains unapproved."
+        },
+        "state": {
+          "schemaVersion": 1,
+          "cycle": 1,
+          "selectedOpportunityId": null,
+          "lastDecisionAt": "2026-10-20T21:46:39.162Z",
+          "decisions": [
+            {
+              "id": "DEC-APP-1",
+              "at": "2026-10-20T21:46:39.133Z",
+              "opportunityId": "OPP-MOCK-1",
+              "decision": "SELECT",
+              "reason": "Selection workflow test",
+              "actor": "owner",
+              "kind": "OPPORTUNITY_DECISION",
+              "gate": "NONE",
+              "mock": true,
+              "note": "Recorded by the app. This is not a gate approval; G1 stays plan-level and G2 remains unapproved."
+            },
+            {
+              "id": "DEC-APP-2",
+              "at": "2026-10-20T21:46:39.147Z",
+              "opportunityId": "OPP-MOCK-2",
+              "decision": "REJECT",
+              "reason": "Rejection workflow test",
+              "actor": "owner",
+              "kind": "OPPORTUNITY_DECISION",
+              "gate": "NONE",
+              "mock": true,
+              "note": "Recorded by the app. This is not a gate approval; G1 stays plan-level and G2 remains unapproved."
+            },
+            {
+              "id": "DEC-APP-3",
+              "at": "2026-10-20T21:46:39.162Z",
+              "opportunityId": "OPP-MOCK-3",
+              "decision": "DEFER",
+              "reason": "Deferral workflow test",
+              "actor": "owner",
+              "kind": "OPPORTUNITY_DECISION",
+              "gate": "NONE",
+              "mock": true,
+              "note": "Recorded by the app. This is not a gate approval; G1 stays plan-level and G2 remains unapproved."
+            }
+          ],
+          "planVersions": {},
+          "cwis": {}
+        }
+      },
+      "expected": {
+        "status": 201,
+        "decision": "DEFER",
+        "opportunityId": "OPP-MOCK-3"
+      },
+      "passed": true,
+      "notes": ""
+    },
+    {
+      "name": "SELECT sets selectedOpportunityId",
+      "status": 201,
+      "body": {
+        "selectedOpportunityId": "OPP-MOCK-1"
+      },
+      "expected": {
+        "selectedOpportunityId": "OPP-MOCK-1"
+      },
+      "passed": true,
+      "notes": ""
+    },
+    {
+      "name": "REJECT clears selectedOpportunityId",
+      "status": 201,
+      "body": {
+        "selectedOpportunityId": null
+      },
+      "expected": {
+        "selectedOpportunityId": null
+      },
+      "passed": true,
+      "notes": ""
+    },
+    {
+      "name": "DEFER clears selectedOpportunityId",
+      "status": 201,
+      "body": {
+        "selectedOpportunityId": null
+      },
+      "expected": {
+        "selectedOpportunityId": null
+      },
+      "passed": true,
+      "notes": ""
+    },
+    {
+      "name": "History append order and IDs",
+      "status": 201,
+      "body": {
+        "ids": [
+          "DEC-APP-1",
+          "DEC-APP-2",
+          "DEC-APP-3"
+        ],
+        "count": 3,
+        "decisions": [
+          "SELECT",
+          "REJECT",
+          "DEFER"
+        ]
+      },
+      "expected": {
+        "ids": [
+          "DEC-APP-1",
+          "DEC-APP-2",
+          "DEC-APP-3"
+        ],
+        "count": 3,
+        "decisions": [
+          "SELECT",
+          "REJECT",
+          "DEFER"
+        ]
+      },
+      "passed": true,
+      "notes": ""
+    },
+    {
+      "name": "Minimum valid reason (3 chars)",
+      "status": 201,
+      "body": {
+        "recorded": {
+          "id": "DEC-APP-4",
+          "at": "2026-10-20T21:46:39.178Z",
+          "opportunityId": "OPP-MOCK-1",
+          "decision": "SELECT",
+          "reason": "abc",
+          "actor": "owner",
+          "kind": "OPPORTUNITY_DECISION",
+          "gate": "NONE",
+          "mock": true,
+          "note": "Recorded by the app. This is not a gate approval; G1 stays plan-level and G2 remains unapproved."
+        },
+        "state": {
+          "schemaVersion": 1,
+          "cycle": 1,
+          "selectedOpportunityId": "OPP-MOCK-1",
+          "lastDecisionAt": "2026-10-20T21:46:39.178Z",
+          "decisions": [
+            {
+              "id": "DEC-APP-1",
+              "at": "2026-10-20T21:46:39.133Z",
+              "opportunityId": "OPP-MOCK-1",
+              "decision": "SELECT",
+              "reason": "Selection workflow test",
+              "actor": "owner",
+              "kind": "OPPORTUNITY_DECISION",
+              "gate": "NONE",
+              "mock": true,
+              "note": "Recorded by the app. This is not a gate approval; G1 stays plan-level and G2 remains unapproved."
+            },
+            {
+              "id": "DEC-APP-2",
+              "at": "2026-10-20T21:46:39.147Z",
+              "opportunityId": "OPP-MOCK-2",
+              "decision": "REJECT",
+              "reason": "Rejection workflow test",
+              "actor": "owner",
+              "kind": "OPPORTUNITY_DECISION",
+              "gate": "NONE",
+              "mock": true,
+              "note": "Recorded by the app. This is not a gate approval; G1 stays plan-level and G2 remains unapproved."
+            },
+            {
+              "id": "DEC-APP-3",
+              "at": "2026-10-20T21:46:39.162Z",
+              "opportunityId": "OPP-MOCK-3",
+              "decision": "DEFER",
+              "reason": "Deferral workflow test",
+              "actor": "owner",
+              "kind": "OPPORTUNITY_DECISION",
+              "gate": "NONE",
+              "mock": true,
+              "note": "Recorded by the app. This is not a gate approval; G1 stays plan-level and G2 remains unapproved."
+            },
+            {
+              "id": "DEC-APP-4",
+              "at": "2026-10-20T21:46:39.178Z",
+              "opportunityId": "OPP-MOCK-1",
+              "decision": "SELECT",
+              "reason": "abc",
+              "actor": "owner",
+              "kind": "OPPORTUNITY_DECISION",
+              "gate": "NONE",
+              "mock": true,
+              "note": "Recorded by the app. This is not a gate approval; G1 stays plan-level and G2 remains unapproved."
+            }
+          ],
+          "planVersions": {},
+          "cwis": {}
+        }
+      },
+      "expected": {
+        "status": 201,
+        "reason": "abc"
+      },
+      "passed": true,
+      "notes": ""
+    },
+    {
+      "name": "Maximum valid reason (1000 chars)",
+      "status": 201,
+      "body": {
+        "reasonLength": 1000
+      },
+      "expected": {
+        "status": 201,
+        "reasonLength": 1000
+      },
+      "passed": true,
+      "notes": ""
+    },
+    {
+      "name": "Five concurrent decisions",
+      "status": [
+        201,
+        201,
+        201,
+        201,
+        201
+      ],
+      "body": {
+        "ids": [
+          "DEC-APP-6",
+          "DEC-APP-7",
+          "DEC-APP-8",
+          "DEC-APP-9",
+          "DEC-APP-10"
+        ],
+        "persistedCounts": [
+          6,
+          7,
+          8,
+          9,
+          10
+        ]
+      },
+      "expected": {
+        "statuses": [
+          201,
+          201,
+          201,
+          201,
+          201
+        ],
+        "uniqueIds": 5,
+        "persistedCounts": [
+          6,
+          7,
+          8,
+          9,
+          10
+        ]
+      },
+      "passed": true,
+      "notes": ""
+    },
+    {
+      "name": "Persisted history and final selection before restart",
+      "status": 200,
+      "body": {
+        "decisionCount": 10,
+        "ids": [
+          "DEC-APP-1",
+          "DEC-APP-2",
+          "DEC-APP-3",
+          "DEC-APP-4",
+          "DEC-APP-5",
+          "DEC-APP-6",
+          "DEC-APP-7",
+          "DEC-APP-8",
+          "DEC-APP-9",
+          "DEC-APP-10"
+        ],
+        "selectedOpportunityId": null,
+        "lastDecision": "DEFER"
+      },
+      "expected": {
+        "status": 200,
+        "decisionCount": 10,
+        "ids": [
+          "DEC-APP-1",
+          "DEC-APP-2",
+          "DEC-APP-3",
+          "DEC-APP-4",
+          "DEC-APP-5",
+          "DEC-APP-6",
+          "DEC-APP-7",
+          "DEC-APP-8",
+          "DEC-APP-9",
+          "DEC-APP-10"
+        ],
+        "selectedOpportunityId": null,
+        "lastDecision": "DEFER"
+      },
+      "passed": true,
+      "notes": ""
+    },
+    {
+      "name": "Server restart with same temporary state",
+      "status": 200,
+      "body": {
+        "ok": true,
+        "mock": true,
+        "stateFile": "data/app/state.json"
+      },
+      "expected": {
+        "status": 200,
+        "body": {
+          "ok": true
+        }
+      },
+      "passed": true,
+      "notes": ""
+    },
+    {
+      "name": "Decision history and selection recovered",
+      "status": 200,
+      "body": {
+        "decisionCount": 10,
+        "ids": [
+          "DEC-APP-1",
+          "DEC-APP-2",
+          "DEC-APP-3",
+          "DEC-APP-4",
+          "DEC-APP-5",
+          "DEC-APP-6",
+          "DEC-APP-7",
+          "DEC-APP-8",
+          "DEC-APP-9",
+          "DEC-APP-10"
+        ],
+        "selectedOpportunityId": null,
+        "lastDecision": "DEFER"
+      },
+      "expected": {
+        "status": 200,
+        "decisionCount": 10,
+        "ids": [
+          "DEC-APP-1",
+          "DEC-APP-2",
+          "DEC-APP-3",
+          "DEC-APP-4",
+          "DEC-APP-5",
+          "DEC-APP-6",
+          "DEC-APP-7",
+          "DEC-APP-8",
+          "DEC-APP-9",
+          "DEC-APP-10"
+        ],
+        "selectedOpportunityId": null,
+        "lastDecision": "DEFER"
+      },
+      "passed": true,
+      "notes": ""
+    },
+    {
+      "name": "Real application state unchanged",
+      "status": null,
+      "body": {
+        "unchanged": true,
+        "bytes": 117
+      },
+      "expected": {
+        "unchanged": true
+      },
+      "passed": true,
+      "notes": ""
+    },
+    {
+      "name": "No commit created during test",
+      "status": null,
+      "body": {
+        "headBefore": "9749f38e7bdb1ec6ee56be0e2227473c3b973f2b",
+        "headAfter": "9749f38e7bdb1ec6ee56be0e2227473c3b973f2b"
+      },
+      "expected": {
+        "headUnchanged": true
+      },
+      "passed": true,
+      "notes": ""
+    }
+  ]
+}

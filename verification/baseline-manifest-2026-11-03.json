@@ -1,0 +1,312 @@
+{
+  "manifest_id": "ACE-E1-BASELINE-2026-11-03",
+  "schema": "ace.baseline-manifest/v1",
+  "addendum": "Addendum D1 — Legacy State Store",
+  "gate": "E1 — first export + guard observation",
+  "hash_algorithm": "sha256",
+  "hash_encoding": "lowercase hexadecimal",
+  "hash_length": 64,
+  "hash_method": "SHA-256 over raw file bytes; no canonicalisation, no newline normalisation, no trimming (identical to sha256sum <path>)",
+  "generated_at_utc": "2026-11-03T08:16:32.103Z",
+  "generated_by": "verification/baseline-manifest-check-2026-11-03.js --write",
+  "repo_root_relative": true,
+  "state_baseline": {
+    "stores": [
+      {
+        "id": "S1",
+        "role": "Legacy State Store (Addendum D1) — app-level persisted state",
+        "path": "data/app/state.json",
+        "present": true,
+        "bytes": 117,
+        "sha256": "b897c26299d56fb172d9d924a3d20e5ae4f017d828b0c81fd925f90e7a71add0",
+        "mtime_utc": "2026-10-20T20:02:21.879Z",
+        "notes": "D1 legacy state store; write target of the app runtime."
+      },
+      {
+        "id": "S2",
+        "role": "MVP runtime fixture state — MVP workflow slice store",
+        "path": "data/mvp/fixture-state.json",
+        "present": true,
+        "bytes": 121274,
+        "sha256": "50293078741aac6e927aa1ec5e06a07c7584de408bcddbad579c3a49cd85598f",
+        "mtime_utc": "2026-10-29T18:51:23.950Z",
+        "notes": "Second state store; baseline kept separately from S1."
+      }
+    ]
+  },
+  "writable_path_inventory": [
+    {
+      "id": "W1",
+      "role": "Legacy state store directory",
+      "path": "data/app",
+      "kind": "directory",
+      "present": true,
+      "notes": "Includes state.json.backup; both files are part of the write footprint.",
+      "file_count": 2,
+      "files": [
+        {
+          "path": "data/app/state.json",
+          "present": true,
+          "bytes": 117,
+          "sha256": "b897c26299d56fb172d9d924a3d20e5ae4f017d828b0c81fd925f90e7a71add0",
+          "mtime_utc": "2026-10-20T20:02:21.879Z"
+        },
+        {
+          "path": "data/app/state.json.backup",
+          "present": true,
+          "bytes": 117,
+          "sha256": "b897c26299d56fb172d9d924a3d20e5ae4f017d828b0c81fd925f90e7a71add0",
+          "mtime_utc": "2026-10-20T19:04:36.107Z"
+        }
+      ]
+    },
+    {
+      "id": "W2",
+      "role": "MVP fixture state directory",
+      "path": "data/mvp",
+      "kind": "directory",
+      "present": true,
+      "notes": "",
+      "file_count": 1,
+      "files": [
+        {
+          "path": "data/mvp/fixture-state.json",
+          "present": true,
+          "bytes": 121274,
+          "sha256": "50293078741aac6e927aa1ec5e06a07c7584de408bcddbad579c3a49cd85598f",
+          "mtime_utc": "2026-10-29T18:51:23.950Z"
+        }
+      ]
+    },
+    {
+      "id": "W3",
+      "role": "Content Library store",
+      "path": "data/mission1",
+      "kind": "directory",
+      "present": true,
+      "notes": "Library holds no structured script_version field; filename is a traceability link only.",
+      "file_count": 11,
+      "files": [
+        {
+          "path": "data/mission1/OPP-1-1.md",
+          "present": true,
+          "bytes": 7676,
+          "sha256": "6b98869502c0c42047b39558d6bd9b9652ff33b50a59c4a54bf6e4d36dead47a",
+          "mtime_utc": "2026-10-29T14:13:59.395Z"
+        },
+        {
+          "path": "data/mission1/OPP-1-2.md",
+          "present": true,
+          "bytes": 2785,
+          "sha256": "e766c2a7e566d733d24208bd377bc010e30294181b36edd42c7fd9470db37f1b",
+          "mtime_utc": "2026-10-28T23:26:31.618Z"
+        },
+        {
+          "path": "data/mission1/OPP-1-3.md",
+          "present": true,
+          "bytes": 3030,
+          "sha256": "29fab4ddfdf7e6b3847397ef859c09fd2de7c896e1a5a903948521f36722b221",
+          "mtime_utc": "2026-10-28T23:26:37.153Z"
+        },
+        {
+          "path": "data/mission1/content-library.json",
+          "present": true,
+          "bytes": 4,
+          "sha256": "a5338d955b09046ec0b16f3a9625b7955c763aae07dc722e474e6078745f932f",
+          "mtime_utc": "2026-10-31T21:40:36.720Z"
+        },
+        {
+          "path": "data/mission1/content-pipeline/acceptance-log.md",
+          "present": true,
+          "bytes": 9414,
+          "sha256": "80b759c0bffa7447464b2317e0708c5cd4a66885c46fd24b8266f7b375c7d285",
+          "mtime_utc": "2026-11-03T06:17:15.702Z"
+        },
+        {
+          "path": "data/mission1/cost-budget.yaml",
+          "present": true,
+          "bytes": 326,
+          "sha256": "0f4df11e759e7ef944cb05ece253624c7f39aea010977d09ee2f5b1777761e90",
+          "mtime_utc": "2026-10-19T06:40:21.655Z"
+        },
+        {
+          "path": "data/mission1/decision-log.md",
+          "present": true,
+          "bytes": 6617,
+          "sha256": "b4da57ab2ed96ab4f99612ea9fd9a53fd6f80ac9ae1e52b03462b07b67435a12",
+          "mtime_utc": "2026-10-31T02:26:14.806Z"
+        },
+        {
+          "path": "data/mission1/e2e-log.md",
+          "present": true,
+          "bytes": 12031,
+          "sha256": "14a34d65b44259037d5fd534d9d6f93ea3015639e8405390d712718df1afe7c3",
+          "mtime_utc": "2026-11-03T06:17:15.734Z"
+        },
+        {
+          "path": "data/mission1/evidence-log.md",
+          "present": true,
+          "bytes": 11326,
+          "sha256": "eb8b64877a9c4d902049e2be4e0df693a1a128380fb5873214738aa78ca1f710",
+          "mtime_utc": "2026-10-31T02:26:14.824Z"
+        },
+        {
+          "path": "data/mission1/run-history.yaml",
+          "present": true,
+          "bytes": 1682,
+          "sha256": "7978ab85a7fa2ff8761dbf647fdd3205f67c9e644cfa08b7797b2f6db16fde51",
+          "mtime_utc": "2026-10-29T14:06:57.918Z"
+        },
+        {
+          "path": "data/mission1/workflow-state.yaml",
+          "present": true,
+          "bytes": 1313,
+          "sha256": "da07fbf9d80df11ec8b1dd6a1da74abb41f9a0a3493d0236d72c181aae28394f",
+          "mtime_utc": "2026-10-29T14:07:11.293Z"
+        }
+      ]
+    },
+    {
+      "id": "W4",
+      "role": "Export output root (MP4, preview, render work files)",
+      "path": "app/exports",
+      "kind": "directory",
+      "present": true,
+      "notes": "Production export root. work/ subdirectory counts as part of the write footprint when no deletion evidence exists.",
+      "file_count": 1,
+      "files": [
+        {
+          "path": "app/exports/CNT-1/CNT-1-v5.mp4",
+          "present": true,
+          "bytes": 211897,
+          "sha256": "ef0a1511f28e69337ed0b0006597ce506cf5a78741c2af5da935a7c328fe4e5e",
+          "mtime_utc": "2026-10-27T18:04:53.145Z"
+        }
+      ]
+    },
+    {
+      "id": "W5",
+      "role": "Render work area (visual verification)",
+      "path": ".tmp/visual-verify",
+      "kind": "directory",
+      "present": true,
+      "notes": "Work-area copy used for render rehearsal; carries preview.png and work/ intermediates.",
+      "file_count": 6,
+      "files": [
+        {
+          "path": ".tmp/visual-verify/exports/CNT-1/CNT-1-preview.png",
+          "present": true,
+          "bytes": 135628,
+          "sha256": "e35b13d9385896c02ae112c6b648531199ee4b31255660278e5a32181f41475d",
+          "mtime_utc": "2026-10-22T13:02:58.132Z"
+        },
+        {
+          "path": ".tmp/visual-verify/exports/CNT-1/CNT-1-v2.mp4",
+          "present": true,
+          "bytes": 210651,
+          "sha256": "954a843273e40a494db54472a625518a4338578918850d54d8b584264824b448",
+          "mtime_utc": "2026-10-22T13:02:57.871Z"
+        },
+        {
+          "path": ".tmp/visual-verify/exports/CNT-1/work/filter.txt",
+          "present": true,
+          "bytes": 801,
+          "sha256": "88b6e7e41ac3bbd4cc204845c292f2478f253f75ba21d3a29ed865148ebe7871",
+          "mtime_utc": "2026-10-22T13:02:52.981Z"
+        },
+        {
+          "path": ".tmp/visual-verify/exports/CNT-1/work/subtitle.ass",
+          "present": true,
+          "bytes": 4397,
+          "sha256": "f5e42a633119e992f6c105a2f8ef725027c25ca1cbe4de9bbbd01605f81a1f0c",
+          "mtime_utc": "2026-10-22T13:02:52.980Z"
+        },
+        {
+          "path": ".tmp/visual-verify/fixture-state.json",
+          "present": true,
+          "bytes": 178946,
+          "sha256": "ef3056f6df8d525816724a907cc4cf5b50d1ace88514eff4b230fd6746225492",
+          "mtime_utc": "2026-10-22T13:02:58.222Z"
+        },
+        {
+          "path": ".tmp/visual-verify/server.log",
+          "present": true,
+          "bytes": 93,
+          "sha256": "9d1934c5ac34c90ded004d4e4df26d9021771e7538119d734db60e8615119d2d",
+          "mtime_utc": "2026-10-22T13:01:52.238Z"
+        }
+      ]
+    }
+  ],
+  "identity_findings": {
+    "statement": "MP4 filenames are version-bound; preview.png is not; the Content Library has no structured script_version field; render work files have no deletion evidence.",
+    "targets": [
+      {
+        "id": "I1",
+        "kind": "mp4",
+        "role": "Exported MP4 (version-bound filename)",
+        "path": "app/exports/CNT-1/CNT-1-v5.mp4",
+        "present": true,
+        "bytes": 211897,
+        "sha256": "ef0a1511f28e69337ed0b0006597ce506cf5a78741c2af5da935a7c328fe4e5e",
+        "mtime_utc": "2026-10-27T18:04:53.145Z",
+        "notes": "Filename carries the version token (v5) — MP4 identity is version-bound."
+      },
+      {
+        "id": "I2",
+        "kind": "mp4",
+        "role": "Exported MP4 (version-bound filename, work area)",
+        "path": ".tmp/visual-verify/exports/CNT-1/CNT-1-v2.mp4",
+        "present": true,
+        "bytes": 210651,
+        "sha256": "954a843273e40a494db54472a625518a4338578918850d54d8b584264824b448",
+        "mtime_utc": "2026-10-22T13:02:57.871Z",
+        "notes": "Filename carries the version token (v2)."
+      },
+      {
+        "id": "I3",
+        "kind": "preview",
+        "role": "Preview image (NOT version-bound)",
+        "path": ".tmp/visual-verify/exports/CNT-1/CNT-1-preview.png",
+        "present": true,
+        "bytes": 135628,
+        "sha256": "e35b13d9385896c02ae112c6b648531199ee4b31255660278e5a32181f41475d",
+        "mtime_utc": "2026-10-22T13:02:58.132Z",
+        "notes": "Filename carries no version token. This file alone cannot prove which MP4 version it belongs to; E1 must store this hash and path as the identity evidence."
+      },
+      {
+        "id": "I4",
+        "kind": "work_file",
+        "role": "Render work file — subtitle track",
+        "path": ".tmp/visual-verify/exports/CNT-1/work/subtitle.ass",
+        "present": true,
+        "bytes": 4397,
+        "sha256": "f5e42a633119e992f6c105a2f8ef725027c25ca1cbe4de9bbbd01605f81a1f0c",
+        "mtime_utc": "2026-10-22T13:02:52.980Z",
+        "notes": "Render intermediate; no deletion evidence exists, so it counts as write footprint."
+      },
+      {
+        "id": "I5",
+        "kind": "work_file",
+        "role": "Render work file — filter graph",
+        "path": ".tmp/visual-verify/exports/CNT-1/work/filter.txt",
+        "present": true,
+        "bytes": 801,
+        "sha256": "88b6e7e41ac3bbd4cc204845c292f2478f253f75ba21d3a29ed865148ebe7871",
+        "mtime_utc": "2026-10-22T13:02:52.981Z",
+        "notes": "Render intermediate; no deletion evidence exists, so it counts as write footprint."
+      },
+      {
+        "id": "I6",
+        "kind": "library",
+        "role": "Content Library index",
+        "path": "data/mission1/content-library.json",
+        "present": true,
+        "bytes": 4,
+        "sha256": "a5338d955b09046ec0b16f3a9625b7955c763aae07dc722e474e6078745f932f",
+        "mtime_utc": "2026-10-31T21:40:36.720Z",
+        "notes": "No structured script_version field. Filename references are traceability links only; this manifest must not be read as evidence of a direct Library version identity."
+      }
+    ]
+  }
+}

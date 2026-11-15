@@ -1,0 +1,153 @@
+=== Real export import + Source Library acceptance ===
+started: 2026-10-21T15:03:09.486Z
+upload fixtures are SYNTHETIC-labelled; no real Shopee export is used or claimed
+
+PASS  node --check app/mvp/importer.js — exit 0
+PASS  node --check app/mvp/service.js — exit 0
+PASS  node --check app/public/mvp.js — exit 0
+temp workspace: C:\Users\bomb_\AppData\Local\Temp\ace-import-acceptance-9573J1
+state file:    C:\Users\bomb_\AppData\Local\Temp\ace-import-acceptance-9573J1\mvp-runtime\fixture-state.json
+staging file:  C:\Users\bomb_\AppData\Local\Temp\ace-import-acceptance-9573J1\mvp-runtime\staging-state.json
+
+PASS  server becomes healthy
+  POST /api/mvp/import/preview -> 200
+    body: {"preview":{"file":{"name":"synthetic-shopee-export.csv","size_bytes":2149},"format":"csv","encoding":"utf-8","sheet":null,"sheets":null,"delimiter":",","hash":"eba833cfa313d44e8e310bbba47dd84168b7fcc0ee54b24ab03418d70878283a","synthetic":true,"source_type":"SHOPEE_AFFILIATE_EXPORT_SYNTHETIC","columns":[{"index":0,"header":"item_id","fields":["item_id"],"required":true,"unmapped":false},{"index":1,"header":"shop_id","fields":["shop_id"],"required":true,"un…
+PASS  preview returns 200 — status 200
+PASS  preview detects the CSV format and the file hash — csv eba833cfa313…
+PASS  preview maps the header to the canonical fields — []
+PASS  preview reports per-column details and unmapped columns
+PASS  preview classifies every row as valid/duplicate/invalid/unknown — {"total":8,"valid":8,"duplicate":0,"invalid":0,"unknown":0}
+PASS  preview rows carry row_number, identity and status
+PASS  preview names the required confirmations (mapping, account, date range)
+PASS  preview states that it wrote no state
+PASS  no staging file exists after preview
+PASS  no research state file exists after preview
+PASS  the Foundation state file is untouched by preview
+  POST /api/mvp/import/preview -> 200
+    body: {"preview":{"file":{"name":"synthetic-shopee-export.xlsx","size_bytes":10581},"format":"xlsx","encoding":"xlsx (SpreadsheetML)","sheet":"Offers","sheets":["Offers"],"delimiter":null,"hash":"a3ec00957adb6d7d154553223261c7120c4d79e2e09e3ccf00bfef472f4f1516","synthetic":true,"source_type":"SHOPEE_AFFILIATE_EXPORT_SYNTHETIC","columns":[{"index":0,"header":"item_id","fields":["item_id"],"required":true,"unmapped":false},{"index":1,"header":"shop_id","fields":["…
+PASS  XLSX preview parses and maps the same columns — {"total":8,"valid":8,"duplicate":0,"invalid":0,"unknown":0}
+  POST /api/mvp/import/preview -> 200
+    body: {"preview":{"file":{"name":"synthetic-shopee-export.json","size_bytes":5647},"format":"json","encoding":"utf-8","sheet":null,"sheets":null,"delimiter":null,"hash":"aec1a63f3175431e3e529c01b67148a7f8118258c519ead8d54b256de61ace80","synthetic":true,"source_type":"SHOPEE_AFFILIATE_EXPORT_SYNTHETIC","columns":[{"index":0,"header":"item_id","fields":["item_id"],"required":true,"unmapped":false},{"index":1,"header":"shop_id","fields":["shop_id"],"required":true,…
+PASS  JSON preview parses and maps the same columns — {"total":8,"valid":8,"duplicate":0,"invalid":0,"unknown":0}
+  POST /api/mvp/import/preview -> 200
+    body: {"preview":{"file":{"name":"synthetic-shopee-export-th.csv","size_bytes":2078},"format":"csv","encoding":"windows-874","sheet":null,"sheets":null,"delimiter":",","hash":"3cce227ead52dcfc98ccf294a9984828ab15b1c55605c39d25488e4054c3b4c6","synthetic":true,"source_type":"SHOPEE_AFFILIATE_EXPORT_SYNTHETIC","columns":[{"index":0,"header":"รหัสสินค้า","fields":["item_id"],"required":true,"unmapped":false},{"index":1,"header":"รหัสร้านค้า","fields":["shop_id"],"re…
+PASS  windows-874 (Thai) CSV preview detects the encoding and maps the Thai header — windows-874 []
+  POST /api/mvp/import/preview -> 415
+    body: {"error":"Legacy .xls (BIFF) is not supported. Re-export from Shopee as .xlsx or .csv."}
+PASS  legacy .xls is rejected with an actionable message — status 415
+  POST /api/mvp/import/preview -> 400
+    body: {"error":"The uploaded file is empty"}
+PASS  an empty file is rejected before anything is written — status 400
+  POST /api/mvp/import/preview -> 415
+    body: {"error":"The .txt file is not a supported spreadsheet format. Re-export from Shopee as .csv or .xlsx."}
+PASS  a plain .txt file is refused instead of being parsed as CSV — status 415
+  POST /api/mvp/import/preview -> 200
+    body: {"preview":{"file":{"name":"missing-header-export.csv","size_bytes":49},"format":"csv","encoding":"utf-8","sheet":null,"sheets":null,"delimiter":",","hash":"e13d02c86194f9545ff7d09d259ae7f74d55e00546978f5defcf2d5a86b7ddd6","synthetic":false,"source_type":"SHOPEE_AFFILIATE_EXPORT","columns":[{"index":0,"header":"name","fields":["product_name"],"required":true,"unmapped":false},{"index":1,"header":"colour","fields":[],"required":false,"unmapped":true},{"inde…
+PASS  a CSV with an incomplete header previews but reports the unmapped required fields — ["item_id","shop_id","affiliate_link","commission_rate_or_commission_thb"]
+PASS  still no staging or research state after every preview
+  POST /api/mvp/import/commit -> 400
+    body: {"error":"The column mapping must be confirmed (confirmMapping: true) before importing"}
+PASS  commit without confirmMapping is rejected — status 400
+  POST /api/mvp/import/commit -> 400
+    body: {"error":"account.label is required"}
+PASS  commit without an account label is rejected — status 400
+  POST /api/mvp/import/commit -> 400
+    body: {"error":"date_range.from is required"}
+PASS  commit without a date range is rejected — status 400
+  POST /api/mvp/import/commit -> 400
+    body: {"error":"date_range.from must be on or before date_range.to"}
+PASS  commit rejects a reversed date range — status 400
+PASS  no staging or research state exists after the rejected commits
+  POST /api/mvp/import/commit -> 201
+    body: {"import":{"id":"STG-1","file":"synthetic-shopee-export.csv","format":"csv","encoding":"utf-8","file_hash":"eba833cfa313d44e8e310bbba47dd84168b7fcc0ee54b24ab03418d70878283a","synthetic":true,"source_type":"SHOPEE_AFFILIATE_EXPORT_SYNTHETIC","account":{"id":"synthetic-account-1","label":"Synthetic test account"},"date_range":{"from":"2026-10-01","to":"2026-10-21"},"checked_at":"2026-10-21T15:03:10.210Z","imported_at":"2026-10-21T15:03:10.210Z","counts":{"to…
+PASS  confirmed commit returns 201 with a staged import — status 201
+PASS  the staged import records the file hash, format, encoding and source type
+PASS  the staged import records the account and date range
+PASS  the staged import counts valid, duplicate, invalid and unknown rows — {"total":8,"valid":8,"duplicate":0,"invalid":0,"unknown":0,"imported":8}
+PASS  the commit reports the record counts it would create — {"sources":8,"products":8,"offers":8,"evidence":72}
+PASS  the commit says the writes were staging-only
+PASS  the staged source validation passed — {"status":"PASSED","validated_at":"2026-10-21T15:03:10.210Z","checks":[{"name":"file_hash","ok":true},{"name":"checked_at","ok":true},{"name":"row_count","ok":true},{"name":"confirmed_mapping","ok":true}]}
+PASS  a staging file now exists
+PASS  no research state file exists yet — Research is untouched — absent
+PASS  the Foundation state file is untouched by the commit
+  GET /api/mvp/staging -> 200
+    body: {"staging_file":"mvp-runtime/staging-state.json","imports":[{"id":"STG-1","file":"synthetic-shopee-export.csv","format":"csv","encoding":"utf-8","file_hash":"eba833cfa313d44e8e310bbba47dd84168b7fcc0ee54b24ab03418d70878283a","synthetic":true,"source_type":"SHOPEE_AFFILIATE_EXPORT_SYNTHETIC","account":{"id":"synthetic-account-1","label":"Synthetic test account"},"date_range":{"from":"2026-10-01","to":"2026-10-21"},"checked_at":"2026-10-21T15:03:10.210Z","imp…
+PASS  the staging list shows the staged import
+  GET /api/mvp/staging/STG-1 -> 200
+    body: {"import":{"id":"STG-1","file":"synthetic-shopee-export.csv","format":"csv","encoding":"utf-8","file_hash":"eba833cfa313d44e8e310bbba47dd84168b7fcc0ee54b24ab03418d70878283a","synthetic":true,"source_type":"SHOPEE_AFFILIATE_EXPORT_SYNTHETIC","account":{"id":"synthetic-account-1","label":"Synthetic test account"},"date_range":{"from":"2026-10-01","to":"2026-10-21"},"checked_at":"2026-10-21T15:03:10.210Z","imported_at":"2026-10-21T15:03:10.210Z","counts":{"to…
+PASS  the staging detail returns per-row status and the dataset counts
+  POST /api/mvp/import/commit -> 200
+    body: {"duplicate_import":true,"existing_import_id":"STG-1","import":{"id":"STG-1","file":"synthetic-shopee-export.csv","format":"csv","encoding":"utf-8","file_hash":"eba833cfa313d44e8e310bbba47dd84168b7fcc0ee54b24ab03418d70878283a","synthetic":true,"source_type":"SHOPEE_AFFILIATE_EXPORT_SYNTHETIC","account":{"id":"synthetic-account-1","label":"Synthetic test account"},"date_range":{"from":"2026-10-01","to":"2026-10-21"},"checked_at":"2026-10-21T15:03:10.210Z","…
+PASS  re-importing the same file reports a duplicate import and writes nothing new — status 200 {"total":8,"valid":0,"duplicate":8,"invalid":0,"unknown":0}
+  GET /api/mvp/staging -> 200
+    body: {"staging_file":"mvp-runtime/staging-state.json","imports":[{"id":"STG-1","file":"synthetic-shopee-export.csv","format":"csv","encoding":"utf-8","file_hash":"eba833cfa313d44e8e310bbba47dd84168b7fcc0ee54b24ab03418d70878283a","synthetic":true,"source_type":"SHOPEE_AFFILIATE_EXPORT_SYNTHETIC","account":{"id":"synthetic-account-1","label":"Synthetic test account"},"date_range":{"from":"2026-10-01","to":"2026-10-21"},"checked_at":"2026-10-21T15:03:10.210Z","imp…
+PASS  the duplicate import did not add a second staging record
+  POST /api/mvp/staging/STG-1/research -> 201
+    body: {"promoted":true,"import":{"id":"STG-1","file":"synthetic-shopee-export.csv","format":"csv","encoding":"utf-8","file_hash":"eba833cfa313d44e8e310bbba47dd84168b7fcc0ee54b24ab03418d70878283a","synthetic":true,"source_type":"SHOPEE_AFFILIATE_EXPORT_SYNTHETIC","account":{"id":"synthetic-account-1","label":"Synthetic test account"},"date_range":{"from":"2026-10-01","to":"2026-10-21"},"checked_at":"2026-10-21T15:03:10.210Z","imported_at":"2026-10-21T15:03:10.210…
+PASS  promote returns 201 with the research state — status 201
+PASS  promote says it wrote research state only
+PASS  promote generated 5 candidates — 5
+PASS  the research state is now a staged import, not the fixture
+PASS  the research state records the file hash and the confirmed mapping — {"item_id":"item_id","shop_id":"shop_id","shop_name":"shop_name","product_name":"product_name","affiliate_link":"affiliate_link","price_thb":"price_thb","list_price_thb":"list_price_thb","commission_rate":"commission_rate","promo_type":"promo_type","promo_label":"promo_label","promo_depth_pct":"promo_depth_pct","rating":"rating","rating_count":"rating_count","units_sold":"units_sold","shop_rating":"shop_rating","related_shop_count":"related_shop_count","category":"category","product_url":"product_url","shop_url":"shop_url","exported_at":"exported_at"}
+PASS  every Offer carries source_id, product_id, shop_id, offer_id, link, price, commission, promotion, checked_at, file_hash, row_number and source_type
+PASS  every candidate has provenance, resolvable source_ids and evidence_ids, and all four claim classes
+PASS  candidates are ranked 1..5
+PASS  the Source Library lists the imported export source
+PASS  the source shows checked_at and data_as_of
+PASS  the source shows the records it created — {"products":8,"offers":8,"evidence":72}
+PASS  the source links to its candidates
+PASS  the source shows a freshness status and a validation result — FRESH/PASSED
+PASS  a shop reference source is listed for every shop in the export — 7 shop sources
+PASS  the state reports freshness warnings separately
+  GET /api/mvp/research-report -> 200
+    body: {"generated_at":"2026-10-21T15:03:10.304Z","data_mode":"STAGED_IMPORT","synthetic":true,"import":{"id":"IMP-1","staging_id":"STG-1","file":"synthetic-shopee-export.csv","format":"csv","label":"SYNTHETIC fixture upload: synthetic-shopee-export.csv","sha256":"eba833cfa313d44e8e310bbba47dd84168b7fcc0ee54b24ab03418d70878283a","file_hash":"eba833cfa313d44e8e310bbba47dd84168b7fcc0ee54b24ab03418d70878283a","source_type":"SHOPEE_AFFILIATE_EXPORT_SYNTHETIC","row_co…
+PASS  the research report traces the source to candidates and evidence — {"candidates":5,"evidence":72}
+  POST /api/mvp/sources/SRC-EXPORT-EBA833CF/archive -> 200
+    body: {"source":{"id":"SRC-EXPORT-EBA833CF","kind":"AFFILIATE_EXPORT","label":"SYNTHETIC fixture upload: synthetic-shopee-export.csv","reference":"upload://synthetic-shopee-export.csv","checked_at":"2026-10-21T15:03:10.210Z","source_type":"SHOPEE_AFFILIATE_EXPORT_SYNTHETIC","file_hash":"eba833cfa313d44e8e310bbba47dd84168b7fcc0ee54b24ab03418d70878283a","data_as_of":"2026-10-21","expires_at":"2026-11-20T00:00:00.000Z","status":"ARCHIVED","synthetic":true,"verified…
+PASS  archiving a source returns 200 — status 200
+PASS  archiving keeps every evidence record and candidate — evidence 72 candidates 5
+PASS  the archived source is flagged and no longer ACTIVE
+PASS  archiving says generation is blocked
+PASS  the archive is written to the archive log
+  POST /api/mvp/candidates/generate -> 409
+    body: {"error":"Cannot generate candidates: an archived source is still linked to imported offers.","details":{"blocked_sources":[{"id":"SRC-EXPORT-EBA833CF","reason":"ARCHIVED"}]}}
+PASS  generating candidates is blocked while the source is archived — status 409
+  GET /api/mvp/state -> 200
+    body: {"schemaVersion":1,"kind":"MVP_FIXTURE_STATE","synthetic":true,"data_mode":"STAGED_IMPORT","cycle":1,"import":{"id":"IMP-1","staging_id":"STG-1","file":"synthetic-shopee-export.csv","format":"csv","label":"SYNTHETIC fixture upload: synthetic-shopee-export.csv","sha256":"eba833cfa313d44e8e310bbba47dd84168b7fcc0ee54b24ab03418d70878283a","file_hash":"eba833cfa313d44e8e310bbba47dd84168b7fcc0ee54b24ab03418d70878283a","source_type":"SHOPEE_AFFILIATE_EXPORT_SYNTH…
+PASS  the blocked generation left the evidence register untouched
+  GET /api/mvp/state -> 200
+    body: {"schemaVersion":1,"kind":"MVP_FIXTURE_STATE","synthetic":true,"data_mode":"STAGED_IMPORT","cycle":1,"import":{"id":"IMP-1","staging_id":"STG-1","file":"synthetic-shopee-export.csv","format":"csv","label":"SYNTHETIC fixture upload: synthetic-shopee-export.csv","sha256":"eba833cfa313d44e8e310bbba47dd84168b7fcc0ee54b24ab03418d70878283a","file_hash":"eba833cfa313d44e8e310bbba47dd84168b7fcc0ee54b24ab03418d70878283a","source_type":"SHOPEE_AFFILIATE_EXPORT_SYNTH…
+PASS  an aged source is reported as EXPIRED with a warning — EXPIRED
+PASS  the freshness warning is surfaced at the top of the state
+  POST /api/mvp/sources/SRC-EXPORT-EBA833CF/validate -> 200
+    body: {"source":{"id":"SRC-EXPORT-EBA833CF","kind":"AFFILIATE_EXPORT","label":"SYNTHETIC fixture upload: synthetic-shopee-export.csv","reference":"upload://synthetic-shopee-export.csv","checked_at":"2026-10-21T15:03:10.210Z","source_type":"SHOPEE_AFFILIATE_EXPORT_SYNTHETIC","file_hash":"eba833cfa313d44e8e310bbba47dd84168b7fcc0ee54b24ab03418d70878283a","data_as_of":"2026-07-23","expires_at":"2026-08-22T00:00:00.000Z","status":"ARCHIVED","synthetic":true,"verified…
+PASS  revalidating a source returns 200 with the validation checks — status 200
+  POST /api/mvp/candidates/generate -> 409
+    body: {"error":"Cannot generate candidates: the export data has expired. Acknowledge the stale data to continue.","details":{"expired_sources":[{"id":"SRC-EXPORT-EBA833CF","freshness":{"status":"EXPIRED","age_days":90,"data_as_of":"2026-07-23","expires_at":"2026-08-22T00:00:00.000Z","warning":"Source SRC-EXPORT-EBA833CF is 90 days old (expired 2026-08-22). Generate candidates only after acknowledging the stale data."}}],"acknowledge_with":"POST /api/mvp/candidat…
+PASS  generating from an expired source is blocked until the user acknowledges it — status 409
+  POST /api/mvp/candidates/generate -> 201
+    body: {"candidates":[{"id":"CND-1005","rank":1,"title":"Cat Food 1.5kg","product_id":"PRD-1005","offer_id":"OFR-1005","shop":{"id":"504","name":"PetJoy"},"category":"Cat","scores":{"formula_version":"mvp-score-v1","ranking_score":81,"opportunity_score":78,"confidence":{"level":"HIGH","score":1,"basis":"100% of key export fields present; review volume factor 1 (rating_count 740). Confidence is in the import data, not in future sales."},"components":{"weights":{"c…
+PASS  acknowledging the expired source allows generation to continue — status 201
+PASS  server restarts after the import
+  GET /api/mvp/state -> 200
+    body: {"schemaVersion":1,"kind":"MVP_FIXTURE_STATE","synthetic":true,"data_mode":"STAGED_IMPORT","cycle":1,"import":{"id":"IMP-1","staging_id":"STG-1","file":"synthetic-shopee-export.csv","format":"csv","label":"SYNTHETIC fixture upload: synthetic-shopee-export.csv","sha256":"eba833cfa313d44e8e310bbba47dd84168b7fcc0ee54b24ab03418d70878283a","file_hash":"eba833cfa313d44e8e310bbba47dd84168b7fcc0ee54b24ab03418d70878283a","source_type":"SHOPEE_AFFILIATE_EXPORT_SYNTH…
+PASS  the staged import survives the restart
+PASS  the source library survives the restart
+PASS  the candidates survive the restart
+  GET /api/mvp/staging -> 200
+    body: {"staging_file":"mvp-runtime/staging-state.json","imports":[{"id":"STG-1","file":"synthetic-shopee-export.csv","format":"csv","encoding":"utf-8","file_hash":"eba833cfa313d44e8e310bbba47dd84168b7fcc0ee54b24ab03418d70878283a","synthetic":true,"source_type":"SHOPEE_AFFILIATE_EXPORT_SYNTHETIC","account":{"id":"synthetic-account-1","label":"Synthetic test account"},"date_range":{"from":"2026-10-01","to":"2026-10-21"},"checked_at":"2026-10-21T15:03:10.210Z","imp…
+PASS  the staging record survives the restart
+  GET /api/state -> 200
+    body: {"schemaVersion":1,"cycle":1,"selectedOpportunityId":null,"lastDecisionAt":null,"decisions":[],"planVersions":{},"cwis":{}}
+PASS  the Foundation state has no MVP fields
+PASS  the Foundation decision log is untouched — []
+PASS  the Foundation state file is byte-identical after the whole run
+PASS  real data/app/state.json is byte-identical — 5d29cdbdace0a73580bc2e0633f2e8cb
+PASS  the schema, mock dataset and mission records are byte-identical
+PASS  real data/mvp was not created or changed — absent before and after
+PASS  no commit created during the run — 9749f38e7bdb1ec6ee56be0e2227473c3b973f2b
+PASS  nothing staged during the run — (none)
+
+assertions: 83  passed: 83  failed: 0
+real Shopee export used: NO — parser contract only, SYNTHETIC-labelled fixtures
+Import + Source Library acceptance passed (temporary staging state only)

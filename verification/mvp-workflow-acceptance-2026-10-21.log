@@ -1,0 +1,116 @@
+=== MVP affiliate workflow acceptance — temporary fixture state only ===
+started: 2026-10-21T15:05:02.667Z
+
+PASS  node --check app/mvp/service.js — exit 0
+PASS  node --check app/public/mvp.js — exit 0
+temp workspace: C:\Users\bomb_\AppData\Local\Temp\ace-mvp-acceptance-JsSwIZ
+fixture state:  C:\Users\bomb_\AppData\Local\Temp\ace-mvp-acceptance-JsSwIZ\mvp-runtime\fixture-state.json
+the repository copy is mounted read-only in practice; only the temp copy is written
+
+PASS  server becomes healthy
+  GET /api/mvp/meta -> 200
+    body: {"fixture":{"file":"app/mvp/fixtures/shopee-affiliate-export-2026-10-21.csv","label":"SYNTHETIC Shopee Affiliate export fixture (hand-authored, no Shopee account contacted)","synthetic":true,"columns":["item_id","shop_id","shop_name","product_name","category","price_thb","list_price_thb","commission_rate","rating","rating_count","units_sold","shop_rating","related_shop_count","promo_type","promo_label","promo_depth_pct","product_url","shop_url","exported_at"],"sha256":"5a929f…
+PASS  meta is synthetic and points at the fixture
+PASS  meta sha256 matches the fixture file — 5a929f637cdabbbe7113abb97fe12f20d5b327e4c1e3c75e8adf23211e6e3a87
+PASS  meta does not claim AC-01 / SCOPE-1 / Mission 1
+  POST /api/mvp/import -> 201
+    body: {"import":{"id":"IMP-1","file":"app/mvp/fixtures/shopee-affiliate-export-2026-10-21.csv","label":"SYNTHETIC Shopee Affiliate export fixture (hand-authored, no Shopee account contacted)","sha256":"5a929f637cdabbbe7113abb97fe12f20d5b327e4c1e3c75e8adf23211e6e3a87","file_hash":"5a929f637cdabbbe7113abb97fe12f20d5b327e4c1e3c75e8adf23211e6e3a87","source_type":"SHOPEE_AFFILIATE_EXPORT_SYNTHETIC","row_count":8,"checked_at":"2026-10-21T15:05:03.155Z","imported_at":"2026-10-21T15:05:03.…
+PASS  fixture import returns 201 with 8 rows
+PASS  import records: 8 sources, 8 products, 8 offers, 72 evidence — {"sources":8,"products":8,"offers":8,"evidence":72}
+PASS  import is labelled synthetic with provenance
+PASS  every Offer has checked_at, provenance, source_ids and resolvable evidence_ids
+PASS  every Product has checked_at, provenance and source_ids
+PASS  every Source has checked_at and provenance
+PASS  analysis covers price, promotion, commission, reviews and shops
+  POST /api/mvp/candidates/generate -> 201
+    body: {"candidates":[{"id":"CND-1005","rank":1,"title":"Cat Food 1.5kg","product_id":"PRD-1005","offer_id":"OFR-1005","shop":{"id":"504","name":"PetJoy"},"category":"Cat","scores":{"formula_version":"mvp-score-v1","ranking_score":81,"opportunity_score":78,"confidence":{"level":"HIGH","score":1,"basis":"100% of key export fields present; review volume factor 1 (rating_count 740). Confidence is in the import data, not in future sales."},"components":{"weights":{"commission":0.3,"prom…
+PASS  generate returns 201 with exactly 5 candidates
+PASS  every candidate carries all four claim classes — CND-1005:FACT/INFERENCE/HYPOTHESIS/UNKNOWN CND-1001:FACT/INFERENCE/HYPOTHESIS/UNKNOWN CND-1006:FACT/INFERENCE/HYPOTHESIS/UNKNOWN CND-1002:FACT/INFERENCE/HYPOTHESIS/UNKNOWN CND-1003:FACT/INFERENCE/HYPOTHESIS/UNKNOWN
+PASS  every claim has a valid class and resolvable evidence_ids
+PASS  every candidate has scores, confidence, reasons, provenance and source/evidence ids — CND-1005 81/78/HIGH, CND-1001 66/60/HIGH, CND-1006 59/53/HIGH, CND-1002 53/45/HIGH, CND-1003 53/45/HIGH
+PASS  candidate ids are unique and ranked 1..5
+  POST /api/mvp/candidates/generate -> 201
+    body: {"candidates":[{"id":"CND-1005","rank":1,"title":"Cat Food 1.5kg","product_id":"PRD-1005","offer_id":"OFR-1005","shop":{"id":"504","name":"PetJoy"},"category":"Cat","scores":{"formula_version":"mvp-score-v1","ranking_score":81,"opportunity_score":78,"confidence":{"level":"HIGH","score":1,"basis":"100% of key export fields present; review volume factor 1 (rating_count 740). Confidence is in the import data, not in future sales."},"components":{"weights":{"commission":0.3,"prom…
+PASS  regeneration is deterministic (same ids, ranks and scores)
+  POST /api/mvp/candidates/CND-1005/action -> 200
+    body: {"candidate":{"id":"CND-1005","rank":1,"title":"Cat Food 1.5kg","product_id":"PRD-1005","offer_id":"OFR-1005","shop":{"id":"504","name":"PetJoy"},"category":"Cat","scores":{"formula_version":"mvp-score-v1","ranking_score":81,"opportunity_score":78,"confidence":{"level":"HIGH","score":1,"basis":"100% of key export fields present; review volume factor 1 (rating_count 740). Confidence is in the import data, not in future sales."},"components":{"weights":{"commission":0.3,"promo"…
+PASS  Save sets SAVED and adds to the queue
+  POST /api/mvp/candidates/CND-1001/action -> 200
+    body: {"candidate":{"id":"CND-1001","rank":2,"title":"Vitamin C Serum 30ml","product_id":"PRD-1001","offer_id":"OFR-1001","shop":{"id":"501","name":"Nong Beauty Official"},"category":"Beauty","scores":{"formula_version":"mvp-score-v1","ranking_score":66,"opportunity_score":60,"confidence":{"level":"HIGH","score":1,"basis":"100% of key export fields present; review volume factor 1 (rating_count 1240). Confidence is in the import data, not in future sales."},"components":{"weights":{…
+  POST /api/mvp/candidates/CND-1006/action -> 200
+    body: {"candidate":{"id":"CND-1006","rank":3,"title":"Yoga Mat 6mm","product_id":"PRD-1006","offer_id":"OFR-1006","shop":{"id":"505","name":"FitGear"},"category":"Sports","scores":{"formula_version":"mvp-score-v1","ranking_score":59,"opportunity_score":53,"confidence":{"level":"HIGH","score":0.925,"basis":"100% of key export fields present; review volume factor 0.75 (rating_count 150). Confidence is in the import data, not in future sales."},"components":{"weights":{"commission":0.…
+  POST /api/mvp/candidates/CND-1003/action -> 200
+    body: {"candidate":{"id":"CND-1003","rank":5,"title":"Stackable Storage Box 3-Tier","product_id":"PRD-1003","offer_id":"OFR-1003","shop":{"id":"502","name":"HomeMate"},"category":"Home","scores":{"formula_version":"mvp-score-v1","ranking_score":53,"opportunity_score":45,"confidence":{"level":"HIGH","score":1,"basis":"100% of key export fields present; review volume factor 1 (rating_count 310). Confidence is in the import data, not in future sales."},"components":{"weights":{"commis…
+PASS  Add to queue appends in order — ["CND-1005","CND-1001","CND-1006","CND-1003"]
+  POST /api/mvp/candidates/CND-1002/action -> 200
+    body: {"candidate":{"id":"CND-1002","rank":4,"title":"Sunscreen SPF50 50ml","product_id":"PRD-1002","offer_id":"OFR-1002","shop":{"id":"501","name":"Nong Beauty Official"},"category":"Beauty","scores":{"formula_version":"mvp-score-v1","ranking_score":53,"opportunity_score":45,"confidence":{"level":"HIGH","score":1,"basis":"100% of key export fields present; review volume factor 1 (rating_count 980). Confidence is in the import data, not in future sales."},"components":{"weights":{"…
+PASS  Reject sets REJECTED and keeps it out of the queue
+  POST /api/mvp/candidates/CND-1002/action -> 409
+    body: {"error":"a rejected candidate cannot be queued"}
+PASS  queueing a rejected candidate is refused with 409
+  POST /api/mvp/candidates/CND-1002/action -> 409
+    body: {"error":"a rejected candidate cannot be saved; remove the rejection first"}
+PASS  saving a rejected candidate is refused with 409
+  POST /api/mvp/queue/reorder -> 200
+    body: {"queue":["CND-1005","CND-1001","CND-1003","CND-1006"],"state":{"schemaVersion":1,"kind":"MVP_FIXTURE_STATE","synthetic":true,"data_mode":"FIXTURE","cycle":1,"import":{"id":"IMP-1","file":"app/mvp/fixtures/shopee-affiliate-export-2026-10-21.csv","label":"SYNTHETIC Shopee Affiliate export fixture (hand-authored, no Shopee account contacted)","sha256":"5a929f637cdabbbe7113abb97fe12f20d5b327e4c1e3c75e8adf23211e6e3a87","file_hash":"5a929f637cdabbbe7113abb97fe12f20d5b327e4c1e3c75e…
+PASS  reorder moves a candidate up — ["CND-1005","CND-1001","CND-1003","CND-1006"]
+  POST /api/mvp/candidates/CND-1001/action -> 200
+    body: {"candidate":{"id":"CND-1001","rank":2,"title":"Vitamin C Serum 30ml","product_id":"PRD-1001","offer_id":"OFR-1001","shop":{"id":"501","name":"Nong Beauty Official"},"category":"Beauty","scores":{"formula_version":"mvp-score-v1","ranking_score":66,"opportunity_score":60,"confidence":{"level":"HIGH","score":1,"basis":"100% of key export fields present; review volume factor 1 (rating_count 1240). Confidence is in the import data, not in future sales."},"components":{"weights":{…
+PASS  Remove clears status and takes the candidate out of the queue — ["CND-1005","CND-1003","CND-1006"]
+  GET /api/mvp/state -> 200
+    body: {"schemaVersion":1,"kind":"MVP_FIXTURE_STATE","synthetic":true,"data_mode":"FIXTURE","cycle":1,"import":{"id":"IMP-1","file":"app/mvp/fixtures/shopee-affiliate-export-2026-10-21.csv","label":"SYNTHETIC Shopee Affiliate export fixture (hand-authored, no Shopee account contacted)","sha256":"5a929f637cdabbbe7113abb97fe12f20d5b327e4c1e3c75e8adf23211e6e3a87","file_hash":"5a929f637cdabbbe7113abb97fe12f20d5b327e4c1e3c75e8adf23211e6e3a87","source_type":"SHOPEE_AFFILIATE_EXPORT_SYNTHE…
+PASS  server restarts with the same fixture state file
+  GET /api/mvp/state -> 200
+    body: {"schemaVersion":1,"kind":"MVP_FIXTURE_STATE","synthetic":true,"data_mode":"FIXTURE","cycle":1,"import":{"id":"IMP-1","file":"app/mvp/fixtures/shopee-affiliate-export-2026-10-21.csv","label":"SYNTHETIC Shopee Affiliate export fixture (hand-authored, no Shopee account contacted)","sha256":"5a929f637cdabbbe7113abb97fe12f20d5b327e4c1e3c75e8adf23211e6e3a87","file_hash":"5a929f637cdabbbe7113abb97fe12f20d5b327e4c1e3c75e8adf23211e6e3a87","source_type":"SHOPEE_AFFILIATE_EXPORT_SYNTHE…
+PASS  candidate statuses survive reload — {"CND-1005":"SAVED","CND-1001":"NONE","CND-1006":"QUEUED","CND-1002":"REJECTED","CND-1003":"QUEUED"}
+PASS  queue order survives reload — ["CND-1005","CND-1003","CND-1006"]
+PASS  candidate scores survive reload
+PASS  evidence and provenance survive reload
+  POST /api/mvp/plan/draft -> 409
+    body: {"error":"save or queue the candidate before creating a plan draft (current status NONE)"}
+PASS  plan draft from an unselected candidate is refused with 409
+  POST /api/mvp/plan/draft -> 409
+    body: {"error":"save or queue the candidate before creating a plan draft (current status REJECTED)"}
+PASS  plan draft from a rejected candidate is refused with 409
+  POST /api/mvp/plan/draft -> 201
+    body: {"draft":{"id":"PD-1","candidate_id":"CND-1005","created_at":"2026-10-21T15:05:03.615Z","status":"DRAFT","synthetic":true,"plan_identity_preview":{"plan_id":"MVP-PLAN-1-1","id":"MVP-PLAN-1-1-v1","version":"v1"},"basis":{"ranking_score":81,"opportunity_score":78,"confidence":{"level":"HIGH","score":1,"basis":"100% of key export fields present; review volume factor 1 (rating_count 740). Confidence is in the import data, not in future sales."},"evidence_ids":["EV-1005-PRICE","EV…
+PASS  plan draft is created for a saved candidate
+PASS  draft has three generated approaches and an empty user-custom slot
+PASS  draft has an impact preview with changes, not-done list and gates
+  POST /api/mvp/plan -> 400
+    body: {"error":"impact preview must be confirmed (confirmImpact: true)","impact_preview":{"generated_at":"2026-10-21T15:05:03.631Z","fixture_only":true,"candidate":{"id":"CND-1005","title":"Cat Food 1.5kg","status":"SAVED"},"plan_identity_preview":{"plan_id":"MVP-PLAN-1-1","id":"MVP-PLAN-1-1-v1","version":"v1"},"changes":[{"what":"Create fixture plan MVP-PLAN-1-1 (MVP-PLAN-1-1-v1) from CND-1005.","where":"MVP fixture state only","effect":"one MVP plan record, status FIXTURE_DRAFT"}…
+  GET /api/mvp/state -> 200
+    body: {"schemaVersion":1,"kind":"MVP_FIXTURE_STATE","synthetic":true,"data_mode":"FIXTURE","cycle":1,"import":{"id":"IMP-1","file":"app/mvp/fixtures/shopee-affiliate-export-2026-10-21.csv","label":"SYNTHETIC Shopee Affiliate export fixture (hand-authored, no Shopee account contacted)","sha256":"5a929f637cdabbbe7113abb97fe12f20d5b327e4c1e3c75e8adf23211e6e3a87","file_hash":"5a929f637cdabbbe7113abb97fe12f20d5b327e4c1e3c75e8adf23211e6e3a87","source_type":"SHOPEE_AFFILIATE_EXPORT_SYNTHE…
+PASS  creating a plan without confirming the impact preview is refused with 400
+PASS  the refused create wrote no plan
+  POST /api/mvp/plan/custom -> 200
+    body: {"draft":{"id":"PD-1","candidate_id":"CND-1005","created_at":"2026-10-21T15:05:03.615Z","status":"DRAFT","synthetic":true,"plan_identity_preview":{"plan_id":"MVP-PLAN-1-1","id":"MVP-PLAN-1-1-v1","version":"v1"},"basis":{"ranking_score":81,"opportunity_score":78,"confidence":{"level":"HIGH","score":1,"basis":"100% of key export fields present; review volume factor 1 (rating_count 740). Confidence is in the import data, not in future sales."},"evidence_ids":["EV-1005-PRICE","EV…
+PASS  user custom approach is saved with origin USER
+PASS  user custom is stored separately from the generated three
+  POST /api/mvp/plan -> 201
+    body: {"plan":{"id":"MVP-PLAN-1-1-v1","plan_id":"MVP-PLAN-1-1","version":"v1","kind":"MVP_FIXTURE_PLAN","synthetic":true,"status":"FIXTURE_DRAFT","candidate_id":"CND-1005","draft_id":"PD-1","approach":"user_custom","selected_approach":{"key":"user_custom","label":"User Custom","origin":"USER","angle":"Owner angle: daily portion cost for cat owners, with a feeding demo.","audience":"cat owners buying staple food","hook":"Cost per day, not cost per bag","format":"25s feeding demo","r…
+PASS  confirmed plan creation returns 201 with a snapshot identity
+PASS  plan keeps the generated three and the user custom separately
+PASS  plan is a fixture record and does not claim a foundation handoff
+PASS  plan impact preview keeps all gates unchanged
+PASS  server restarts after plan creation
+  GET /api/mvp/state -> 200
+    body: {"schemaVersion":1,"kind":"MVP_FIXTURE_STATE","synthetic":true,"data_mode":"FIXTURE","cycle":1,"import":{"id":"IMP-1","file":"app/mvp/fixtures/shopee-affiliate-export-2026-10-21.csv","label":"SYNTHETIC Shopee Affiliate export fixture (hand-authored, no Shopee account contacted)","sha256":"5a929f637cdabbbe7113abb97fe12f20d5b327e4c1e3c75e8adf23211e6e3a87","file_hash":"5a929f637cdabbbe7113abb97fe12f20d5b327e4c1e3c75e8adf23211e6e3a87","source_type":"SHOPEE_AFFILIATE_EXPORT_SYNTHE…
+PASS  plan survives reload with its custom approach
+PASS  candidate statuses and queue survive the second reload
+PASS  draft is finalised, not re-openable
+  POST /api/mvp/import -> 200
+    body: {"import":{"id":"IMP-1","file":"app/mvp/fixtures/shopee-affiliate-export-2026-10-21.csv","label":"SYNTHETIC Shopee Affiliate export fixture (hand-authored, no Shopee account contacted)","sha256":"5a929f637cdabbbe7113abb97fe12f20d5b327e4c1e3c75e8adf23211e6e3a87","file_hash":"5a929f637cdabbbe7113abb97fe12f20d5b327e4c1e3c75e8adf23211e6e3a87","source_type":"SHOPEE_AFFILIATE_EXPORT_SYNTHETIC","row_count":8,"checked_at":"2026-10-21T15:05:03.155Z","imported_at":"2026-10-21T15:05:03.…
+PASS  re-importing the same fixture is idempotent and keeps the plan
+PASS  fixture state was written to the configured temp file
+PASS  temp foundation state.json is byte-identical (MVP never wrote it)
+PASS  real data/app/state.json is byte-identical — 5d29cdbdace0a73580bc2e0633f2e8cb
+PASS  real schema and mission files are byte-identical
+PASS  real data/mvp fixture state was not created or changed — absent before and after
+PASS  no commit created during the run — 9749f38e7bdb1ec6ee56be0e2227473c3b973f2b
+PASS  nothing staged during the run — (none)
+
+assertions: 56  passed: 56  failed: 0
+existing commit count: 9
+new commits created this round: 0
+MVP workflow acceptance passed (temporary fixture state only)

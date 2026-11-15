@@ -1,0 +1,12 @@
+# CWI create concurrency probe — 2026-10-21T05:19:57Z
+# command: node /tmp/probe-cwi-concurrency.js  (temp copy of app/ data/ docs/, port 4295)
+# purpose: does POST /api/content-work-item assign a unique id under concurrency? (D5 relevance)
+
+plan: 201 PLAN-1-1-v1
+two concurrent creates: 201 201 | ids: CWI-1 CWI-1
+cwis stored: 1 -> [ 'CWI-1' ]
+GET a: 200 GET b: 200
+five concurrent: 201,201,500,500,500 | ids: CWI-2,CWI-2,,,
+cwis stored after five: 2
+
+probe_exit=0

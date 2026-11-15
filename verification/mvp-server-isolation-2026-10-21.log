@@ -1,0 +1,123 @@
+=== MVP server isolation audit — temporary workspace ===
+repository: Y:\DevProject\Affiliate Content Engine
+
+--- 1. app/server.js footprint ---
+  L18: // MVP affiliate workflow slice. It owns its own fixture state and never touches
+  L20: const mvp = require('./mvp/service');
+  L346: if (pathname.startsWith('/api/mvp/')) {
+  L347: await mvp.handleMvp(req, res, { pathname, sendJson, readBody });
+PASS  MVP is referenced on only the require + delegation lines (4 lines) — 4 matching lines
+PASS  exactly one /api/mvp/ dispatch exists in server.js
+PASS  exactly one require of the MVP module exists
+PASS  the require is a top-level constant named mvp
+PASS  delegation runs before every Foundation route — delegation L346 < first Foundation L351
+PASS  delegation always returns (cannot fall through to Foundation routes) —     if (pathname.startsWith('/api/')) { |       if (pathname.startsWith('/api/mvp/')) { |         await mvp.handleMvp(req, res, { pathname, sendJson, readBody }); |         return;
+PASS  all Foundation handler anchors are present unchanged — 7 anchors
+
+--- 2. app/mvp/service.js independence ---
+PASS  MVP module requires node builtins and local modules only — node:fs/promises, node:path, node:crypto, ./importer
+PASS  MVP module does not import the server or Foundation modules
+PASS  MVP module has its own state file constant
+PASS  MVP module never references Foundation state, mock or lock symbols — none
+PASS  MVP module contains no HTTP call to Foundation routes
+PASS  MVP module has its own staging file constant
+PASS  importer module requires node builtins only — node:zlib, node:crypto, node:crypto
+PASS  importer module makes no network call and opens no socket
+PASS  importer module never reads the Foundation state file
+PASS  importer module has no file-write calls (preview stays in memory)
+
+--- 3. runtime separation on a temp copy ---
+PASS  server becomes healthy with both API families
+  GET /api/health -> 200  {"ok":true,"mock":true,"stateFile":"data/app/state.json"}
+PASS  Foundation health response is unchanged
+  GET /api/mvp/meta -> 200  {"fixture":{"file":"app/mvp/fixtures/shopee-affiliate-export-2026-10-21.csv","label":"SYNTHETIC Shopee Affiliate export fixture (hand-authored, no Shopee account contacted)","synthetic":true,"columns"
+PASS  MVP meta points at its own state file, not data/app/state.json — mvp-runtime/fixture-state.json
+  POST /api/mvp/import -> 201  {"import":{"id":"IMP-1","file":"app/mvp/fixtures/shopee-affiliate-export-2026-10-21.csv","label":"SYNTHETIC Shopee Affiliate export fixture (hand-authored, no Shopee account contacted)","sha256":"5a92
+  POST /api/mvp/candidates/generate -> 201  {"candidates":[{"id":"CND-1005","rank":1,"title":"Cat Food 1.5kg","product_id":"PRD-1005","offer_id":"OFR-1005","shop":{"id":"504","name":"PetJoy"},"category":"Cat","scores":{"formula_version":"mvp-sc
+  POST /api/mvp/candidates/CND-1005/action -> 200  {"candidate":{"id":"CND-1005","rank":1,"title":"Cat Food 1.5kg","product_id":"PRD-1005","offer_id":"OFR-1005","shop":{"id":"504","name":"PetJoy"},"category":"Cat","scores":{"formula_version":"mvp-scor
+  POST /api/mvp/candidates/CND-1001/action -> 200  {"candidate":{"id":"CND-1001","rank":2,"title":"Vitamin C Serum 30ml","product_id":"PRD-1001","offer_id":"OFR-1001","shop":{"id":"501","name":"Nong Beauty Official"},"category":"Beauty","scores":{"for
+  POST /api/mvp/queue/reorder -> 200  {"queue":["CND-1001","CND-1005"],"state":{"schemaVersion":1,"kind":"MVP_FIXTURE_STATE","synthetic":true,"data_mode":"FIXTURE","cycle":1,"import":{"id":"IMP-1","file":"app/mvp/fixtures/shopee-affiliate
+  POST /api/mvp/plan/draft -> 201  {"draft":{"id":"PD-1","candidate_id":"CND-1005","created_at":"2026-10-21T15:05:09.611Z","status":"DRAFT","synthetic":true,"plan_identity_preview":{"plan_id":"MVP-PLAN-1-1","id":"MVP-PLAN-1-1-v1","vers
+  POST /api/mvp/plan/custom -> 200  {"draft":{"id":"PD-1","candidate_id":"CND-1005","created_at":"2026-10-21T15:05:09.611Z","status":"DRAFT","synthetic":true,"plan_identity_preview":{"plan_id":"MVP-PLAN-1-1","id":"MVP-PLAN-1-1-v1","vers
+  POST /api/mvp/plan -> 201  {"plan":{"id":"MVP-PLAN-1-1-v1","plan_id":"MVP-PLAN-1-1","version":"v1","kind":"MVP_FIXTURE_PLAN","synthetic":true,"status":"FIXTURE_DRAFT","candidate_id":"CND-1005","draft_id":"PD-1","approach":"user
+PASS  MVP pipeline runs end to end (import → plan)
+  GET /api/state -> 200  {"schemaVersion":1,"cycle":1,"selectedOpportunityId":null,"lastDecisionAt":null,"decisions":[],"planVersions":{},"cwis":{}}
+PASS  Foundation /api/state contains no MVP fields — cwis,cycle,decisions,lastDecisionAt,planVersions,schemaVersion,selectedOpportunityId
+PASS  Foundation state values are still empty/default
+PASS  Foundation decisions/plans/CWIs were not written by MVP traffic — 5d29cdbdace0a73580bc2e0633f2e8cb -> 5d29cdbdace0a73580bc2e0633f2e8cb
+  GET /api/mvp/state -> 200  {"schemaVersion":1,"kind":"MVP_FIXTURE_STATE","synthetic":true,"data_mode":"FIXTURE","cycle":1,"import":{"id":"IMP-1","file":"app/mvp/fixtures/shopee-affiliate-export-2026-10-21.csv","label":"SYNTHETI
+  POST /api/plan-version -> 201  {"id":"PLAN-1-1-v1","plan_id":"PLAN-1-1","version":"v1","content":"Isolation audit foundation plan","schemaVersion":1,"createdAt":"2026-10-21T15:05:09.672Z"}
+  POST /api/content-work-item -> 201  {"id":"CWI-1","plan_id":"PLAN-1-1","plan_version":"v1","decision":"PENDING","createdAt":"2026-10-21T15:05:09.687Z","type":"PRODUCT","product_id":"P-AUDIT"}
+  GET /api/state -> 200  {"schemaVersion":1,"cycle":1,"selectedOpportunityId":null,"lastDecisionAt":null,"decisions":[],"planVersions":{"PLAN-1-1-v1":{"id":"PLAN-1-1-v1","plan_id":"PLAN-1-1","version":"v1","content":"Isolatio
+PASS  Foundation Plan Version and CWI still work normally
+PASS  MVP plan did not enter the Foundation plan store — PLAN-1-1-v1
+  GET /api/plan-version/MVP-PLAN-1-1-v1 -> 400  {"error":"Invalid version ID format. Expected format: PLAN-<cycle>-<plan_number>-v<version>"}
+PASS  Foundation rejects the MVP plan id (namespaces do not overlap) — status 400
+  GET /api/mvp/state -> 200  {"schemaVersion":1,"kind":"MVP_FIXTURE_STATE","synthetic":true,"data_mode":"FIXTURE","cycle":1,"import":{"id":"IMP-1","file":"app/mvp/fixtures/shopee-affiliate-export-2026-10-21.csv","label":"SYNTHETI
+PASS  Foundation traffic did not change MVP candidates, queue or plans
+PASS  both pages are served from the same static root — /mvp.html 200 · / 200
+
+--- 3b. import + source library isolation ---
+  POST /api/mvp/import/preview -> 200  {"preview":{"file":{"name":"synthetic-shopee-export.csv","size_bytes":2149},"format":"csv","encoding":"utf-8","sheet":null,"sheets":null,"delimiter":",","hash":"eba833cfa313d44e8e310bbba47dd84168b7fcc
+PASS  import preview returns 200 — status 200
+PASS  import preview writes no staging file and does not change the research state — staging false state d48c009e371911b9fc64b264a43e4c25
+PASS  import preview leaves the Foundation state file byte-identical
+  POST /api/mvp/import/commit -> 201  {"import":{"id":"STG-1","file":"synthetic-shopee-export.csv","format":"csv","encoding":"utf-8","file_hash":"eba833cfa313d44e8e310bbba47dd84168b7fcc0ee54b24ab03418d70878283a","synthetic":true,"source_t
+PASS  import commit returns 201 and writes only the staging file — status 201 staging true
+PASS  import commit leaves the Foundation state file byte-identical
+  GET /api/mvp/staging -> 200  {"staging_file":"mvp-runtime/staging-state.json","imports":[{"id":"STG-1","file":"synthetic-shopee-export.csv","format":"csv","encoding":"utf-8","file_hash":"eba833cfa313d44e8e310bbba47dd84168b7fcc0ee
+PASS  the staging list is served from the MVP staging file — mvp-runtime/staging-state.json
+  POST /api/mvp/staging/STG-1/research -> 201  {"promoted":true,"import":{"id":"STG-1","file":"synthetic-shopee-export.csv","format":"csv","encoding":"utf-8","file_hash":"eba833cfa313d44e8e310bbba47dd84168b7fcc0ee54b24ab03418d70878283a","synthetic
+PASS  promote writes the MVP research state only — status 201
+  GET /api/mvp/state -> 200  {"schemaVersion":1,"kind":"MVP_FIXTURE_STATE","synthetic":true,"data_mode":"STAGED_IMPORT","cycle":1,"import":{"id":"IMP-1","staging_id":"STG-1","file":"synthetic-shopee-export.csv","format":"csv","la
+PASS  the Source Library lists the staged export with its hash, checked_at and record counts — {"products":8,"offers":8,"evidence":72}
+PASS  the Source Library links the source_id to the candidates — 5
+PASS  the source library marks the data as synthetic
+  GET /api/mvp/research-report -> 200  {"generated_at":"2026-10-21T15:05:09.860Z","data_mode":"STAGED_IMPORT","synthetic":true,"import":{"id":"IMP-1","staging_id":"STG-1","file":"synthetic-shopee-export.csv","format":"csv","label":"SYNTHET
+PASS  the research report traces the source and spends nothing
+  POST /api/mvp/sources/SRC-EXPORT-EBA833CF/archive -> 200  {"source":{"id":"SRC-EXPORT-EBA833CF","kind":"AFFILIATE_EXPORT","label":"SYNTHETIC fixture upload: synthetic-shopee-export.csv","reference":"upload://synthetic-shopee-export.csv","checked_at":"2026-10
+PASS  archiving a source keeps the evidence and blocks generation
+  POST /api/mvp/candidates/generate -> 409  {"error":"Cannot generate candidates: an archived source is still linked to imported offers.","details":{"blocked_sources":[{"id":"SRC-EXPORT-EBA833CF","reason":"ARCHIVED"}]}}
+PASS  candidate generation is refused while the source is archived — status 409
+PASS  the Foundation state file is still byte-identical after the whole import flow — c7bafaa08d6f2da349c9f471569d17be -> c7bafaa08d6f2da349c9f471569d17be
+  GET /api/state -> 200  {"schemaVersion":1,"cycle":1,"selectedOpportunityId":null,"lastDecisionAt":null,"decisions":[],"planVersions":{"PLAN-1-1-v1":{"id":"PLAN-1-1-v1","plan_id":"PLAN-1-1","version":"v1","content":"Isolatio
+PASS  the Foundation state has no import, staging or source fields — schemaVersion,cycle,selectedOpportunityId,lastDecisionAt,decisions,planVersions,cwis
+PASS  no 500s or MVP request failures in the server log — clean
+
+--- 4. repository hygiene ---
+PASS  real Foundation state and server are byte-identical after the audit — state 5d29cdbdace0a73580bc2e0633f2e8cb
+PASS  no commit created and no commit count change — 9749f38e7bdb1ec6ee56be0e2227473c3b973f2b (9)
+PASS  nothing is staged — (empty)
+PASS  only pre-existing tracked doc edits remain in the working tree — docs/mission1/A-product-specification.md, docs/mission1/B-workflow-specification.md, docs/mission1/C-system-architecture.md, docs/mission1/D-data-model.md, docs/mission1/E-vertical-slice-acceptance.md, docs/mission1/F-implementation-roadmap.md, docs/mission1/G-open-questions-decision-log.md, docs/mission1/H-evidence-register.md
+PASS  none of this round's files is tracked or staged — all untracked
+PASS  every pre-existing doc was last modified before this round's files — docs newest 2026-10-21T06:01:37.285Z < our earliest 2026-10-21T06:56:50.790Z
+
+  git status --short (first 25 lines):
+    M docs/mission1/A-product-specification.md
+     M docs/mission1/B-workflow-specification.md
+     M docs/mission1/C-system-architecture.md
+     M docs/mission1/D-data-model.md
+     M docs/mission1/E-vertical-slice-acceptance.md
+     M docs/mission1/F-implementation-roadmap.md
+     M docs/mission1/G-open-questions-decision-log.md
+     M docs/mission1/H-evidence-register.md
+    ?? .gitignore
+    ?? .vscode/
+    ?? Affiliate-Content-Engine-Review.zip
+    ?? HANDOFF.md
+    ?? PR_SUMMARY.md
+    ?? RTM_verification.md
+    ?? WORKSPACE_VERIFICATION_REPORT.md
+    ?? app/
+    ?? data/
+    ?? docs/mission1/-final-contract-id-concurrency.md
+    ?? docs/mission1/I-ux-ui-design-specification.md
+    ?? docs/mission1/J-ten-step-workflow-specification.md
+    ?? docs/mission1/K-research-analyzer-daily-report-loop.md
+    ?? docs/mission1/M-mvp-affiliate-workflow-slice.md
+    ?? docs/mission1/schemas/
+    ?? oq8_gate_assessment.md
+    ?? reference/
+
+assertions failed: 0
+MVP server isolation audit passed (temporary workspace, no commit)

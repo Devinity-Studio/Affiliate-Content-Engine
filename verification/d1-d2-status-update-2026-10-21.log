@@ -1,0 +1,42 @@
+D1/D2 contract-ID clarification — docs-only verification, 2026-10-21
+generated: 2026-10-21T06:05:40Z (final pass)
+
+1. read-only link check
+PASS  112 relative links checked in 5 files, 0 problems
+   exit=0
+
+2. D1/D2 probe evidence (temporary state, real repo not mounted)
+   probe log        : verification/d1-d2-id-semantics-2026-10-21.log   PASS=25 FAIL=0 exit=0
+   re-run log       : verification/d1-d2-id-semantics-rerun-2026-10-21.log   PASS=25 FAIL=0 exit=0
+   measured D1      : status=201 body={"id":"PLAN-1-1-v1","plan_id":"PLAN-1-1","version":"v1","content":"Plan A","schemaVersion":1,"createdAt":"2026-10-21T06:00:28.544Z"}
+   measured D2      : status=201 body={"id":"PLAN-1-2-v1","plan_id":"PLAN-1-2","version":"v1","content":"Plan B","schemaVersion":1,"createdAt":"2026-10-21T06:00:28.574Z"}
+   run comparison   : identical after normalising temp path + ISO timestamps
+
+3. runtime / schema / state checksums (must be unchanged)
+   e8ebd7ba425731c1ae040f27ee50aacd *app/server.js
+   dc27941bf7c3ff03e52f67dc91b8b1ce *docs/mission1/schemas/content-work-item.schema.json
+   5d29cdbdace0a73580bc2e0633f2e8cb *data/app/state.json
+   expected: server.js e8ebd7ba425731c1ae040f27ee50aacd
+   expected: schema    dc27941bf7c3ff03e52f67dc91b8b1ce
+   expected: state     5d29cdbdace0a73580bc2e0633f2e8cb
+
+4. git state
+   existing commit count          : 9
+   new commits created this round : 0
+   HEAD now                       : 9749f38e7bdb1ec6ee56be0e2227473c3b973f2b
+   HEAD baseline (pre-round)      : 9749f38e7bdb1ec6ee56be0e2227473c3b973f2b
+   check: HEAD unchanged -> no commit, tag, merge, or reset this round
+
+5. documents edited this round
+    M docs/mission1/D-data-model.md
+   ?? docs/mission1/-final-contract-id-concurrency.md
+   ?? verification/d1-d2-id-semantics-2026-10-21.log
+   ?? verification/d1-d2-id-semantics-rerun-2026-10-21.log
+   ?? verification/d1-d2-id-semantics.js
+   ?? verification/d5-reserved-fields-review-2026-10-21.md
+   ?? verification/mission1-acceptance-gap-matrix.md
+   ?? verification/owner-decisions-d-series-2026-10-21.md
+
+6. matrix rows now read
+   139:| D1 | Create new Plan (cycle 1, first Plan) | Isolated state, no existing Plans | POST `create` with `content: "Plan A"`, `schemaVersion: 1` | Returns `id: "PLAN-1-1-v1"` (immutable snapshot id), `plan_id: "PLAN-1-1"` (Plan i
+   140:| D2 | Create new Plan (cycle 1, second Plan) | State after D1 | POST `create` with `content: "Plan B"` | Returns `id: "PLAN-1-2-v1"` (immutable snapshot id), `plan_id: "PLAN-1-2"` (Plan identity), `version: "v1"`, `createdAt`

@@ -1,0 +1,19 @@
+PostHog AI Observability check — 2026-10-28T07:05:46.079Z
+module: app\observability\posthog-ai.js
+
+== Offline half (no POSTHOG_API_KEY in the child environment) ==
+PASS offline.disabled — isEnabled() is false without a key
+PASS offline.no-client — getClient() creates no client without a key
+PASS offline.gemini-usage — Gemini usageMetadata becomes input/output token counts
+PASS offline.openai-usage — OpenAI-compatible usage becomes token counts with cache reads
+PASS offline.no-invented-usage — a response with no usage reports no usage (never zeros)
+PASS offline.gemini-output — Gemini response text is extracted
+PASS offline.openai-output — OpenAI-compatible message content is extracted
+PASS offline.return-unchanged — the wrapped call returns its value unchanged
+PASS offline.error-identical — a wrapped error is re-thrown as the same object
+PASS offline.no-network — no network call was made without a key
+OFFLINE SUMMARY 10/10 checks passed
+
+== Live half (POSTHOG_API_KEY present) ==
+POSTHOG_API_KEY is not set — live half skipped.
+POSTHOG AI OBSERVABILITY: PENDING (offline pass-through verified only)

@@ -1,0 +1,40 @@
+temp workspace: C:\Users\bomb_\AppData\Local\Temp\ace-d10-hPBmkU
+real repository files are NOT mounted here — only the copy is.
+
+1. POST create            status=201 body={"id":"PLAN-1-1-v1","plan_id":"PLAN-1-1","version":"v1","content":"D10 plan A","schemaVersion":1,"createdAt":"2026-10-21T05:33:29.577Z"}
+PASS  step 1: Plan created with v1 — status=201
+2. GET v1 (before)        status=200 body={"id":"PLAN-1-1-v1","plan_id":"PLAN-1-1","version":"v1","content":"D10 plan A","schemaVersion":1,"createdAt":"2026-10-21T05:33:29.577Z"}
+   state entry (before)   md5=dabb3d1691298a2ad61f1ed9b14636dd
+PASS  step 2: v1 snapshot captured from both the route and the state file
+3. POST new_version       status=201 body={"id":"PLAN-1-1-v2","plan_id":"PLAN-1-1","version":"v2","content":"D10 plan A v2","schemaVersion":1,"createdAt":"2026-10-21T05:33:29.614Z"}
+PASS  step 3: new version created — status=201
+4. GET v1 (after)         status=200 body={"id":"PLAN-1-1-v1","plan_id":"PLAN-1-1","version":"v1","content":"D10 plan A","schemaVersion":1,"createdAt":"2026-10-21T05:33:29.577Z"}
+
+5. field-by-field comparison (route response)
+   same  content: "D10 plan A" -> "D10 plan A"
+   same  createdAt: "2026-10-21T05:33:29.577Z" -> "2026-10-21T05:33:29.577Z"
+   same  id: "PLAN-1-1-v1" -> "PLAN-1-1-v1"
+   same  plan_id: "PLAN-1-1" -> "PLAN-1-1"
+   same  schemaVersion: 1 -> 1
+   same  version: "v1" -> "v1"
+PASS  step 5a: every field of v1 is identical before/after — 6 fields compared, 0 differences
+
+6. state file after new_version
+   v1 entry md5 (after)   md5=dabb3d1691298a2ad61f1ed9b14636dd
+   same  content: "D10 plan A" -> "D10 plan A"
+   same  createdAt: "2026-10-21T05:33:29.577Z" -> "2026-10-21T05:33:29.577Z"
+   same  id: "PLAN-1-1-v1" -> "PLAN-1-1-v1"
+   same  plan_id: "PLAN-1-1" -> "PLAN-1-1"
+   same  schemaVersion: 1 -> 1
+   same  version: "v1" -> "v1"
+PASS  step 6a: stored v1 entry is byte-identical in state — 6 fields compared
+PASS  step 6b: new version exists as a separate entry — v1=PLAN-1-1-v1 v2=PLAN-1-1-v2
+PASS  step 6c: v1 and v2 are distinct records
+PASS  step 6d: v2 entry matches the create response
+PASS  step 6e: the Plan still has exactly two versions — ids=["PLAN-1-1-v1","PLAN-1-1-v2"]
+PASS  step 6f: v1 content is still the v1 content — content="D10 plan A"
+
+PASS  step 7: real state.json and mock unchanged — state 5d29cdbdace0a73580bc2e0633f2e8cb -> 5d29cdbdace0a73580bc2e0633f2e8cb
+PASS  step 8: no commit created — HEAD 9749f38e7bdb1ec6ee56be0e2227473c3b973f2b -> 9749f38e7bdb1ec6ee56be0e2227473c3b973f2b
+
+D10 evidence test passed

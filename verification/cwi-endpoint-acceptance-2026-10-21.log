@@ -1,0 +1,159 @@
+==================================================================
+ CWI endpoint acceptance run — real file state on disk
+==================================================================
+  app/server.js  md5=be2a20d0c9ae97733103eb84939aba73  bytes=28425  mtime=2026-10-21T01:29:50.592Z
+  docs/mission1/schemas/content-work-item.schema.json  md5=dc27941bf7c3ff03e52f67dc91b8b1ce  bytes=2384  mtime=2026-10-21T01:26:10.968Z
+  verification/cwi-contract-enforcement.js  md5=29b196d22482eda6863bf41dcf9ea07b  bytes=11767  mtime=2026-10-21T02:51:19.072Z
+
+temporary server ready: http://127.0.0.1:4275  (temp dir C:\Users\bomb_\AppData\Local\Temp\ace-cwi-verify-zkysex)
+real repository files are NOT mounted here — only the copy is.
+
+plan created: 201 {"id":"PLAN-1-1-v1","plan_id":"PLAN-1-1","version":"v1","content":"CWI acceptance run plan","schemaVersion":1,"createdAt":"2026-10-21T04:22:57.982Z"}
+
+PASS  PRODUCT + valid product_id -> 201, both fields returned
+        expected : 201 and type/product_id present
+        status   : 201
+        body     : {"id":"CWI-1","plan_id":"PLAN-1-1","plan_version":"v1","decision":"PENDING","createdAt":"2026-10-21T04:22:57.994Z","type":"PRODUCT","product_id":"P-1001"}
+PASS  PRODUCT + product_id missing -> 400
+        expected : 400 naming product_id
+        status   : 400
+        body     : {"error":"product_id is required for type PRODUCT"}
+PASS  PRODUCT + product_id null -> 400
+        expected : 400 naming product_id
+        status   : 400
+        body     : {"error":"product_id must be a string for type PRODUCT"}
+PASS  PRODUCT + numeric product_id -> 400
+        expected : 400 naming product_id
+        status   : 400
+        body     : {"error":"product_id must be a string or null; product_id must be a string for type PRODUCT"}
+PASS  PRODUCT + blank product_id -> 400
+        expected : 400 naming product_id
+        status   : 400
+        body     : {"error":"product_id must not be empty; product_id must not be empty for type PRODUCT"}
+PASS  REVIEW + valid product_id -> 201, both fields returned
+        expected : 201 and type/product_id present
+        status   : 201
+        body     : {"id":"CWI-2","plan_id":"PLAN-1-1","plan_version":"v1","decision":"PENDING","createdAt":"2026-10-21T04:22:58.072Z","type":"REVIEW","product_id":"P-2002"}
+PASS  REVIEW + product_id missing -> 400
+        expected : 400 naming product_id
+        status   : 400
+        body     : {"error":"product_id is required for type REVIEW"}
+PASS  REVIEW + product_id null -> 400
+        expected : 400 naming product_id
+        status   : 400
+        body     : {"error":"product_id must be a string for type REVIEW"}
+PASS  METHOD + no product_id -> 201 (nullable base applies)
+        expected : 201 and no product_id key
+        status   : 201
+        body     : {"id":"CWI-3","plan_id":"PLAN-1-1","plan_version":"v1","decision":"PENDING","createdAt":"2026-10-21T04:22:58.118Z","type":"METHOD"}
+PASS  WORKFLOW + product_id null -> 201 (nullable base applies)
+        expected : 201 and product_id null
+        status   : 201
+        body     : {"id":"CWI-4","plan_id":"PLAN-1-1","plan_version":"v1","decision":"PENDING","createdAt":"2026-10-21T04:22:58.134Z","type":"WORKFLOW","product_id":null}
+PASS  GET the created CWI -> type and product_id persisted
+        expected : 200 with both fields
+        status   : 200
+        body     : {"id":"CWI-1","plan_id":"PLAN-1-1","plan_version":"v1","decision":"PENDING","createdAt":"2026-10-21T04:22:57.994Z","type":"PRODUCT","product_id":"P-1001"}
+PASS  temporary state file stores type and product_id
+        expected : record with both fields
+        status   : n/a (file read)
+        body     : {"id":"CWI-1","plan_id":"PLAN-1-1","plan_version":"v1","decision":"PENDING","createdAt":"2026-10-21T04:22:57.994Z","type":"PRODUCT","product_id":"P-1001"}
+PASS  unknown type -> 400
+        expected : 400
+        status   : 400
+        body     : {"error":"type must be one of PRODUCT, REVIEW, METHOD, WORKFLOW"}
+PASS  missing type -> 400
+        expected : 400
+        status   : 400
+        body     : {"error":"type is required"}
+PASS  unknown field -> 400
+        expected : 400
+        status   : 400
+        body     : {"error":"prodcut_id is not a recognised field"}
+PASS  malformed JSON -> 400 "Body must be valid JSON"
+        expected : 400 Body must be valid JSON
+        status   : 400
+        body     : {"error":"Body must be valid JSON"}
+PASS  array body -> 400 "Body must be a JSON object"
+        expected : 400 Body must be a JSON object
+        status   : 400
+        body     : {"error":"Body must be a JSON object"}
+PASS  missing plan_id -> 400 "plan_id is required"
+        expected : 400 plan_id is required
+        status   : 400
+        body     : {"error":"plan_id is required"}
+PASS  missing plan_version -> 400 "plan_version is required"
+        expected : 400 plan_version is required
+        status   : 400
+        body     : {"error":"plan_version is required"}
+PASS  unknown plan version -> 404
+        expected : 404 plan_id/plan_version not found
+        status   : 404
+        body     : {"error":"plan_id/plan_version not found: PLAN-9-9/v1"}
+------------------------------------------------------------------
+ child suites
+------------------------------------------------------------------
+PASS  schema validation  (docs/mission1/schemas/validate-content-work-item.js)
+        exit code: 0
+        output   : 11/11 behavioural cases passed | all checks passed
+PASS  claim-class validation  (verification/validate-claim-classes.js)
+        exit code: 0
+        output   : PASS  evidence-log entries were not re-classified — entries: 10 | all claim-class checks passed
+PASS  CWI contract enforcement  (verification/cwi-contract-enforcement.js)
+        exit code: 0
+        output   : PASS  real data/app/state.json unchanged — md5 5d29cdbdace0a73580bc2e0633f2e8cb -> 5d29cdbdace0a73580bc2e0633f2e8cb | all CWI contract-enforcement checks passed
+------------------------------------------------------------------
+ real repository files and git state
+------------------------------------------------------------------
+PASS  real files unchanged
+        data/app/state.json          5d29cdbdace0a73580bc2e0633f2e8cb -> 5d29cdbdace0a73580bc2e0633f2e8cb
+        app/mock/opportunities.json  06c49effaa665f8f4cc1c1a8b3aedc98 -> 06c49effaa665f8f4cc1c1a8b3aedc98
+        data/mission1/evidence-log.md 30ec9abd809655328254dbcb712ea00e -> 30ec9abd809655328254dbcb712ea00e
+        git HEAD: 9749f38 Record Owner approval of Measurement Formula in Doc G §2b
+        git HEAD before/after: 9749f38e7bdb1ec6ee56be0e2227473c3b973f2b / 9749f38e7bdb1ec6ee56be0e2227473c3b973f2b
+        worktree entries before/after: 26 / 26
+
+evidence written: Y:\DevProject\Affiliate Content Engine\verification\cwi-endpoint-acceptance-2026-10-21.json
+table written: Y:\DevProject\Affiliate Content Engine\verification\cwi-endpoint-acceptance-2026-10-21.md
+
+# CWI endpoint — final verification run
+
+Run at 2026-10-21T04:23:03.857Z · runner exit code 0 · cases 20 · checks 6 · failures 0
+
+| Check | Command/Test | Exit code | Actual result | Pass/Fail |
+|---|---|---|---|---|
+| Contract file exists and parses as JSON | `node -e "JSON.parse(fs.readFileSync('docs/mission1/schemas/content-work-item.schema.json'))"` | 0 | parsed OK, md5=dc27941bf7c3ff03e52f67dc91b8b1ce | PASS |
+| Real data/app/state.json is byte-identical after the run | `md5sum data/app/state.json  (before vs after)` | 0 | 5d29cdbdace0a73580bc2e0633f2e8cb -> 5d29cdbdace0a73580bc2e0633f2e8cb | PASS |
+| Real state file still holds no CWI or plan records | `node -e "read data/app/state.json, list keys"` | 0 | keys: schemaVersion, cycle, selectedOpportunityId, lastDecisionAt, decisions (no cwis, no planVersions) | PASS |
+| No commit was created (HEAD unchanged) | `git rev-parse HEAD  (before vs after)` | 0 | 9749f38e7bdb1ec6ee56be0e2227473c3b973f2b -> 9749f38e7bdb1ec6ee56be0e2227473c3b973f2b  (9749f38 Record Owner approval of Measurement Formula in Doc G §2b) | PASS |
+| Working tree entry count unchanged (nothing added or removed) | `git status --short \| wc -l  (before vs after)` | 0 | 26 -> 26 | PASS |
+| Only the temporary copy was written | `server started in temp dir, repo files not mounted` | 0 | temp dir C:\Users\bomb_\AppData\Local\Temp\ace-cwi-verify-zkysex; real state has no cwis/planVersions while the temp copy holds 4 CWI record(s) | PASS |
+| PRODUCT + valid product_id -> 201, both fields returned | `node verification/verify-cwi-endpoint.js` (HTTP case) | 0 | HTTP 201 — `{"id":"CWI-1","plan_id":"PLAN-1-1","plan_version":"v1","decision":"PENDING","createdAt":"2026-10-21T04:22:57.994Z","type":"PRODUCT","product_id":"P-1001"}` | PASS |
+| PRODUCT + product_id missing -> 400 | `node verification/verify-cwi-endpoint.js` (HTTP case) | 0 | HTTP 400 — `{"error":"product_id is required for type PRODUCT"}` | PASS |
+| PRODUCT + product_id null -> 400 | `node verification/verify-cwi-endpoint.js` (HTTP case) | 0 | HTTP 400 — `{"error":"product_id must be a string for type PRODUCT"}` | PASS |
+| PRODUCT + numeric product_id -> 400 | `node verification/verify-cwi-endpoint.js` (HTTP case) | 0 | HTTP 400 — `{"error":"product_id must be a string or null; product_id must be a string for type PRODUCT"}` | PASS |
+| PRODUCT + blank product_id -> 400 | `node verification/verify-cwi-endpoint.js` (HTTP case) | 0 | HTTP 400 — `{"error":"product_id must not be empty; product_id must not be empty for type PRODUCT"}` | PASS |
+| REVIEW + valid product_id -> 201, both fields returned | `node verification/verify-cwi-endpoint.js` (HTTP case) | 0 | HTTP 201 — `{"id":"CWI-2","plan_id":"PLAN-1-1","plan_version":"v1","decision":"PENDING","createdAt":"2026-10-21T04:22:58.072Z","type":"REVIEW","product_id":"P-2002"}` | PASS |
+| REVIEW + product_id missing -> 400 | `node verification/verify-cwi-endpoint.js` (HTTP case) | 0 | HTTP 400 — `{"error":"product_id is required for type REVIEW"}` | PASS |
+| REVIEW + product_id null -> 400 | `node verification/verify-cwi-endpoint.js` (HTTP case) | 0 | HTTP 400 — `{"error":"product_id must be a string for type REVIEW"}` | PASS |
+| METHOD + no product_id -> 201 (nullable base applies) | `node verification/verify-cwi-endpoint.js` (HTTP case) | 0 | HTTP 201 — `{"id":"CWI-3","plan_id":"PLAN-1-1","plan_version":"v1","decision":"PENDING","createdAt":"2026-10-21T04:22:58.118Z","type":"METHOD"}` | PASS |
+| WORKFLOW + product_id null -> 201 (nullable base applies) | `node verification/verify-cwi-endpoint.js` (HTTP case) | 0 | HTTP 201 — `{"id":"CWI-4","plan_id":"PLAN-1-1","plan_version":"v1","decision":"PENDING","createdAt":"2026-10-21T04:22:58.134Z","type":"WORKFLOW","product_id":null}` | PASS |
+| GET the created CWI -> type and product_id persisted | `node verification/verify-cwi-endpoint.js` (HTTP case) | 0 | HTTP 200 — `{"id":"CWI-1","plan_id":"PLAN-1-1","plan_version":"v1","decision":"PENDING","createdAt":"2026-10-21T04:22:57.994Z","type":"PRODUCT","product_id":"P-1001"}` | PASS |
+| temporary state file stores type and product_id | `node verification/verify-cwi-endpoint.js` (HTTP case) | 0 | HTTP n/a (file read) — `{"id":"CWI-1","plan_id":"PLAN-1-1","plan_version":"v1","decision":"PENDING","createdAt":"2026-10-21T04:22:57.994Z","type":"PRODUCT","product_id":"P-1001"}` | PASS |
+| unknown type -> 400 | `node verification/verify-cwi-endpoint.js` (HTTP case) | 0 | HTTP 400 — `{"error":"type must be one of PRODUCT, REVIEW, METHOD, WORKFLOW"}` | PASS |
+| missing type -> 400 | `node verification/verify-cwi-endpoint.js` (HTTP case) | 0 | HTTP 400 — `{"error":"type is required"}` | PASS |
+| unknown field -> 400 | `node verification/verify-cwi-endpoint.js` (HTTP case) | 0 | HTTP 400 — `{"error":"prodcut_id is not a recognised field"}` | PASS |
+| malformed JSON -> 400 "Body must be valid JSON" | `node verification/verify-cwi-endpoint.js` (HTTP case) | 0 | HTTP 400 — `{"error":"Body must be valid JSON"}` | PASS |
+| array body -> 400 "Body must be a JSON object" | `node verification/verify-cwi-endpoint.js` (HTTP case) | 0 | HTTP 400 — `{"error":"Body must be a JSON object"}` | PASS |
+| missing plan_id -> 400 "plan_id is required" | `node verification/verify-cwi-endpoint.js` (HTTP case) | 0 | HTTP 400 — `{"error":"plan_id is required"}` | PASS |
+| missing plan_version -> 400 "plan_version is required" | `node verification/verify-cwi-endpoint.js` (HTTP case) | 0 | HTTP 400 — `{"error":"plan_version is required"}` | PASS |
+| unknown plan version -> 404 | `node verification/verify-cwi-endpoint.js` (HTTP case) | 0 | HTTP 404 — `{"error":"plan_id/plan_version not found: PLAN-9-9/v1"}` | PASS |
+| schema validation | `node docs/mission1/schemas/validate-content-work-item.js` | 0 | 11/11 behavioural cases passed \| all checks passed | PASS |
+| claim-class validation | `node verification/validate-claim-classes.js` | 0 | PASS  evidence-log entries were not re-classified — entries: 10 \| all claim-class checks passed | PASS |
+| CWI contract enforcement | `node verification/cwi-contract-enforcement.js` | 0 | PASS  real data/app/state.json unchanged — md5 5d29cdbdace0a73580bc2e0633f2e8cb -> 5d29cdbdace0a73580bc2e0633f2e8cb \| all CWI contract-enforcement checks passed | PASS |
+
+Exit code per row is the exit code the runner returns for that row (0 = assertion held, 1 = assertion failed);
+the overall runner exit code is the last line above.
+
+
+cases: 20  failures: 0

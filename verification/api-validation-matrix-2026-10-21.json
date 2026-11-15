@@ -1,0 +1,571 @@
+{
+  "run": "API negative validation matrix",
+  "temporaryState": true,
+  "assertions": 34,
+  "passed": 34,
+  "failed": 0,
+  "results": [
+    {
+      "name": "Plan POST malformed JSON",
+      "status": 400,
+      "body": {
+        "error": "Body must be valid JSON"
+      },
+      "expected": {
+        "status": 400,
+        "body": {
+          "error": "Body must be valid JSON"
+        }
+      },
+      "passed": true,
+      "notes": ""
+    },
+    {
+      "name": "Plan POST array body",
+      "status": 400,
+      "body": {
+        "error": "Body must be a JSON object"
+      },
+      "expected": {
+        "status": 400,
+        "body": {
+          "error": "Body must be a JSON object"
+        }
+      },
+      "passed": true,
+      "notes": ""
+    },
+    {
+      "name": "Plan POST blank content",
+      "status": 400,
+      "body": {
+        "error": "content is required"
+      },
+      "expected": {
+        "status": 400,
+        "body": {
+          "error": "content is required"
+        }
+      },
+      "passed": true,
+      "notes": ""
+    },
+    {
+      "name": "Plan POST missing operation",
+      "status": 400,
+      "body": {
+        "error": "unsupported operation: <value>"
+      },
+      "expected": {
+        "status": 400,
+        "body": {
+          "error": "unsupported operation: <value>"
+        }
+      },
+      "passed": true,
+      "notes": ""
+    },
+    {
+      "name": "Plan POST unsupported operation",
+      "status": 400,
+      "body": {
+        "error": "unsupported operation: unknown"
+      },
+      "expected": {
+        "status": 400,
+        "body": {
+          "error": "unsupported operation: unknown"
+        }
+      },
+      "passed": true,
+      "notes": ""
+    },
+    {
+      "name": "Plan POST valid create control",
+      "status": 201,
+      "body": {
+        "id": "PLAN-1-1-v1",
+        "plan_id": "PLAN-1-1",
+        "version": "v1",
+        "content": "API validation base",
+        "schemaVersion": 1,
+        "createdAt": "2026-10-20T21:43:37.964Z"
+      },
+      "expected": {
+        "status": 201,
+        "id": "PLAN-1-1-v1"
+      },
+      "passed": true,
+      "notes": ""
+    },
+    {
+      "name": "Plan new_version missing plan_id",
+      "status": 400,
+      "body": {
+        "error": "plan_id is required for new_version operation"
+      },
+      "expected": {
+        "status": 400,
+        "body": {
+          "error": "plan_id is required for new_version operation"
+        }
+      },
+      "passed": true,
+      "notes": ""
+    },
+    {
+      "name": "Plan new_version unknown plan",
+      "status": 400,
+      "body": {
+        "error": "plan_id not found: PLAN-9-9"
+      },
+      "expected": {
+        "status": 400,
+        "body": {
+          "error": "plan_id not found: PLAN-9-9"
+        }
+      },
+      "passed": true,
+      "notes": ""
+    },
+    {
+      "name": "Plan new_version duplicate explicit version",
+      "status": 409,
+      "body": {
+        "error": "plan_id/plan_version already exists: PLAN-1-1/v1"
+      },
+      "expected": {
+        "status": 409,
+        "body": {
+          "error": "plan_id/plan_version already exists: PLAN-1-1/v1"
+        }
+      },
+      "passed": true,
+      "notes": ""
+    },
+    {
+      "name": "Plan GET missing version ID",
+      "status": 400,
+      "body": {
+        "error": "Version ID is required. Use /api/plan-version/PLAN-<cycle>-<plan_number>-v<version>"
+      },
+      "expected": {
+        "status": 400,
+        "body": "Version ID is required"
+      },
+      "passed": true,
+      "notes": ""
+    },
+    {
+      "name": "Plan GET malformed ID",
+      "status": 400,
+      "body": {
+        "error": "Invalid version ID format. Expected format: PLAN-<cycle>-<plan_number>-v<version>"
+      },
+      "expected": {
+        "status": 400,
+        "body": {
+          "error": "Invalid version ID format. Expected format: PLAN-<cycle>-<plan_number>-v<version>"
+        }
+      },
+      "passed": true,
+      "notes": ""
+    },
+    {
+      "name": "Plan GET well-formed missing ID",
+      "status": 404,
+      "body": {
+        "error": "plan_version not found: PLAN-9-9-v1"
+      },
+      "expected": {
+        "status": 404,
+        "body": {
+          "error": "plan_version not found: PLAN-9-9-v1"
+        }
+      },
+      "passed": true,
+      "notes": ""
+    },
+    {
+      "name": "CWI POST malformed JSON",
+      "status": 400,
+      "body": {
+        "error": "Body must be valid JSON"
+      },
+      "expected": {
+        "status": 400,
+        "body": {
+          "error": "Body must be valid JSON"
+        }
+      },
+      "passed": true,
+      "notes": ""
+    },
+    {
+      "name": "CWI POST array body",
+      "status": 400,
+      "body": {
+        "error": "Body must be a JSON object"
+      },
+      "expected": {
+        "status": 400,
+        "body": {
+          "error": "Body must be a JSON object"
+        }
+      },
+      "passed": true,
+      "notes": ""
+    },
+    {
+      "name": "CWI POST missing plan_id",
+      "status": 400,
+      "body": {
+        "error": "plan_id is required"
+      },
+      "expected": {
+        "status": 400,
+        "body": {
+          "error": "plan_id is required"
+        }
+      },
+      "passed": true,
+      "notes": ""
+    },
+    {
+      "name": "CWI POST missing plan_version",
+      "status": 400,
+      "body": {
+        "error": "plan_version is required"
+      },
+      "expected": {
+        "status": 400,
+        "body": {
+          "error": "plan_version is required"
+        }
+      },
+      "passed": true,
+      "notes": ""
+    },
+    {
+      "name": "CWI POST references unknown version",
+      "status": 404,
+      "body": {
+        "error": "plan_id/plan_version not found: PLAN-9-9/v1"
+      },
+      "expected": {
+        "status": 404,
+        "body": {
+          "error": "plan_id/plan_version not found: PLAN-9-9/v1"
+        }
+      },
+      "passed": true,
+      "notes": ""
+    },
+    {
+      "name": "CWI POST valid control",
+      "status": 201,
+      "body": {
+        "id": "CWI-1",
+        "plan_id": "PLAN-1-1",
+        "plan_version": "v1",
+        "decision": "PENDING",
+        "createdAt": "2026-10-20T21:43:38.134Z"
+      },
+      "expected": {
+        "status": 201,
+        "id": "CWI-1"
+      },
+      "passed": true,
+      "notes": ""
+    },
+    {
+      "name": "CWI GET missing ID",
+      "status": 400,
+      "body": {
+        "error": "CWI ID is required. Use /api/content-work-item/CWI-<number>"
+      },
+      "expected": {
+        "status": 400,
+        "body": "CWI ID is required"
+      },
+      "passed": true,
+      "notes": ""
+    },
+    {
+      "name": "CWI GET malformed ID",
+      "status": 400,
+      "body": {
+        "error": "Invalid CWI ID format. Expected format: CWI-<number>"
+      },
+      "expected": {
+        "status": 400,
+        "body": {
+          "error": "Invalid CWI ID format. Expected format: CWI-<number>"
+        }
+      },
+      "passed": true,
+      "notes": ""
+    },
+    {
+      "name": "CWI GET well-formed missing ID",
+      "status": 404,
+      "body": {
+        "error": "CWI not found: CWI-999"
+      },
+      "expected": {
+        "status": 404,
+        "body": {
+          "error": "CWI not found: CWI-999"
+        }
+      },
+      "passed": true,
+      "notes": ""
+    },
+    {
+      "name": "Decision POST malformed JSON",
+      "status": 400,
+      "body": {
+        "error": "Body must be valid JSON"
+      },
+      "expected": {
+        "status": 400,
+        "body": {
+          "error": "Body must be valid JSON"
+        }
+      },
+      "passed": true,
+      "notes": ""
+    },
+    {
+      "name": "Decision POST array body",
+      "status": 400,
+      "body": {
+        "error": "Body must be a JSON object"
+      },
+      "expected": {
+        "status": 400,
+        "body": {
+          "error": "Body must be a JSON object"
+        }
+      },
+      "passed": true,
+      "notes": ""
+    },
+    {
+      "name": "Decision unknown opportunity",
+      "status": 400,
+      "body": {
+        "error": "Invalid decision",
+        "details": [
+          "opportunityId must match a mock opportunity"
+        ]
+      },
+      "expected": {
+        "status": 400,
+        "body": "Invalid decision: opportunityId must match a mock opportunity"
+      },
+      "passed": true,
+      "notes": ""
+    },
+    {
+      "name": "Decision invalid value",
+      "status": 400,
+      "body": {
+        "error": "Invalid decision",
+        "details": [
+          "decision must be SELECT, REJECT or DEFER"
+        ]
+      },
+      "expected": {
+        "status": 400,
+        "body": "Invalid decision: decision must be SELECT, REJECT or DEFER"
+      },
+      "passed": true,
+      "notes": ""
+    },
+    {
+      "name": "Decision reason too short",
+      "status": 400,
+      "body": {
+        "error": "Invalid decision",
+        "details": [
+          "reason is required for every decision"
+        ]
+      },
+      "expected": {
+        "status": 400,
+        "body": "Invalid decision: reason is required for every decision"
+      },
+      "passed": true,
+      "notes": ""
+    },
+    {
+      "name": "Decision reason too long",
+      "status": 400,
+      "body": {
+        "error": "Invalid decision",
+        "details": [
+          "reason must be 1000 characters or fewer"
+        ]
+      },
+      "expected": {
+        "status": 400,
+        "body": "Invalid decision: reason must be 1000 characters or fewer"
+      },
+      "passed": true,
+      "notes": ""
+    },
+    {
+      "name": "Decision valid control",
+      "status": 201,
+      "body": {
+        "recorded": {
+          "id": "DEC-APP-1",
+          "at": "2026-10-20T21:43:38.289Z",
+          "opportunityId": "OPP-MOCK-1",
+          "decision": "SELECT",
+          "reason": "API validation positive control",
+          "actor": "owner",
+          "kind": "OPPORTUNITY_DECISION",
+          "gate": "NONE",
+          "mock": true,
+          "note": "Recorded by the app. This is not a gate approval; G1 stays plan-level and G2 remains unapproved."
+        },
+        "state": {
+          "schemaVersion": 1,
+          "cycle": 1,
+          "selectedOpportunityId": "OPP-MOCK-1",
+          "lastDecisionAt": "2026-10-20T21:43:38.289Z",
+          "decisions": [
+            {
+              "id": "DEC-APP-1",
+              "at": "2026-10-20T21:43:38.289Z",
+              "opportunityId": "OPP-MOCK-1",
+              "decision": "SELECT",
+              "reason": "API validation positive control",
+              "actor": "owner",
+              "kind": "OPPORTUNITY_DECISION",
+              "gate": "NONE",
+              "mock": true,
+              "note": "Recorded by the app. This is not a gate approval; G1 stays plan-level and G2 remains unapproved."
+            }
+          ],
+          "planVersions": {
+            "PLAN-1-1-v1": {
+              "id": "PLAN-1-1-v1",
+              "plan_id": "PLAN-1-1",
+              "version": "v1",
+              "content": "API validation base",
+              "schemaVersion": 1,
+              "createdAt": "2026-10-20T21:43:37.964Z"
+            }
+          },
+          "cwis": {
+            "CWI-1": {
+              "id": "CWI-1",
+              "plan_id": "PLAN-1-1",
+              "plan_version": "v1",
+              "decision": "PENDING",
+              "createdAt": "2026-10-20T21:43:38.134Z"
+            }
+          }
+        }
+      },
+      "expected": {
+        "status": 201,
+        "kind": "OPPORTUNITY_DECISION"
+      },
+      "passed": true,
+      "notes": ""
+    },
+    {
+      "name": "Decision unsupported method",
+      "status": 405,
+      "body": {
+        "error": "Method not allowed"
+      },
+      "expected": {
+        "status": 405,
+        "body": {
+          "error": "Method not allowed"
+        }
+      },
+      "passed": true,
+      "notes": ""
+    },
+    {
+      "name": "Unknown API route",
+      "status": 404,
+      "body": {
+        "error": "Unknown API route"
+      },
+      "expected": {
+        "status": 404,
+        "body": {
+          "error": "Unknown API route"
+        }
+      },
+      "passed": true,
+      "notes": ""
+    },
+    {
+      "name": "Oversized request (>64 KiB)",
+      "status": 413,
+      "body": {
+        "error": "Request too large"
+      },
+      "expected": {
+        "status": 413,
+        "body": {
+          "error": "Request too large"
+        }
+      },
+      "passed": true,
+      "notes": ""
+    },
+    {
+      "name": "Validation requests do not persist rejected decisions",
+      "status": 200,
+      "body": {
+        "decisionCount": 1,
+        "planCount": 1,
+        "cwiCount": 1
+      },
+      "expected": {
+        "status": 200,
+        "decisionCount": 1,
+        "planCount": 1,
+        "cwiCount": 1
+      },
+      "passed": true,
+      "notes": ""
+    },
+    {
+      "name": "Real state file unchanged",
+      "status": null,
+      "body": {
+        "unchanged": true,
+        "byteLength": 117
+      },
+      "expected": {
+        "unchanged": true
+      },
+      "passed": true,
+      "notes": ""
+    },
+    {
+      "name": "No commit created during validation run",
+      "status": null,
+      "body": {
+        "headBefore": "9749f38e7bdb1ec6ee56be0e2227473c3b973f2b",
+        "headAfter": "9749f38e7bdb1ec6ee56be0e2227473c3b973f2b"
+      },
+      "expected": {
+        "headUnchanged": true
+      },
+      "passed": true,
+      "notes": ""
+    }
+  ],
+  "failures": []
+}

@@ -1,0 +1,312 @@
+{
+  "ranAt": "2026-10-21T09:32:19.996Z",
+  "base": "http://127.0.0.1:4275",
+  "tempDir": "C:\\Users\\bomb_\\AppData\\Local\\Temp\\ace-cwi-verify-U9BCoi",
+  "plan": {
+    "plan_id": "PLAN-1-1",
+    "plan_version": "v1"
+  },
+  "cases": [
+    {
+      "label": "PRODUCT + valid product_id -> 201, both fields returned",
+      "expected": "201 and type/product_id present",
+      "status": 201,
+      "body": {
+        "id": "CWI-1",
+        "plan_id": "PLAN-1-1",
+        "plan_version": "v1",
+        "decision": "PENDING",
+        "createdAt": "2026-10-21T09:32:14.106Z",
+        "type": "PRODUCT",
+        "product_id": "P-1001"
+      },
+      "pass": true
+    },
+    {
+      "label": "PRODUCT + product_id missing -> 400",
+      "expected": "400 naming product_id",
+      "status": 400,
+      "body": {
+        "error": "product_id is required for type PRODUCT"
+      },
+      "pass": true
+    },
+    {
+      "label": "PRODUCT + product_id null -> 400",
+      "expected": "400 naming product_id",
+      "status": 400,
+      "body": {
+        "error": "product_id must be a string for type PRODUCT"
+      },
+      "pass": true
+    },
+    {
+      "label": "PRODUCT + numeric product_id -> 400",
+      "expected": "400 naming product_id",
+      "status": 400,
+      "body": {
+        "error": "product_id must be a string or null; product_id must be a string for type PRODUCT"
+      },
+      "pass": true
+    },
+    {
+      "label": "PRODUCT + blank product_id -> 400",
+      "expected": "400 naming product_id",
+      "status": 400,
+      "body": {
+        "error": "product_id must not be empty; product_id must not be empty for type PRODUCT"
+      },
+      "pass": true
+    },
+    {
+      "label": "REVIEW + valid product_id -> 201, both fields returned",
+      "expected": "201 and type/product_id present",
+      "status": 201,
+      "body": {
+        "id": "CWI-2",
+        "plan_id": "PLAN-1-1",
+        "plan_version": "v1",
+        "decision": "PENDING",
+        "createdAt": "2026-10-21T09:32:14.168Z",
+        "type": "REVIEW",
+        "product_id": "P-2002"
+      },
+      "pass": true
+    },
+    {
+      "label": "REVIEW + product_id missing -> 400",
+      "expected": "400 naming product_id",
+      "status": 400,
+      "body": {
+        "error": "product_id is required for type REVIEW"
+      },
+      "pass": true
+    },
+    {
+      "label": "REVIEW + product_id null -> 400",
+      "expected": "400 naming product_id",
+      "status": 400,
+      "body": {
+        "error": "product_id must be a string for type REVIEW"
+      },
+      "pass": true
+    },
+    {
+      "label": "METHOD + no product_id -> 201 (nullable base applies)",
+      "expected": "201 and no product_id key",
+      "status": 201,
+      "body": {
+        "id": "CWI-3",
+        "plan_id": "PLAN-1-1",
+        "plan_version": "v1",
+        "decision": "PENDING",
+        "createdAt": "2026-10-21T09:32:14.200Z",
+        "type": "METHOD"
+      },
+      "pass": true
+    },
+    {
+      "label": "WORKFLOW + product_id null -> 201 (nullable base applies)",
+      "expected": "201 and product_id null",
+      "status": 201,
+      "body": {
+        "id": "CWI-4",
+        "plan_id": "PLAN-1-1",
+        "plan_version": "v1",
+        "decision": "PENDING",
+        "createdAt": "2026-10-21T09:32:14.216Z",
+        "type": "WORKFLOW",
+        "product_id": null
+      },
+      "pass": true
+    },
+    {
+      "label": "GET the created CWI -> type and product_id persisted",
+      "expected": "200 with both fields",
+      "status": 200,
+      "body": {
+        "id": "CWI-1",
+        "plan_id": "PLAN-1-1",
+        "plan_version": "v1",
+        "decision": "PENDING",
+        "createdAt": "2026-10-21T09:32:14.106Z",
+        "type": "PRODUCT",
+        "product_id": "P-1001"
+      },
+      "pass": true
+    },
+    {
+      "label": "temporary state file stores type and product_id",
+      "expected": "record with both fields",
+      "status": "n/a (file read)",
+      "body": {
+        "id": "CWI-1",
+        "plan_id": "PLAN-1-1",
+        "plan_version": "v1",
+        "decision": "PENDING",
+        "createdAt": "2026-10-21T09:32:14.106Z",
+        "type": "PRODUCT",
+        "product_id": "P-1001"
+      },
+      "pass": true
+    },
+    {
+      "label": "unknown type -> 400",
+      "expected": "400",
+      "status": 400,
+      "body": {
+        "error": "type must be one of PRODUCT, REVIEW, METHOD, WORKFLOW"
+      },
+      "pass": true
+    },
+    {
+      "label": "missing type -> 400",
+      "expected": "400",
+      "status": 400,
+      "body": {
+        "error": "type is required"
+      },
+      "pass": true
+    },
+    {
+      "label": "unknown field -> 400",
+      "expected": "400",
+      "status": 400,
+      "body": {
+        "error": "prodcut_id is not a recognised field"
+      },
+      "pass": true
+    },
+    {
+      "label": "malformed JSON -> 400 \"Body must be valid JSON\"",
+      "expected": "400 Body must be valid JSON",
+      "status": 400,
+      "body": {
+        "error": "Body must be valid JSON"
+      },
+      "pass": true
+    },
+    {
+      "label": "array body -> 400 \"Body must be a JSON object\"",
+      "expected": "400 Body must be a JSON object",
+      "status": 400,
+      "body": {
+        "error": "Body must be a JSON object"
+      },
+      "pass": true
+    },
+    {
+      "label": "missing plan_id -> 400 \"plan_id is required\"",
+      "expected": "400 plan_id is required",
+      "status": 400,
+      "body": {
+        "error": "plan_id is required"
+      },
+      "pass": true
+    },
+    {
+      "label": "missing plan_version -> 400 \"plan_version is required\"",
+      "expected": "400 plan_version is required",
+      "status": 400,
+      "body": {
+        "error": "plan_version is required"
+      },
+      "pass": true
+    },
+    {
+      "label": "unknown plan version -> 404",
+      "expected": "404 plan_id/plan_version not found",
+      "status": 404,
+      "body": {
+        "error": "plan_id/plan_version not found: PLAN-9-9/v1"
+      },
+      "pass": true
+    }
+  ],
+  "suites": [
+    {
+      "script": "docs/mission1/schemas/validate-content-work-item.js",
+      "label": "schema validation",
+      "exitCode": 0,
+      "ok": true,
+      "tail": "11/11 behavioural cases passed | all checks passed"
+    },
+    {
+      "script": "verification/validate-claim-classes.js",
+      "label": "claim-class validation",
+      "exitCode": 0,
+      "ok": true,
+      "tail": "PASS  evidence-log entries were not re-classified — entries: 10 | all claim-class checks passed"
+    },
+    {
+      "script": "verification/cwi-contract-enforcement.js",
+      "label": "CWI contract enforcement",
+      "exitCode": 0,
+      "ok": true,
+      "tail": "PASS  real data/app/state.json unchanged — md5 5d29cdbdace0a73580bc2e0633f2e8cb -> 5d29cdbdace0a73580bc2e0633f2e8cb | all CWI contract-enforcement checks passed"
+    }
+  ],
+  "checks": [
+    {
+      "name": "Contract file exists and parses as JSON",
+      "command": "node -e \"JSON.parse(fs.readFileSync('docs/mission1/schemas/content-work-item.schema.json'))\"",
+      "exitCode": 0,
+      "actual": "parsed OK, md5=dc27941bf7c3ff03e52f67dc91b8b1ce",
+      "pass": true
+    },
+    {
+      "name": "Real data/app/state.json is byte-identical after the run",
+      "command": "md5sum data/app/state.json  (before vs after)",
+      "exitCode": 0,
+      "actual": "5d29cdbdace0a73580bc2e0633f2e8cb -> 5d29cdbdace0a73580bc2e0633f2e8cb",
+      "pass": true
+    },
+    {
+      "name": "Real state file still holds no CWI or plan records",
+      "command": "node -e \"read data/app/state.json, list keys\"",
+      "exitCode": 0,
+      "actual": "keys: schemaVersion, cycle, selectedOpportunityId, lastDecisionAt, decisions (no cwis, no planVersions)",
+      "pass": true
+    },
+    {
+      "name": "No commit was created (HEAD unchanged)",
+      "command": "git rev-parse HEAD  (before vs after)",
+      "exitCode": 0,
+      "actual": "9749f38e7bdb1ec6ee56be0e2227473c3b973f2b -> 9749f38e7bdb1ec6ee56be0e2227473c3b973f2b  (9749f38 Record Owner approval of Measurement Formula in Doc G §2b)",
+      "pass": true
+    },
+    {
+      "name": "Working tree entry count unchanged (nothing added or removed)",
+      "command": "git status --short | wc -l  (before vs after)",
+      "exitCode": 0,
+      "actual": "27 -> 27",
+      "pass": true
+    },
+    {
+      "name": "Only the temporary copy was written",
+      "command": "server started in temp dir, repo files not mounted",
+      "exitCode": 0,
+      "actual": "temp dir C:\\Users\\bomb_\\AppData\\Local\\Temp\\ace-cwi-verify-U9BCoi; real state has no cwis/planVersions while the temp copy holds 4 CWI record(s)",
+      "pass": true
+    }
+  ],
+  "realFiles": {
+    "before": {
+      "state": "5d29cdbdace0a73580bc2e0633f2e8cb",
+      "mock": "06c49effaa665f8f4cc1c1a8b3aedc98",
+      "log": "30ec9abd809655328254dbcb712ea00e"
+    },
+    "after": {
+      "state": "5d29cdbdace0a73580bc2e0633f2e8cb",
+      "mock": "06c49effaa665f8f4cc1c1a8b3aedc98",
+      "log": "30ec9abd809655328254dbcb712ea00e"
+    },
+    "unchanged": true
+  },
+  "gitHead": "9749f38 Record Owner approval of Measurement Formula in Doc G §2b",
+  "gitHeadBefore": "9749f38e7bdb1ec6ee56be0e2227473c3b973f2b",
+  "gitHeadAfter": "9749f38e7bdb1ec6ee56be0e2227473c3b973f2b",
+  "gitStatusBefore": 27,
+  "gitStatusAfter": 27,
+  "failures": 0
+}

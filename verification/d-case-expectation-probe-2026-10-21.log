@@ -1,0 +1,13 @@
+# D-case probe (D8/D1/D2/D3/D10/D9) — 2026-10-21T05:24:05Z
+# command: node /tmp/probe-d-cases.js  (temp copy of app/ data/ docs/, port 4296)
+# purpose: check whether D-matrix expectations match the implemented endpoint (read-only evidence)
+
+D8  new_version plan_id=PLAN-999 : {"status":400,"body":{"error":"plan_id not found: PLAN-999"}}
+D1  create first plan           : {"status":201,"body":{"id":"PLAN-1-1-v1","plan_id":"PLAN-1-1","version":"v1","content":"Plan A","schemaVersion":1,"createdAt":"2026-10-21T05:24:06.762Z"}}
+D2  create second plan          : {"status":201,"body":{"id":"PLAN-1-2-v1","plan_id":"PLAN-1-2","version":"v1","content":"Plan B","schemaVersion":1,"createdAt":"2026-10-21T05:24:06.776Z"}}
+D3  new_version PLAN-1-1        : {"status":201,"body":{"id":"PLAN-1-1-v2","plan_id":"PLAN-1-1","version":"v2","content":"Version A2","schemaVersion":1,"createdAt":"2026-10-21T05:24:06.786Z"}}
+D10 new_version version=v1 dup  : {"status":409,"body":{"error":"plan_id/plan_version already exists: PLAN-1-1/v1"}}
+D9  new_version version=v9      : {"status":201,"body":{"id":"PLAN-1-1-v3","plan_id":"PLAN-1-1","version":"v3","content":"nonexistent-version-ref","schemaVersion":1,"createdAt":"2026-10-21T05:24:06.800Z"}}
+state plan version ids          : ["PLAN-1-1-v1","PLAN-1-2-v1","PLAN-1-1-v2","PLAN-1-1-v3"]
+
+node_exit=0

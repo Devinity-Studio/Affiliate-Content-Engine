@@ -1,0 +1,121 @@
+=== Real-export shape rehearsal ===
+REHEARSAL ONLY. These files are machine-generated imitations of export
+SHAPES. They do NOT prove that a real Shopee export imports.
+checked at: 2026-10-21T16:26:49.414Z
+      shopee-export-shape-en.csv  3520 bytes
+      shopee-export-shape-en-bom.csv  3523 bytes
+      shopee-export-shape-en.tsv  3416 bytes
+      shopee-export-shape-th-874.csv  3313 bytes
+      shopee-export-shape-missing-shop-id.csv  3428 bytes
+      shopee-export-shape-520-rows.csv  145393 bytes
+      written to .tmp\real-export-rehearsal (git-ignored scratch)
+
+Case 1 — preview writes nothing
+-------------------------------
+PASS  preview returns 200  — status 200
+PASS  preview did not create the staging file
+PASS  preview reports preview_wrote_state: false
+
+Case 2 — header and alias mapping (English Shopee-shaped headers)
+-----------------------------------------------------------------
+PASS  the header row is read as-is
+PASS  alias: item_id <- "Item ID"  — got "Item ID"
+PASS  alias: shop_id <- "Shop ID"  — got "Shop ID"
+PASS  alias: shop_name <- "Shop Name"  — got "Shop Name"
+PASS  alias: product_name <- "Product Name"  — got "Product Name"
+PASS  alias: category <- "Category"  — got "Category"
+PASS  alias: price_thb <- "Price"  — got "Price"
+PASS  alias: list_price_thb <- "Original Price"  — got "Original Price"
+PASS  alias: commission_rate <- "Commission Rate"  — got "Commission Rate"
+PASS  alias: promo_label <- "Promotion"  — got "Promotion"
+PASS  alias: promo_depth_pct <- "Discount"  — got "Discount"
+PASS  alias: rating <- "Rating"  — got "Rating"
+PASS  alias: rating_count <- "Review Count"  — got "Review Count"
+PASS  alias: units_sold <- "Sales"  — got "Sales"
+PASS  alias: shop_rating <- "Shop Rating"  — got "Shop Rating"
+PASS  alias: related_shop_count <- "Related Shops"  — got "Related Shops"
+PASS  alias: product_url <- "Product URL"  — got "Product URL"
+PASS  alias: shop_url <- "Shop URL"  — got "Shop URL"
+PASS  alias: exported_at <- "Export Date"  — got "Export Date"
+PASS  alias: affiliate_link <- "Affiliate Link"  — got "Affiliate Link"
+PASS  no required column is missing  — []
+PASS  unmapped columns are reported, not ignored silently  — ["Seller Type","Campaign"]
+PASS  no column is mapped to two fields
+
+Case 3 — format, encoding and delimiter
+---------------------------------------
+PASS  format is csv  — csv
+PASS  encoding is utf-8  — utf-8
+PASS  delimiter is ","  — ,
+PASS  a UTF-8 BOM is detected as utf-8-bom  — utf-8-bom
+PASS  a UTF-8 BOM file still maps every required column
+PASS  a windows-874 file is detected as windows-874  — windows-874
+PASS  the Thai header row is read correctly  — รหัสสินค้า
+PASS  thai alias: item_id <- "รหัสสินค้า"  — got "รหัสสินค้า"
+PASS  thai alias: shop_id <- "รหัสร้านค้า"  — got "รหัสร้านค้า"
+PASS  thai alias: product_name <- "ชื่อสินค้า"  — got "ชื่อสินค้า"
+PASS  thai alias: price_thb <- "ราคา"  — got "ราคา"
+PASS  thai alias: commission_rate <- "อัตราค่าคอมมิชชั่น"  — got "อัตราค่าคอมมิชชั่น"
+PASS  thai alias: affiliate_link <- "ลิงก์ affiliate"  — got "ลิงก์ affiliate"
+PASS  the Thai file decodes to readable Thai text  — ซีรั่มวิตามินซี 30 มล.
+PASS  a tab-separated file is detected as tsv  — tsv
+PASS  a tab-separated file is detected as TAB delimited  — TAB
+PASS  a tab-separated file maps every required column
+
+Case 4 — row classification
+---------------------------
+PASS  12 rows are read  — 12
+PASS  8 rows are valid  — 8
+PASS  1 row is a duplicate  — 1
+PASS  2 rows are invalid  — 2
+PASS  1 row is unknown (no commission)  — 1
+PASS  the row without commission is named  — 1
+PASS  the duplicate row is reported as such
+PASS  invalid rows carry a reason
+PASS  a row with missing optional metrics is still valid  — VALID
+PASS  a row with missing optional metrics lists the unknown fields  — unknown fields: rating, rating_count, units_sold, shop_rating, related_shop_count
+PASS  a row without commission is UNKNOWN, not silently accepted  — UNKNOWN
+PASS  a price of "n/a" is INVALID
+
+Case 5 — a required column is missing from the file
+---------------------------------------------------
+PASS  preview reports the missing required column  — ["shop_id"]
+PASS  commit refuses a file with a missing required column  — status 400
+PASS  the refusal names the missing column  — The detected mapping is missing: shop_id
+
+Case 6 — more rows than the slice accepts
+-----------------------------------------
+PASS  a 520-row file is rejected with 413  — status 413
+PASS  the rejection states the 500-row limit  — The file has 520 data rows; this slice imports at most 500
+
+Case 7 — commit and promote on the user-supplied path
+-----------------------------------------------------
+PASS  commit returns 201  — status 201
+PASS  the import is NOT marked synthetic  — false
+PASS  the source type is SHOPEE_AFFILIATE_EXPORT  — SHOPEE_AFFILIATE_EXPORT
+PASS  the staged import warns that it is unverified against Shopee  — ["Staged only: the Research view and candidates still use the previous import until this staging record is promoted.","This upload is user-supplied; the app did not verify it against Shopee."]
+PASS  8 valid rows were imported  — {"total":12,"valid":8,"duplicate":1,"invalid":2,"unknown":1,"imported":8}
+PASS  8 offers were built  — {"sources":5,"products":8,"offers":8,"evidence":72}
+PASS  promote returns 201  — status 201
+PASS  promote produced 5 candidates  — 5
+PASS  the research state is not synthetic  — false
+PASS  the research state is in STAGED_IMPORT mode  — STAGED_IMPORT
+PASS  the research state holds 8 offers  — {"sources":5,"products":8,"offers":8,"evidence":72,"candidates":5,"queued":0,"status_counts":{"NONE":5,"SAVED":0,"REJECTED":0,"QUEUED":0},"plans":0,"archived_sources":0}
+PASS  the export source is not marked verified against Shopee
+PASS  the export source provenance is USER_SUPPLIED  — USER_SUPPLIED_SHOPEE_AFFILIATE_EXPORT
+PASS  the source label says the export is user supplied  — User-supplied Shopee Affiliate export: shopee-export-shape-en.csv
+PASS  the source label does not say SYNTHETIC  — User-supplied Shopee Affiliate export: shopee-export-shape-en.csv
+
+Case 8 — the same file imported twice
+-------------------------------------
+PASS  a second import of the same file writes nothing  — status 200
+PASS  the second import points at the existing staged record  — STG-1
+
+Case 9 — isolation
+------------------
+PASS  data/app/state.json was not touched  — b897c26299d56fb172d9d924a3d20e5ae4f017d828b0c81fd925f90e7a71add0 -> b897c26299d56fb172d9d924a3d20e5ae4f017d828b0c81fd925f90e7a71add0
+PASS  the rehearsal state was written inside the temporary workspace
+PASS  the rehearsal staging file was written inside the temporary workspace
+
+PASS  80/80 rehearsal expectations met
+REHEARSAL ONLY — real Shopee import is still NOT verified.

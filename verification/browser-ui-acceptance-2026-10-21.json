@@ -1,0 +1,278 @@
+{
+  "title": "Browser UI acceptance",
+  "date": "2026-10-21",
+  "scope": "UI behavior only; copied app and isolated temporary state. This does not establish Mission 1 completion or AC-01 through AC-21.",
+  "environment": {
+    "url": "http://127.0.0.1:58436/",
+    "temporaryRoot": "C:\\Users\\bomb_\\AppData\\Local\\Temp\\ace-browser-ui-X587eJ",
+    "temporaryStateFile": "C:\\Users\\bomb_\\AppData\\Local\\Temp\\ace-browser-ui-X587eJ\\data\\app\\state.json",
+    "initialState": {
+      "schemaVersion": 1,
+      "cycle": 1,
+      "selectedOpportunityId": null,
+      "lastDecisionAt": null,
+      "decisions": [],
+      "planVersions": {},
+      "cwis": {}
+    }
+  },
+  "assertions": [
+    {
+      "name": "Load synthetic opportunities",
+      "pass": true,
+      "http": {
+        "method": "GET",
+        "path": "/api/opportunities",
+        "status": 200,
+        "body": {
+          "opportunities": [
+            {
+              "id": "OPP-MOCK-1",
+              "title": "Compact desk cable organiser"
+            },
+            {
+              "id": "OPP-MOCK-2",
+              "title": "Thai herbal balm gift set"
+            },
+            {
+              "id": "OPP-MOCK-3",
+              "title": "Minimal silver pendant"
+            }
+          ]
+        }
+      },
+      "ui": {
+        "title": "ACE · Mission 1 vertical slice",
+        "step": "S1 · RESEARCH",
+        "candidateCount": 3,
+        "mockDisclaimerVisible": true,
+        "disclaimerHeading": "SYNTHETIC DEMONSTRATION DATASET",
+        "editDisabled": true,
+        "nextDisabled": true
+      }
+    },
+    {
+      "name": "Initial isolated state is empty",
+      "pass": true,
+      "http": {
+        "method": "GET",
+        "path": "/api/state",
+        "status": 200,
+        "body": {
+          "schemaVersion": 1,
+          "cycle": 1,
+          "selectedOpportunityId": null,
+          "lastDecisionAt": null,
+          "decisions": [],
+          "planVersions": {},
+          "cwis": {}
+        }
+      }
+    },
+    {
+      "name": "Candidate switching updates the selected candidate and reason field",
+      "pass": true,
+      "http": {
+        "status": null,
+        "body": {
+          "selectedCandidate": "OPP-MOCK-2",
+          "reasonTextareaId": "reason-OPP-MOCK-2"
+        }
+      }
+    },
+    {
+      "name": "Required-reason validation blocks an empty submission",
+      "pass": true,
+      "http": {
+        "decisionPostRequests": 0,
+        "status": null,
+        "body": {
+          "clientError": "A reason of at least 3 characters is required to record a decision.",
+          "stateBefore": {
+            "decisionCount": 0
+          },
+          "stateAfter": {
+            "decisionCount": 0
+          }
+        }
+      }
+    },
+    {
+      "name": "Server-error rendering using an intercepted fixture",
+      "pass": true,
+      "fixtureOnly": true,
+      "http": {
+        "method": "POST",
+        "path": "/api/decision",
+        "status": 400,
+        "body": {
+          "error": "Fixture rejection"
+        },
+        "interceptedByBrowserRoute": true
+      },
+      "ui": {
+        "formError": "Could not record the decision. Fixture rejection",
+        "toast": "Decision was not recorded.",
+        "persistedDecisionCount": 0
+      },
+      "limitation": "This verifies client rendering for a supplied 400 response; it is not evidence that the server generated this rejection."
+    },
+    {
+      "name": "Successful decision submission and UI history",
+      "pass": true,
+      "http": {
+        "method": "POST",
+        "path": "/api/decision",
+        "status": 201,
+        "body": {
+          "recorded": {
+            "id": "DEC-APP-1",
+            "at": "2026-10-20T21:51:18.655Z",
+            "opportunityId": "OPP-MOCK-1",
+            "decision": "SELECT",
+            "reason": "UI acceptance selected for G2 drafting",
+            "actor": "owner",
+            "kind": "OPPORTUNITY_DECISION",
+            "gate": "NONE",
+            "mock": true,
+            "note": "Recorded by the app. This is not a gate approval; G1 stays plan-level and G2 remains unapproved."
+          },
+          "state": {
+            "schemaVersion": 1,
+            "cycle": 1,
+            "selectedOpportunityId": "OPP-MOCK-1",
+            "lastDecisionAt": "2026-10-20T21:51:18.655Z",
+            "decisions": [
+              {
+                "id": "DEC-APP-1",
+                "at": "2026-10-20T21:51:18.655Z",
+                "opportunityId": "OPP-MOCK-1",
+                "decision": "SELECT",
+                "reason": "UI acceptance selected for G2 drafting",
+                "actor": "owner",
+                "kind": "OPPORTUNITY_DECISION",
+                "gate": "NONE",
+                "mock": true,
+                "note": "Recorded by the app. This is not a gate approval; G1 stays plan-level and G2 remains unapproved."
+              }
+            ],
+            "planVersions": {},
+            "cwis": {}
+          }
+        }
+      },
+      "ui": {
+        "toast": "DEC-APP-1 recorded: Select.",
+        "saveState": "Persisted · 1 decision",
+        "historyId": "DEC-APP-1",
+        "historyReason": "UI acceptance selected for G2 drafting",
+        "selectedCandidate": "OPP-MOCK-1"
+      }
+    },
+    {
+      "name": "Read-only placeholder navigation",
+      "pass": true,
+      "http": {
+        "status": null,
+        "body": {
+          "step": "S2 · WORK PLAN",
+          "placeholderBadge": "STEP 2 OF 10\nNOT IMPLEMENTED IN THIS SLICE",
+          "editDisabled": true,
+          "nextDisabled": true,
+          "backToStep1Available": true
+        }
+      }
+    },
+    {
+      "name": "Browser reload preserves the decision",
+      "pass": true,
+      "http": {
+        "method": "GET",
+        "path": "/api/state",
+        "status": 200,
+        "body": {
+          "schemaVersion": 1,
+          "cycle": 1,
+          "selectedOpportunityId": "OPP-MOCK-1",
+          "lastDecisionAt": "2026-10-20T21:51:18.655Z",
+          "decisions": [
+            {
+              "id": "DEC-APP-1",
+              "at": "2026-10-20T21:51:18.655Z",
+              "opportunityId": "OPP-MOCK-1",
+              "decision": "SELECT",
+              "reason": "UI acceptance selected for G2 drafting",
+              "actor": "owner",
+              "kind": "OPPORTUNITY_DECISION",
+              "gate": "NONE",
+              "mock": true,
+              "note": "Recorded by the app. This is not a gate approval; G1 stays plan-level and G2 remains unapproved."
+            }
+          ],
+          "planVersions": {},
+          "cwis": {}
+        }
+      },
+      "ui": {
+        "selectedCandidate": "OPP-MOCK-1",
+        "historyId": "DEC-APP-1",
+        "historyReason": "UI acceptance selected for G2 drafting",
+        "saveState": "Persisted · 1 decision"
+      }
+    },
+    {
+      "name": "Temporary server restart reuses the same temporary state",
+      "pass": true,
+      "http": {
+        "controlMethod": "POST",
+        "controlAction": "restart",
+        "controlStatus": 200,
+        "controlBody": {
+          "action": "restart",
+          "health": {
+            "ok": true,
+            "mock": true,
+            "stateFile": "data/app/state.json"
+          }
+        },
+        "afterRestartMethod": "GET",
+        "afterRestartPath": "/api/state",
+        "afterRestartStatus": 200,
+        "afterRestartBody": {
+          "schemaVersion": 1,
+          "cycle": 1,
+          "selectedOpportunityId": "OPP-MOCK-1",
+          "lastDecisionAt": "2026-10-20T21:51:18.655Z",
+          "decisions": [
+            {
+              "id": "DEC-APP-1",
+              "at": "2026-10-20T21:51:18.655Z",
+              "opportunityId": "OPP-MOCK-1",
+              "decision": "SELECT",
+              "reason": "UI acceptance selected for G2 drafting",
+              "actor": "owner",
+              "kind": "OPPORTUNITY_DECISION",
+              "gate": "NONE",
+              "mock": true,
+              "note": "Recorded by the app. This is not a gate approval; G1 stays plan-level and G2 remains unapproved."
+            }
+          ],
+          "planVersions": {},
+          "cwis": {}
+        }
+      },
+      "ui": {
+        "selectedCandidate": "OPP-MOCK-1",
+        "historyId": "DEC-APP-1",
+        "historyReason": "UI acceptance selected for G2 drafting",
+        "saveState": "Persisted · 1 decision"
+      }
+    }
+  ],
+  "result": {
+    "passed": 9,
+    "total": 9,
+    "foundationStatus": "Foundation Complete — scoped to verified runtime/API foundation",
+    "mission1Status": "Not complete; this UI run uses synthetic opportunities and is not Mission 1 evidence."
+  }
+}
