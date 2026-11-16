@@ -3595,6 +3595,18 @@ function publishChannelsLabel(record, item) {
   return ids.map(channelLabel).join(' · ') || '—';
 }
 
+/* Sort key for the queue view: nearest slot first, rows without a time last. */
+function publishSortTime(item) {
+  const time = new Date((item.publishRecord || {}).scheduledAt || '').getTime();
+  return isNaN(time) ? Infinity : time;
+}
+
+/* A confirmed slot that is already in the past has not been posted yet. */
+function publishIsOverdue(item) {
+  const time = publishSortTime(item);
+  return time !== Infinity && time < Date.now();
+}
+
 function renderPublishQueue() {
   savePoolState();
   var list = document.getElementById('publish-queue');
@@ -3603,18 +3615,26 @@ function renderPublishQueue() {
     list.innerHTML = '<li class="publish-empty">' + publishQueueEmptyHtml() + '</li>';
     return;
   }
-  list.innerHTML = publishQueue.map(function(item, i) {
+  // Nearest slot first; data-index keeps pointing at publishQueue, not this view.
+  const ordered = publishQueue
+    .map(function(item, index) { return { item: item, index: index }; })
+    .sort(function(a, b) { return publishSortTime(a.item) - publishSortTime(b.item); });
+
+  list.innerHTML = ordered.map(function(entry, i) {
+    const item = entry.item;
     const record = item.publishRecord || {};
-    return '<li class="queue-item">' +
+    const overdue = publishIsOverdue(item);
+    return '<li class="queue-item' + (overdue ? ' is-overdue' : '') + '">' +
       '<span class="queue-index">' + (i + 1) + '</span>' +
       '<span class="queue-title">' +
-        '<b>' + escapeHtml(item.name) + '</b>' +
+        '<b>' + escapeHtml(item.name) +
+          (overdue ? ' <span class="queue-flag">เลยกำหนด</span>' : '') + '</b>' +
         '<span class="queue-meta">🗓 ' + escapeHtml(publishWhenLabel(record)) +
           ' · ช่องทาง: ' + escapeHtml(publishChannelsLabel(record, item)) + '</span>' +
         (item.exportNotes ? '<span class="queue-meta">' + escapeHtml(item.exportNotes) + '</span>' : '') +
       '</span>' +
       (item.affiliateLink
-        ? '<button type="button" class="chip-btn pq-copy" data-index="' + i + '">คัดลอกลิงก์</button>'
+        ? '<button type="button" class="chip-btn pq-copy" data-index="' + entry.index + '">คัดลอกลิงก์</button>'
         : '') +
     '</li>';
   }).join('');
