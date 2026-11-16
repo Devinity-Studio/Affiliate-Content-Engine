@@ -2755,6 +2755,8 @@ function openSourceDrawer(targetId) {
 /* ---------- Publish step: confirm channel + time, then queue ---------- */
 
 let publishEditKey = null;
+// Keys (libraryId) of queued rows ticked for a shared reschedule.
+let publishQueueSelection = [];
 
 function publishQueueEmptyHtml() {
   return '<p><b>ยังไม่มีรายการใน Publish Queue</b></p>' +
@@ -2882,21 +2884,35 @@ function bindPublishWhenInputs() {
     dateEl.disabled = instant;
     timeEl.disabled = instant;
   };
+  // Touching a date/time field means the operator wants a scheduled slot, so
+  // the mode follows instead of silently keeping "publish now".
+  const preferSchedule = function() {
+    if (modeEl.value === 'schedule') return;
+    modeEl.value = 'schedule';
+    syncMode();
+  };
+  dateEl.addEventListener('input', preferSchedule);
+  timeEl.addEventListener('input', preferSchedule);
   modeEl.addEventListener('change', syncMode);
   syncMode();
 }
 
 /* Rendered whenever the Publish stage or the library table refreshes, so the
-   card always shows the rows the operator is looking at. */
+   card always shows the rows the operator is working on: ticked queued rows
+   (reschedule together), one queued row being edited, or the approve flow. */
 function renderPublishConfirm() {
   const host = document.getElementById('publish-confirm');
   if (!host) return;
 
-  // A queued row being rescheduled opens this same card in edit mode.
+  const queuedTicked = publishQueueSelection
+    .map(function(key) { return contentLibrary.filter(function(entry) { return publishKey(entry) === key; })[0]; })
+    .filter(Boolean);
   const editing = publishEditKey
     ? contentLibrary.filter(function(entry) { return publishKey(entry) === publishEditKey; })[0]
     : null;
-  const targets = editing ? [editing] : publishTargets();
+
+  const targets = queuedTicked.length ? queuedTicked : (editing ? [editing] : publishTargets());
+  const reschedule = queuedTicked.length > 0 || Boolean(editing);
 
   if (!targets.length) {
     host.innerHTML = publishNoticeHtml(
@@ -2907,7 +2923,7 @@ function renderPublishConfirm() {
   }
 
   const first = targets[0];
-  if (!editing && first.status !== 'APPROVE') {
+  if (!reschedule && first.status !== 'APPROVE') {
     const detail = first.status === 'EXPORTED'
       ? 'รายการนี้ยืนยันเผยแพร่แล้วและอยู่ใน Publish Queue ด้านล่าง — เลือกแถวอื่นที่อนุมัติแล้วเพื่อยืนยันเพิ่ม'
       : 'ต้องอนุมัติ (APPROVE) ก่อนจึงจะยืนยันการเผยแพร่ได้ — ไปที่ Finalize เพื่อตรวจและอนุมัติ';
@@ -2924,33 +2940,51 @@ function renderPublishConfirm() {
   const bulk = targets.length > 1;
   const chosen = saved.channels && saved.channels.length
     ? saved.channels
-    : (editing ? (first.channels || []) : (first.channels || candidate.channels || ['shopee_video']));
+    : (first.channels || candidate.channels || ['shopee_video']);
+  const names = targets.slice(0, 4).map(function(item) { return escapeHtml(item.name || 'รายการ'); }).join(' · ');
+
+  let head;
+  if (queuedTicked.length) {
+    head = '<b>แก้ตารางโพสต์พร้อมกัน ' + targets.length + ' รายการ</b>' +
+      '<span class="status-badge status-exported">EXPORTED</span>' +
+      '<span class="muted small">' + names + (targets.length > 4 ? ' · และอีก ' + (targets.length - 4) : '') + '</span>';
+  } else if (editing) {
+    head = '<b>' + escapeHtml(first.name || 'รายการ') + '</b>' +
+      '<span class="status-badge status-exported">EXPORTED</span>' +
+      '<span class="muted small">กำลังแก้ตารางโพสต์ที่ยืนยันแล้ว</span>';
+  } else {
+    head = publishTargetHeadHtml(targets);
+  }
+
+  // A shared reschedule always starts as an explicit slot (never inherits
+  // "publish now" from one row), and the notes are written fresh for the batch.
+  const formRecord = queuedTicked.length
+    ? { mode: 'schedule', scheduledAt: saved.scheduledAt, notes: '' }
+    : (editing ? saved : Object.assign({}, saved, { notes: bulk ? '' : (saved.notes || first.exportNotes || '') }));
+
+  let actions;
+  if (reschedule) {
+    actions = '<button type="button" class="btn btn-primary" id="publish-save-btn">' +
+        (bulk ? 'บันทึก ' + targets.length + ' รายการ' : 'บันทึกการแก้ไข') + '</button>' +
+      '<button type="button" class="btn btn-ghost" id="publish-cancel-btn">ยกเลิก</button>';
+  } else {
+    actions = '<button type="button" class="btn btn-primary" id="publish-confirm-btn">' +
+      (bulk ? 'ยืนยัน ' + targets.length + ' รายการแล้วส่งเข้า Publish Queue' : 'ยืนยันแล้วส่งเข้า Publish Queue') + '</button>';
+  }
+
+  const hint = reschedule
+    ? (bulk
+        ? 'ใช้ช่องทาง/เวลาเดียวกันกับ ' + targets.length + ' รายการที่ติ๊ก — สถานะยัง EXPORTED'
+        : 'แก้ช่องทาง/เวลาได้โดยไม่ต้องยืนยันใหม่ — สถานะยัง EXPORTED')
+    : (bulk ? 'ช่องทาง/เวลาเดียวกันทุกแถว' : 'ติ๊กหลายแถวใน Content Library เพื่อยืนยันพร้อมกัน');
 
   host.innerHTML =
-    '<div class="publish-target">' +
-      (editing
-        ? '<b>' + escapeHtml(first.name || 'รายการ') + '</b>' +
-          '<span class="status-badge status-exported">EXPORTED</span>' +
-          '<span class="muted small">กำลังแก้ตารางโพสต์ที่ยืนยันแล้ว</span>'
-        : publishTargetHeadHtml(targets)) +
-    '</div>' +
+    '<div class="publish-target">' + head + '</div>' +
     '<div class="publish-channels">' + publishChannelCardsHtml(chosen, publishSubId2(first)) + '</div>' +
-    publishWhenInputsHtml(editing ? saved : Object.assign({}, saved, {
-      notes: bulk ? '' : (saved.notes || first.exportNotes || '')
-    })) +
-    '<div class="publish-actions">' +
-      (editing
-        ? '<button type="button" class="btn btn-primary" id="publish-save-btn">บันทึกการแก้ไข</button>' +
-          '<button type="button" class="btn btn-ghost" id="publish-cancel-btn">ยกเลิก</button>'
-        : '<button type="button" class="btn btn-primary" id="publish-confirm-btn">' +
-            (bulk ? 'ยืนยัน ' + targets.length + ' รายการแล้วส่งเข้า Publish Queue' : 'ยืนยันแล้วส่งเข้า Publish Queue') +
-          '</button>') +
+    publishWhenInputsHtml(formRecord) +
+    '<div class="publish-actions">' + actions +
       '<button type="button" class="btn btn-ghost" id="publish-qc-btn">ตรวจ Full Screen ก่อน</button>' +
-      '<span class="muted small">' +
-        (editing
-          ? 'แก้ช่องทาง/เวลาได้โดยไม่ต้องยืนยันใหม่ — สถานะยัง EXPORTED'
-          : (bulk ? 'ช่องทาง/เวลาเดียวกันทุกแถว' : 'ติ๊กหลายแถวใน Content Library เพื่อยืนยันพร้อมกัน')) +
-        ' — ACE ไม่โพสต์อัตโนมัติ</span>' +
+      '<span class="muted small">' + hint + ' — ACE ไม่โพสต์อัตโนมัติ</span>' +
     '</div>';
 
   bindPublishWhenInputs();
@@ -2958,8 +2992,8 @@ function renderPublishConfirm() {
   const firstIndex = contentLibrary.indexOf(first);
   document.getElementById('publish-qc-btn').addEventListener('click', function() { openQcOverlay(firstIndex); });
 
-  if (editing) {
-    document.getElementById('publish-save-btn').addEventListener('click', function() { savePublishEdit(first); });
+  if (reschedule) {
+    document.getElementById('publish-save-btn').addEventListener('click', function() { savePublishPlan(targets); });
     document.getElementById('publish-cancel-btn').addEventListener('click', cancelPublishEdit);
     return;
   }
@@ -3010,48 +3044,57 @@ function confirmPublish(targetKeys) {
   showToast('ส่งเข้า Publish Queue แล้ว — ' + items.length + ' รายการ · ' + plan.channels.length + ' ช่องทาง', 'success');
 }
 
-/* Reschedule a row that is already queued: same card, no second confirmation. */
+/* One queued row: open the card on it. Several ticked rows: reschedule them
+   together. Both paths write the same publishRecord fields, nothing posts. */
 function openPublishEdit(key) {
   const index = contentLibrary.findIndex(function(entry) { return publishKey(entry) === key; });
   if (index < 0) return;
   publishEditKey = key;
+  publishQueueSelection = [];
   librarySelectedIndex = index;
   if (document.body.dataset.stage !== 'schedule') switchStage('schedule');
   renderContentLibrary();
   renderPublishConfirm();
+  renderPublishQueue();
   scrollToBlock('publish-confirm');
 }
 
-function savePublishEdit(item) {
-  if (!item || !item.publishRecord) {
-    showToast('รายการนี้ยังไม่มีตารางโพสต์ให้แก้', 'warning');
+function savePublishPlan(items) {
+  const queued = items.filter(function(item) { return item && item.publishRecord; });
+  if (!queued.length) {
+    showToast('รายการเหล่านี้ยังไม่มีตารางโพสต์ให้แก้', 'warning');
     return;
   }
   const plan = readPublishForm();
   if (!plan) return;
 
-  item.channels = plan.channels;
-  item.exportNotes = plan.notes;
-  item.publishRecord = Object.assign({}, item.publishRecord, {
-    channels: plan.channels,
-    mode: plan.mode,
-    scheduledAt: plan.scheduledAt,
-    notes: plan.notes,
-    subId1: plan.channels[0]
+  const stamp = plan.mode === 'now' ? 'ทันที' : plan.scheduledAt;
+  queued.forEach(function(item) {
+    item.channels = plan.channels;
+    item.exportNotes = plan.notes;
+    item.publishRecord = Object.assign({}, item.publishRecord, {
+      channels: plan.channels,
+      mode: plan.mode,
+      scheduledAt: plan.scheduledAt,
+      notes: plan.notes,
+      subId1: plan.channels[0]
+    });
+    if (item.lineage) {
+      pushLineageEvent(item, 'แก้ตารางโพสต์: ' + plan.channels.join(', ') + ' · ' + stamp, { channels: plan.channels });
+    }
   });
-  if (item.lineage) {
-    pushLineageEvent(item, 'แก้ตารางโพสต์: ' + plan.channels.join(', ') +
-      ' · ' + (plan.mode === 'now' ? 'ทันที' : plan.scheduledAt), { channels: plan.channels });
-  }
+
   publishEditKey = null;
+  publishQueueSelection = [];
   savePoolState();
   renderContentLibrary();
   renderPublishQueue();
-  showToast('บันทึกการแก้ไขตารางโพสต์แล้ว — สถานะยัง EXPORTED (ไม่มีการโพสต์อัตโนมัติ)', 'success');
+  showToast('บันทึกการแก้ไขแล้ว — ' + queued.length + ' รายการ · สถานะยัง EXPORTED (ไม่มีการโพสต์อัตโนมัติ)', 'success');
 }
 
 function cancelPublishEdit() {
   publishEditKey = null;
+  publishQueueSelection = [];
   renderContentLibrary();
   renderPublishQueue();
   showToast('ยกเลิกการแก้ไข — ตารางโพสต์เดิมยังอยู่', 'info');
@@ -3716,7 +3759,10 @@ function renderPublishQueue() {
     const item = entry.item;
     const record = item.publishRecord || {};
     const overdue = publishIsOverdue(item);
+    const key = publishKey(item);
     return '<li class="queue-item' + (overdue ? ' is-overdue' : '') + '">' +
+      '<input type="checkbox" class="pq-check" data-key="' + escapeHtml(key) + '"' +
+        (publishQueueSelection.indexOf(key) !== -1 ? ' checked' : '') + ' aria-label="เลือกเพื่อเลื่อนตาราง">' +
       '<span class="queue-index">' + (i + 1) + '</span>' +
       '<span class="queue-title">' +
         '<b>' + escapeHtml(item.name) +
@@ -3725,7 +3771,7 @@ function renderPublishQueue() {
           ' · ช่องทาง: ' + escapeHtml(publishChannelsLabel(record, item)) + '</span>' +
         (item.exportNotes ? '<span class="queue-meta">' + escapeHtml(item.exportNotes) + '</span>' : '') +
       '</span>' +
-      '<button type="button" class="chip-btn pq-edit" data-key="' + escapeHtml(publishKey(item)) + '">แก้ไข</button>' +
+      '<button type="button" class="chip-btn pq-edit" data-key="' + escapeHtml(key) + '">แก้ไข</button>' +
       (item.affiliateLink
         ? '<button type="button" class="chip-btn pq-copy" data-index="' + entry.index + '">คัดลอกลิงก์</button>'
         : '') +
@@ -3734,6 +3780,15 @@ function renderPublishQueue() {
 
   if (list.dataset.bound !== '1') {
     list.dataset.bound = '1';
+    list.addEventListener('change', function(event) {
+      const cb = event.target.closest('.pq-check');
+      if (!cb) return;
+      const key = cb.dataset.key;
+      publishQueueSelection = publishQueueSelection.filter(function(entry) { return entry !== key; });
+      if (cb.checked) publishQueueSelection.push(key);
+      publishEditKey = null;
+      renderPublishConfirm();
+    });
     list.addEventListener('click', function(event) {
       const editBtn = event.target.closest('.pq-edit');
       if (editBtn) {
@@ -4513,7 +4568,10 @@ const stageMap = {
 
 function switchStage(stageKey) {
   // Leaving Publish drops any half-finished reschedule of a queued row.
-  if (stageKey !== 'schedule') publishEditKey = null;
+  if (stageKey !== 'schedule') {
+    publishEditKey = null;
+    publishQueueSelection = [];
+  }
   markActiveNav(stageKey);
   document.body.dataset.stage = stageKey;
   if (stageMap[stageKey]) stageMap[stageKey].activate();
