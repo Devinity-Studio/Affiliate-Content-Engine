@@ -2709,11 +2709,24 @@ function publishSubId2(item) {
   return item.libraryId || ('lib-' + item.id);
 }
 
-/* Which entry the Publish step acts on: the row picked in the table, otherwise
-   the first approved item still waiting for a channel. */
+/* Stable key so a rendered card still points at its rows after a re-render. */
+function publishKey(item) {
+  return item.libraryId || String(item.id);
+}
+
+/* Which entry the Publish step acts on when nothing is ticked: the row picked
+   in the table, otherwise the first approved item still waiting for a channel. */
 function publishTargetIndex() {
   if (librarySelectedIndex >= 0 && contentLibrary[librarySelectedIndex]) return librarySelectedIndex;
   return contentLibrary.findIndex(function(item) { return item.status === 'APPROVE'; });
+}
+
+/* Ticked approved rows win (bulk confirm); otherwise the single active row. */
+function publishTargets() {
+  const ticked = contentLibrary.filter(function(item) { return item.selected && item.status === 'APPROVE'; });
+  if (ticked.length) return ticked;
+  const index = publishTargetIndex();
+  return index >= 0 && contentLibrary[index] ? [contentLibrary[index]] : [];
 }
 
 function publishNoticeHtml(title, detail) {
@@ -2738,23 +2751,37 @@ function publishChannelCardsHtml(chosen, sub2) {
   }).join('');
 }
 
+function publishTargetHeadHtml(targets) {
+  if (targets.length === 1) {
+    const item = targets[0];
+    const timestamp = (item.lineage && item.lineage.approvedSha256) || '';
+    return '<b>' + escapeHtml(item.name || 'รายการ') + '</b>' +
+      '<span class="status-badge status-approve">APPROVE</span>' +
+      '<span class="muted small">v' + ((item.lineage && item.lineage.version) || 1) +
+        ' · freeze ' + escapeHtml(timestamp.slice(0, 10) || '—') + '</span>';
+  }
+  const names = targets.slice(0, 4).map(function(item) { return escapeHtml(item.name || 'รายการ'); }).join(' · ');
+  return '<b>ยืนยันพร้อมกัน ' + targets.length + ' รายการ</b>' +
+    '<span class="status-badge status-approve">APPROVE</span>' +
+    '<span class="muted small">' + names + (targets.length > 4 ? ' · และอีก ' + (targets.length - 4) : '') + '</span>';
+}
+
 /* Rendered whenever the Publish stage or the library table refreshes, so the
-   card always shows the row the operator is looking at. */
+   card always shows the rows the operator is looking at. */
 function renderPublishConfirm() {
   const host = document.getElementById('publish-confirm');
   if (!host) return;
 
-  const index = publishTargetIndex();
-  const item = index >= 0 ? contentLibrary[index] : null;
-
-  if (!item) {
+  const targets = publishTargets();
+  if (!targets.length) {
     host.innerHTML = publishNoticeHtml(
       'ยังไม่มีรายการให้เผยแพร่',
       'อนุมัติงานใน Finalize ก่อน (เลือกแถว → ตรวจ Full Screen → อนุมัติ) แล้วกลับมาเลือกช่องทางและเวลา'
     );
     return;
   }
-  if (item.status !== 'APPROVE') {
+  if (targets.length === 1 && targets[0].status !== 'APPROVE') {
+    const item = targets[0];
     const detail = item.status === 'EXPORTED'
       ? 'รายการนี้ยืนยันเผยแพร่แล้วและอยู่ใน Publish Queue ด้านล่าง — เลือกแถวอื่นที่อนุมัติแล้วเพื่อยืนยันเพิ่ม'
       : 'ต้องอนุมัติ (APPROVE) ก่อนจึงจะยืนยันการเผยแพร่ได้ — ไปที่ Finalize เพื่อตรวจและอนุมัติ';
@@ -2765,20 +2792,16 @@ function renderPublishConfirm() {
     return;
   }
 
-  const candidate = candidatePool.filter(function(c) { return String(c.id) === String(item.id); })[0] || {};
-  const saved = item.publishRecord || {};
+  const first = targets[0];
+  const candidate = candidatePool.filter(function(c) { return String(c.id) === String(first.id); })[0] || {};
+  const saved = first.publishRecord || {};
   const scheduled = /^\d{4}-\d{2}-\d{2}T/.test(String(saved.scheduledAt || '')) ? String(saved.scheduledAt) : '';
-  const timestamp = (item.lineage && item.lineage.approvedSha256) || '';
+  const bulk = targets.length > 1;
 
   host.innerHTML =
-    '<div class="publish-target">' +
-      '<b>' + escapeHtml(item.name || 'รายการ') + '</b>' +
-      '<span class="status-badge status-approve">APPROVE</span>' +
-      '<span class="muted small">v' + ((item.lineage && item.lineage.version) || 1) +
-        ' · freeze ' + escapeHtml(timestamp.slice(0, 10) || '—') + '</span>' +
-    '</div>' +
+    '<div class="publish-target">' + publishTargetHeadHtml(targets) + '</div>' +
     '<div class="publish-channels">' +
-      publishChannelCardsHtml(item.channels || candidate.channels || ['shopee_video'], publishSubId2(item)) +
+      publishChannelCardsHtml(first.channels || candidate.channels || ['shopee_video'], publishSubId2(first)) +
     '</div>' +
     '<div class="publish-when">' +
       '<label>โหมด<select id="publish-mode" class="form-input">' +
@@ -2792,12 +2815,16 @@ function renderPublishConfirm() {
     '</div>' +
     '<label class="publish-note">หมายเหตุ (ไม่บังคับ)' +
       '<input id="publish-notes" class="form-input" placeholder="เช่น รีวิวสั้น 20 วิ / โปร 11.11" value="' +
-        escapeHtml(saved.notes || item.exportNotes || '') + '">' +
+        escapeHtml(bulk ? '' : (saved.notes || first.exportNotes || '')) + '">' +
     '</label>' +
     '<div class="publish-actions">' +
-      '<button type="button" class="btn btn-primary" id="publish-confirm-btn">ยืนยันแล้วส่งเข้า Publish Queue</button>' +
+      '<button type="button" class="btn btn-primary" id="publish-confirm-btn">' +
+        (bulk ? 'ยืนยัน ' + targets.length + ' รายการแล้วส่งเข้า Publish Queue' : 'ยืนยันแล้วส่งเข้า Publish Queue') +
+      '</button>' +
       '<button type="button" class="btn btn-ghost" id="publish-qc-btn">ตรวจ Full Screen ก่อน</button>' +
-      '<span class="muted small">ACE ไม่โพสต์อัตโนมัติ — ยืนยันเพื่อเข้าคิวเท่านั้น</span>' +
+      '<span class="muted small">' +
+        (bulk ? 'ช่องทาง/เวลาเดียวกันทุกแถว' : 'ติ๊กหลายแถวใน Content Library เพื่อยืนยันพร้อมกัน') +
+        ' — ACE ไม่โพสต์อัตโนมัติ</span>' +
     '</div>';
 
   const modeEl = document.getElementById('publish-mode');
@@ -2811,13 +2838,18 @@ function renderPublishConfirm() {
   modeEl.addEventListener('change', syncMode);
   syncMode();
 
-  document.getElementById('publish-qc-btn').addEventListener('click', function() { openQcOverlay(index); });
-  document.getElementById('publish-confirm-btn').addEventListener('click', function() { confirmPublish(index); });
+  const firstIndex = contentLibrary.indexOf(first);
+  document.getElementById('publish-qc-btn').addEventListener('click', function() { openQcOverlay(firstIndex); });
+  document.getElementById('publish-confirm-btn').addEventListener('click', function() {
+    confirmPublish(targets.map(publishKey));
+  });
 }
 
-function confirmPublish(index) {
-  const item = contentLibrary[index];
-  if (!item || item.status !== 'APPROVE') {
+function confirmPublish(targetKeys) {
+  const items = targetKeys.map(function(key) {
+    return contentLibrary.filter(function(entry) { return publishKey(entry) === key; })[0];
+  }).filter(function(entry) { return entry && entry.status === 'APPROVE'; });
+  if (!items.length) {
     showToast('รายการต้องอนุมัติ (APPROVE) ก่อนจึงจะเผยแพร่ได้', 'warning');
     return;
   }
@@ -2836,32 +2868,35 @@ function confirmPublish(index) {
   const notes = document.getElementById('publish-notes').value.trim();
   const scheduledAt = mode === 'now' ? new Date().toISOString() : date + 'T' + time;
 
-  item.status = 'EXPORTED';
-  item.exportNotes = notes;
-  item.channels = channels;
-  item.publishRecord = {
-    channels: channels,
-    mode: mode,
-    scheduledAt: scheduledAt,
-    notes: notes,
-    subId1: channels[0],
-    subId2: publishSubId2(item),
-    approvedSha256: item.lineage ? (item.lineage.approvedSha256 || null) : null,
-    version: item.lineage ? (item.lineage.version || null) : null,
-    publishedAt: new Date().toISOString()
-  };
-  if (item.lineage) {
-    item.lineage.status = 'PUBLISHED';
-    item.lineage.publishedAt = item.publishRecord.publishedAt;
-    pushLineageEvent(item, 'ยืนยันเผยแพร่: ' + channels.join(', ') +
-      ' · ' + (mode === 'now' ? 'ทันที' : scheduledAt), { channels: channels });
-  }
-  if (!isQueued(item)) publishQueue.push(item);
+  items.forEach(function(item) {
+    item.status = 'EXPORTED';
+    item.exportNotes = notes;
+    item.channels = channels;
+    item.selected = false;
+    item.publishRecord = {
+      channels: channels,
+      mode: mode,
+      scheduledAt: scheduledAt,
+      notes: notes,
+      subId1: channels[0],
+      subId2: publishSubId2(item),
+      approvedSha256: item.lineage ? (item.lineage.approvedSha256 || null) : null,
+      version: item.lineage ? (item.lineage.version || null) : null,
+      publishedAt: new Date().toISOString()
+    };
+    if (item.lineage) {
+      item.lineage.status = 'PUBLISHED';
+      item.lineage.publishedAt = item.publishRecord.publishedAt;
+      pushLineageEvent(item, 'ยืนยันเผยแพร่: ' + channels.join(', ') +
+        ' · ' + (mode === 'now' ? 'ทันที' : scheduledAt), { channels: channels });
+    }
+    if (!isQueued(item)) publishQueue.push(item);
+  });
 
   savePoolState();
   renderContentLibrary();
   renderPublishQueue();
-  showToast('ส่งเข้า Publish Queue แล้ว — ' + channels.length + ' ช่องทาง', 'success');
+  showToast('ส่งเข้า Publish Queue แล้ว — ' + items.length + ' รายการ · ' + channels.length + ' ช่องทาง', 'success');
 }
 
 /* The row action and the library toolbar both land here instead of writing to
@@ -3076,6 +3111,7 @@ function toggleSelectAll() {
       }
     });
     updateLibraryCount();
+    renderPublishConfirm();
   }
 }
 
@@ -4367,6 +4403,7 @@ function attachLibraryHandlers() {
       if (index >= 0 && index < contentLibrary.length) {
         contentLibrary[index].selected = cb.checked;
         updateLibraryCount();
+        renderPublishConfirm();
       }
     });
   });
