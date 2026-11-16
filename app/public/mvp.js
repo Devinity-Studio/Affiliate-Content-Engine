@@ -1123,33 +1123,66 @@ function renderLinkPreview(host, preview, url) {
   const title = previewData.title || null;
   const price = previewData.price !== null && previewData.price !== undefined && Number.isFinite(Number(previewData.price)) ? Number(previewData.price) : null;
   const ids = previewData.shopId && previewData.itemId ? (previewData.shopId + '.' + previewData.itemId) : (previewData.itemId || null);
-  const hasData = Boolean(title) || price !== null;
+  const readOk = previewData.fetched === true && Boolean(title);
+
   let html = '<div class="new-offer-preview-card">';
   if (previewData.image) html += '<img class="new-offer-thumb" src="' + escapeHtml(previewData.image) + '" alt="">';
   html += '<div class="new-offer-meta">';
-  html += '<strong>' + escapeHtml(title || (ids ? 'สินค้า ' + ids : 'ยังไม่ทราบชื่อสินค้า — กรอกด้านล่าง')) + '</strong>';
+  // Never present an id as if it were a product name: say plainly that nothing was read.
+  html += '<strong>' + (title ? escapeHtml(title) : '⚠ ไม่ได้ข้อมูลสินค้าจากลิงก์') + '</strong>';
+
+  const status = readOk
+    ? '✅ อ่านหน้าเว็บได้แล้ว — ตรวจชื่อ/ราคาก่อนเพิ่มเข้าคลัง'
+    : previewData.fetched === true
+      ? '⚠ Shopee ตอบกลับแต่ไม่ส่งชื่อ/ราคา (หน้าต้องใช้ JavaScript หรือบล็อกบอต) — กรอกเองด้านล่าง หรือใช้ Capture'
+      : '⚠ เปิดลิงก์ไม่ได้ (' + String(previewData.reason || 'blocked') + ') — กรอกเองด้านล่าง หรือใช้ Capture';
+  html += '<div class="new-offer-status ' + (readOk ? 'is-ok' : 'is-warn') + '">' + escapeHtml(status) + '</div>';
+
   html += '<div class="muted small">' + (price !== null ? '฿' + price.toLocaleString('th-TH') : 'ยังไม่พบราคา') +
     (previewData.shopName ? ' · ' + escapeHtml(previewData.shopName) : '') +
     (ids ? ' · ร้าน/สินค้า ' + escapeHtml(ids) : '') + '</div>';
-  html += '<div class="muted small">' + (previewData.fetched === true && hasData
-    ? '✅ อ่านหน้าเว็บจริงสำเร็จ — ตรวจชื่อ/ราคาก่อนเพิ่ม'
-    : '⚠ Shopee ไม่ส่งข้อมูลสินค้ากลับมา' + (previewData.fetched === true ? ' (หน้าเว็บต้องใช้ JavaScript/บล็อกบอต)' : ' (' + escapeHtml(String(previewData.reason || 'blocked')) + ')') + ' — เปิดลิงก์ดูเองหรือกรอกชื่อ/ราคาด้านล่างได้เลย (Capture เติมรูป/ข้อมูลครบทีหลัง)') + '</div>';
-  if (!hasData) {
-    html += '<div class="new-offer-manual">' +
-      '<input id="new-offer-manual-name" type="text" placeholder="ชื่อสินค้า (จากหน้าที่คุณเปิดดู)">' +
-      '<input id="new-offer-manual-price" type="number" min="0" step="0.01" placeholder="ราคา (บาท)">' +
-      '</div>';
+
+  if (!title || price === null) {
+    html += '<div class="new-offer-manual">';
+    if (!title) {
+      html += '<input id="new-offer-manual-name" type="text" placeholder="ชื่อสินค้า (จำเป็น) — คัดลอกจากหน้าที่เปิดดู">';
+    }
+    if (price === null) {
+      html += '<input id="new-offer-manual-price" type="number" min="0" step="0.01" placeholder="ราคา (บาท) — เว้นว่างได้ถ้ายังไม่ทราบ">';
+    }
+    html += '</div>';
   }
+
   html += '<div class="new-offer-link-actions">' +
     '<a class="btn btn-sm btn-ghost" href="' + escapeHtml(url) + '" target="_blank" rel="noopener noreferrer">เปิดลิงก์ ↗</a>' +
-    '<button type="button" class="btn btn-sm btn-primary" id="new-offer-link-add">เพิ่มเข้าคลัง (1 รายการ)</button>' +
+    '<button type="button" class="btn btn-sm btn-ghost" id="new-offer-capture">📸 ใช้ Capture เติมข้อมูล</button>' +
+    '<button type="button" class="btn btn-sm btn-primary" id="new-offer-link-add"' + (title ? '' : ' disabled') + '>เพิ่มเข้าคลัง (1 รายการ)</button>' +
     '</div>';
+  html += '<p class="muted small" id="new-offer-add-hint">' + (title
+    ? 'สินค้าจะถูกเพิ่มพร้อมการ์ดที่มีชื่อ/ราคาจากลิงก์'
+    : 'กรอกชื่อสินค้าก่อน ระบบจึงจะเพิ่มเข้าคลังได้ (กันการ์ดเปล่า)') + '</p>';
   html += '</div></div>';
   host.innerHTML = html;
+
   const addBtn = document.getElementById('new-offer-link-add');
+  const nameInput = document.getElementById('new-offer-manual-name');
+  const priceInput = document.getElementById('new-offer-manual-price');
+  const hint = document.getElementById('new-offer-add-hint');
+
+  const syncAddState = function() {
+    const typed = nameInput ? nameInput.value.trim() : '';
+    const canAdd = Boolean(title || typed);
+    if (addBtn) addBtn.disabled = !canAdd;
+    if (hint) {
+      hint.textContent = canAdd
+        ? 'พร้อมเพิ่มเข้าคลัง — ตรวจชื่อ/ราคาอีกครั้งก่อนกด'
+        : 'กรอกชื่อสินค้าก่อน ระบบจึงจะเพิ่มเข้าคลังได้ (กันการ์ดเปล่า)';
+    }
+  };
+  if (nameInput) nameInput.addEventListener('input', syncAddState);
+  syncAddState();
+
   if (addBtn) addBtn.addEventListener('click', function() {
-    const nameInput = document.getElementById('new-offer-manual-name');
-    const priceInput = document.getElementById('new-offer-manual-price');
     const manualName = nameInput ? nameInput.value.trim() : '';
     const manualPrice = priceInput && priceInput.value.trim() !== '' ? Number(priceInput.value) : null;
     if (!title && !manualName) {
@@ -1159,12 +1192,27 @@ function renderLinkPreview(host, preview, url) {
     }
     addLinkCandidate(previewData, url, title, price, manualName, Number.isFinite(manualPrice) ? manualPrice : null);
   });
+
+  const captureBtn = document.getElementById('new-offer-capture');
+  if (captureBtn) captureBtn.addEventListener('click', function() {
+    closeNewOfferMenu();
+    openDrawer('source-library', true);
+    const panel = document.getElementById('capture-panel');
+    if (panel) panel.classList.remove('hidden');
+    scrollToBlock('capture-panel');
+    showToast('ใช้ bookmarklet อ่านสินค้าจากหน้า Offers ที่ล็อกอินอยู่ แล้วกลับมาเพิ่มเข้าคลัง', 'info');
+  });
 }
 
 function addLinkCandidate(preview, url, title, price, manualName, manualPrice) {
   const ids = preview.shopId && preview.itemId ? preview.shopId + '.' + preview.itemId : null;
   const typedName = typeof manualName === 'string' ? manualName.trim() : '';
-  const name = title || typedName || (ids ? 'สินค้า Shopee ' + ids : 'สินค้าจากลิงก์');
+  // No title and no typed name means an empty card, so refuse instead of inventing one.
+  if (!title && !typedName) {
+    showToast('ยังไม่มีชื่อสินค้า — กรอกชื่อก่อนเพิ่มเข้าคลัง', 'warning');
+    return;
+  }
+  const name = title || typedName;
   const finalPrice = price !== null && price !== undefined ? price : (manualPrice !== null && manualPrice !== undefined ? manualPrice : 0);
   const fetchedOk = preview.fetched === true && (Boolean(title) || price !== null);
   const manual = !title && Boolean(typedName);
@@ -2643,54 +2691,187 @@ function openSourceDrawer(targetId) {
   scrollToBlock(targetId);
 }
 
-/* Publish schedule: the Publish Queue already holds approved work, so the
-   date the operator picks is recorded on those entries (no auto-publish). */
-function applyPublishSchedule() {
-  const titleEl = document.getElementById('schedule-name');
-  const dateEl = document.getElementById('schedule-date');
-  const modeEl = document.querySelector('input[name="schedule-status"]:checked');
-  const host = document.getElementById('schedule-result');
-  const title = titleEl ? titleEl.value.trim() : '';
-  const date = dateEl ? dateEl.value : '';
-  const mode = modeEl ? modeEl.value : 'schedule';
+/* Shown in the queue area while nothing has been confirmed yet. */
+function publishQueueEmptyHtml() {
+  return '<p><b>ยังไม่มีรายการใน Publish Queue</b></p>' +
+    '<p class="muted small">เลือกช่องทาง + เวลาด้านบน แล้วกด “ยืนยันแล้วส่งเข้า Publish Queue” — ACE ไม่โพสต์อัตโนมัติ</p>';
+}
 
-  if (!publishQueue.length) {
-    showToast('ยังไม่มีรายการใน Publish Queue — อนุมัติใน Finalize แล้วกด “ส่งเข้า Publish Queue” ก่อน', 'warning');
+/* Which library entry the Publish step acts on: the row picked in the table,
+   otherwise the first item that is approved and still waiting for a channel. */
+function publishTargetIndex() {
+  if (librarySelectedIndex >= 0 && contentLibrary[librarySelectedIndex]) return librarySelectedIndex;
+  return contentLibrary.findIndex(function(item) { return item.status === 'APPROVE'; });
+}
+
+function publishEmptyHtml(title, detail) {
+  return '<div class="publish-empty">' +
+    '<p><b>' + title + '</b></p>' +
+    '<p class="muted small">' + detail + '</p>' +
+    '<button type="button" class="btn btn-sm btn-primary go-finalize-btn">ไปที่ Finalize</button>' +
+  '</div>';
+}
+
+/* Publish step: pick the channels registered with Shopee Affiliate (with their
+   account handle), pick the time, then confirm. Confirming is the only way a
+   row becomes EXPORTED and enters the Publish Queue. */
+function renderPublishConfirm() {
+  const host = document.getElementById('publish-confirm');
+  if (!host) return;
+
+  const index = publishTargetIndex();
+  const item = index >= 0 ? contentLibrary[index] : null;
+
+  if (!item) {
+    host.innerHTML = publishEmptyHtml(
+      'ยังไม่มีรายการให้เผยแพร่',
+      'อนุมัติงานใน Finalize ก่อน (เลือกแถว → ตรวจ Full Screen → อนุมัติ) แล้วกลับมาเลือกช่องทางและเวลา'
+    );
     return;
   }
-  if (mode === 'schedule' && !date) {
-    showToast('เลือกวันที่ต้องการโพสต์ก่อน หรือเลือก “เผยแพร่ทันที”', 'warning');
-    if (dateEl) dateEl.focus();
+  if (item.status === 'EXPORTED') {
+    host.innerHTML = publishEmptyHtml(
+      escapeHtml(item.name || 'รายการ') + ' — ยืนยันเผยแพร่แล้ว',
+      'รายการนี้อยู่ใน Publish Queue ด้านล่าง — เลือกแถวอื่นที่อนุมัติแล้วเพื่อยืนยันเพิ่ม'
+    );
+    return;
+  }
+  if (item.status !== 'APPROVE') {
+    host.innerHTML = publishEmptyHtml(
+      escapeHtml(item.name || 'รายการ') + ' — สถานะ ' + escapeHtml(item.status || '—'),
+      'ต้องอนุมัติ (APPROVE) ก่อนจึงจะยืนยันการเผยแพร่ได้ — ไปที่ Finalize เพื่อตรวจและอนุมัติ'
+    );
     return;
   }
 
-  const label = mode === 'publish' ? 'เผยแพร่ทันที (โพสต์ด้วยมือ)' : 'ตั้งเวลา ' + date;
-  publishQueue.forEach(function(item) {
-    item.scheduledAt = mode === 'publish' ? new Date().toISOString() : date;
-    item.scheduleMode = mode;
-    if (title) item.scheduleTitle = title;
-    if (item.lineage && typeof pushLineageEvent === 'function') {
-      pushLineageEvent(item, 'ตั้งกำหนดโพสต์: ' + label, { title: title || null });
-    }
+  const candidate = candidatePool.filter(function(c) { return String(c.id) === String(item.id); })[0] || {};
+  const chosen = item.channels || candidate.channels || ['shopee_video'];
+  const sub2 = item.libraryId || ('lib-' + item.id);
+  const saved = item.publishRecord || {};
+  const scheduled = saved.scheduledAt ? String(saved.scheduledAt) : '';
+  const today = new Date().toISOString().slice(0, 10);
+  const dateValue = /^\d{4}-\d{2}-\d{2}T/.test(scheduled) ? scheduled.slice(0, 10) : today;
+  const timeValue = /^\d{4}-\d{2}-\d{2}T/.test(scheduled) ? scheduled.slice(11, 16) : '19:00';
+  const modeValue = saved.mode === 'now' ? 'now' : 'schedule';
+
+  const channelCards = PUBLISH_CHANNELS.map(function(ch) {
+    const on = chosen.indexOf(ch.id) !== -1;
+    return '<label class="publish-channel">' +
+      '<input type="checkbox" class="publish-channel-cb" value="' + ch.id + '"' + (on ? ' checked' : '') + '>' +
+      '<span class="publish-channel-body">' +
+        '<b>' + escapeHtml(ch.label) + (ch.note ? ' · ' + escapeHtml(ch.note) : '') + '</b>' +
+        '<span>' + (ch.handle ? 'บัญชี: ' + escapeHtml(ch.handle) : 'ยังไม่ได้ผูกบัญชี') + '</span>' +
+        '<span>Sub_id: ?sub_id1=' + ch.id + '&amp;sub_id2=' + escapeHtml(sub2) + '</span>' +
+      '</span>' +
+    '</label>';
+  }).join('');
+
+  host.innerHTML =
+    '<div class="publish-target">' +
+      '<b>' + escapeHtml(item.name || 'รายการ') + '</b>' +
+      '<span class="status-badge status-approve">APPROVE</span>' +
+      '<span class="muted small">v' + ((item.lineage && item.lineage.version) || 1) + ' · freeze ' +
+        escapeHtml(String((item.lineage && item.lineage.approvedSha256) || '').slice(0, 10) || '—') + '</span>' +
+    '</div>' +
+    '<div class="publish-channels">' + channelCards + '</div>' +
+    '<div class="publish-when">' +
+      '<label>โหมด<select id="publish-mode" class="form-input">' +
+        '<option value="schedule"' + (modeValue === 'schedule' ? ' selected' : '') + '>ตั้งเวลา</option>' +
+        '<option value="now"' + (modeValue === 'now' ? ' selected' : '') + '>เผยแพร่ทันที (โพสต์ด้วยมือ)</option>' +
+      '</select></label>' +
+      '<label>วันที่<input type="date" id="publish-date" class="form-input" value="' + dateValue + '"></label>' +
+      '<label>เวลา<input type="time" id="publish-time" class="form-input" value="' + timeValue + '"></label>' +
+    '</div>' +
+    '<label class="publish-note">หมายเหตุ (ไม่บังคับ)' +
+      '<input id="publish-notes" class="form-input" placeholder="เช่น รีวิวสั้น 20 วิ / โปร 11.11" value="' +
+        escapeHtml(saved.notes || item.exportNotes || '') + '">' +
+    '</label>' +
+    '<div class="publish-actions">' +
+      '<button type="button" class="btn btn-primary" id="publish-confirm-btn">ยืนยันแล้วส่งเข้า Publish Queue</button>' +
+      '<button type="button" class="btn btn-ghost" id="publish-qc-btn">ตรวจ Full Screen ก่อน</button>' +
+      '<span class="muted small">ACE ไม่โพสต์อัตโนมัติ — ยืนยันเพื่อเข้าคิวเท่านั้น</span>' +
+    '</div>';
+
+  const modeEl = document.getElementById('publish-mode');
+  const syncMode = function() {
+    const now = modeEl && modeEl.value === 'now';
+    const dateEl = document.getElementById('publish-date');
+    const timeEl = document.getElementById('publish-time');
+    if (dateEl) dateEl.disabled = now;
+    if (timeEl) timeEl.disabled = now;
+  };
+  if (modeEl) modeEl.addEventListener('change', syncMode);
+  syncMode();
+
+  const qcBtn = document.getElementById('publish-qc-btn');
+  if (qcBtn) qcBtn.addEventListener('click', function() { openQcOverlay(index); });
+
+  const confirmBtn = document.getElementById('publish-confirm-btn');
+  if (confirmBtn) confirmBtn.addEventListener('click', function() { confirmPublish(index); });
+}
+
+function confirmPublish(index) {
+  const item = contentLibrary[index];
+  if (!item || item.status !== 'APPROVE') {
+    showToast('รายการต้องอนุมัติ (APPROVE) ก่อนจึงจะเผยแพร่ได้', 'warning');
+    return;
+  }
+  const channels = Array.from(document.querySelectorAll('.publish-channel-cb:checked')).map(function(cb) { return cb.value; });
+  if (!channels.length) {
+    showToast('เลือกอย่างน้อย 1 ช่องทางก่อนยืนยัน', 'warning');
+    return;
+  }
+  const mode = (document.getElementById('publish-mode') || {}).value || 'schedule';
+  const date = (document.getElementById('publish-date') || {}).value || '';
+  const time = (document.getElementById('publish-time') || {}).value || '';
+  if (mode === 'schedule' && (!date || !time)) {
+    showToast('เลือกวันที่และเวลาก่อนยืนยัน', 'warning');
+    return;
+  }
+  const notes = ((document.getElementById('publish-notes') || {}).value || '').trim();
+  const scheduledAt = mode === 'now' ? new Date().toISOString() : date + 'T' + time;
+
+  item.status = 'EXPORTED';
+  item.exportNotes = notes;
+  item.channels = channels;
+  item.scheduledAt = scheduledAt;
+  item.scheduleMode = mode;
+  item.publishRecord = {
+    channels: channels,
+    mode: mode,
+    scheduledAt: scheduledAt,
+    notes: notes,
+    subId1: channels[0] || '',
+    subId2: item.libraryId || ('lib-' + item.id),
+    approvedSha256: item.lineage ? (item.lineage.approvedSha256 || null) : null,
+    version: item.lineage ? (item.lineage.version || null) : null,
+    publishedAt: new Date().toISOString()
+  };
+  if (item.lineage) {
+    item.lineage.status = 'PUBLISHED';
+    item.lineage.publishedAt = item.publishRecord.publishedAt;
+    pushLineageEvent(item, 'ยืนยันเผยแพร่: ' + channels.join(', ') + ' · ' + (mode === 'now' ? 'ทันที' : scheduledAt), { channels: channels });
+  }
+  const already = publishQueue.some(function(entry) {
+    return (entry.libraryId && entry.libraryId === item.libraryId) || String(entry.id) === String(item.id);
   });
-  renderPublishQueue();
+  if (!already) publishQueue.push(item);
 
-  if (host) {
-    host.classList.remove('hidden');
-    host.innerHTML = '<p><b>' + escapeHtml(title || 'กำหนดการโพสต์') + '</b> — ' + escapeHtml(label) + '</p>' +
-      '<ul>' + publishQueue.map(function(item) {
-        return '<li>' + escapeHtml(item.name) + (item.affiliateLink ? ' — <a href="' + escapeHtml(item.affiliateLink) + '" target="_blank" rel="noopener noreferrer">ลิงก์</a>' : '') + '</li>';
-      }).join('') + '</ul>' +
-      '<p class="muted small">ACE ไม่โพสต์อัตโนมัติ — คัดลอกลิงก์/แคปชันแล้วโพสต์เองตามช่องทางที่เลือก</p>';
-  }
-  showToast('บันทึกกำหนดการโพสต์แล้ว (' + publishQueue.length + ' รายการ)', 'success');
+  savePoolState();
+  renderContentLibrary();
+  renderPublishQueue();
+  renderPublishConfirm();
+  showToast('ส่งเข้า Publish Queue แล้ว — ' + channels.length + ' ช่องทาง', 'success');
 }
 
 function bindPublishSchedule() {
-  const btn = document.getElementById('confirm-schedule');
-  if (!btn || btn.dataset.bound === '1') return;
-  btn.dataset.bound = '1';
-  btn.addEventListener('click', applyPublishSchedule);
+  if (document.body.dataset.finalizeJumpBound === '1') return;
+  document.body.dataset.finalizeJumpBound = '1';
+  document.addEventListener('click', function(event) {
+    if (!event.target.closest('.go-finalize-btn')) return;
+    switchStage('finalize');
+    showToast('เลือกงานใน Content Library แล้วกด “ตรวจ Full Screen” เพื่ออนุมัติ ก่อนกลับมา Publish', 'info');
+  });
 }
 
 function bindSourceShortcuts() {
@@ -2800,26 +2981,21 @@ function renderContentLibraryStart() {
     var statusClass = 'status-' + item.status.toLowerCase();
     var qualityClass = 'quality-' + (item.qualityScore || 'medium').toLowerCase();
     var btnDisabled = item.status === 'EXPORTED' ? 'disabled' : '';
-    var hasFile = item.lineage && item.lineage.fileUrl;
-    var qcBtn = hasFile ? `<button class="btn btn-ghost btn-sm qc-row" data-index="${i}" ${btnDisabled}>ตรวจ Full Screen</button>` : '';
 
-    // Daily Loop: ร่าง → Active Lineage (ตรวจ Full Screen) → อนุมัติ (freeze ไฟล์) → Publish Queue
+    // Daily Loop: เลือกแถว = Active Lineage → อนุมัติ (freeze ไฟล์) → Publish Queue.
+    // QC opens from the toolbar so the row stays a plain selector.
     var actionHtml = '';
     if (item.status === 'PENDING') {
       actionHtml = `
-        ${qcBtn}
-        <button class="btn btn-primary btn-sm set-active-row" data-index="${i}" ${btnDisabled}>ตั้งเป็น Active Lineage</button>
         <button class="btn btn-ghost btn-sm reject-row" data-index="${i}" ${btnDisabled}>ปฏิเสธ</button>
       `;
     } else if (item.status === 'ACTIVE') {
       actionHtml = `
-        ${qcBtn}
         <button class="btn btn-primary btn-sm approve-row" data-index="${i}" ${btnDisabled}>อนุมัติ</button>
         <button class="btn btn-ghost btn-sm request-changes-row" data-index="${i}" ${btnDisabled}>สั่งแก้ไข</button>
       `;
     } else if (item.status === 'APPROVE') {
       actionHtml = `
-        ${qcBtn}
         <button class="btn btn-primary btn-sm set-active-row" data-index="${i}" ${btnDisabled}>ส่งเข้า Publish Queue</button>
         <button class="btn btn-ghost btn-sm reject-row" data-index="${i}" ${btnDisabled}>ยกเลิกการอนุมัติ</button>
       `;
@@ -2829,11 +3005,12 @@ function renderContentLibraryStart() {
         <button class="btn btn-ghost btn-sm" data-index="${i}" ${btnDisabled}>ลบรายการ</button>
       `;
     } else if (item.status === 'EXPORTED') {
-      actionHtml = qcBtn + '<span class="muted">เผยแพร่แล้ว</span>';
+      actionHtml = '<span class="muted">เผยแพร่แล้ว</span>';
     }
+    var rowClass = 'library-row' + (i === librarySelectedIndex ? ' is-selected' : '');
 
     return `
-      <tr data-index="${i}">
+      <tr class="${rowClass}" data-index="${i}">
         <td><input type="checkbox" class="row-checkbox" ${item.status === 'EXPORTED' ? 'disabled' : ''} /></td>
         <td>${item.libraryId || '--'}</td>
         <td>
@@ -2892,6 +3069,28 @@ function updateLibraryCount() {
   var total = contentLibrary.length;
   var selected = contentLibrary.filter(function(item) { return item.selected; }).length;
   dom.libraryCount.textContent = selected + ' / ' + total + ' รายการ';
+}
+
+/* Row click = pick the lineage to work on. A PENDING row becomes ACTIVE (the
+   old per-row button), anything else just becomes the selected row. */
+function selectLibraryRow(index) {
+  const item = contentLibrary[index];
+  if (!item) return;
+  librarySelectedIndex = index;
+  if (item.status === 'PENDING') {
+    item.status = 'ACTIVE';
+    if (!item.lineage) item.lineage = { version: 0, history: [] };
+    item.lineage.status = 'ACTIVE';
+    pushLineageEvent(item, 'เลือกแถวนี้เป็น Active Lineage');
+    savePoolState();
+    renderContentLibrary();
+    if (document.body.dataset.stage === 'schedule') renderPublishConfirm();
+    showToast('ตั้งเป็น Active Lineage แล้ว — กด “ตรวจ Full Screen” เพื่อตรวจละเอียด', 'success');
+    return;
+  }
+  renderContentLibrary();
+  if (document.body.dataset.stage === 'schedule') renderPublishConfirm();
+  showToast('เลือก “' + item.name + '” เป็นรายการทำงาน', 'info');
 }
 
 function setActiveLineage() {
@@ -3257,6 +3456,8 @@ function seedContentLibraryFromPool() {
 function renderContentLibrary() {
   savePoolState();
   renderContentLibraryStart();
+  // Keep the Publish step pointed at the same row after any library change.
+  if (document.getElementById('publish-confirm')) renderPublishConfirm();
 }
 
 function itemStatusMatches(index, filterStatus) {
@@ -3276,7 +3477,7 @@ function renderPublishQueue() {
   var list = document.getElementById('publish-queue');
   if (!list) return;
   if (!publishQueue.length) {
-    list.innerHTML = '<li class="muted">ยังไม่มีรายการในคิว</li>';
+    list.innerHTML = '<li class="publish-empty">' + publishQueueEmptyHtml() + '</li>';
     return;
   }
   list.innerHTML = publishQueue.map(function(item, i) {
@@ -3952,6 +4153,7 @@ const STAGE_SECTIONS = [
   'library-sync',
   'dashboard-area',
   'report-stage',
+  'pool-panel',
   'candidate-hero',
   'affiliate-panel',
   'detail-content-tabs',
@@ -3989,7 +4191,7 @@ const stageMap = {
     activate: function() {
       hideAllSections();
       // quick start + market research panel (holds the add-source buttons) + Source Library
-      showSections(['detail-quickstart', 'candidate-hero', 'affiliate-panel', 'detail-content-tabs'], true);
+      showSections(['pool-panel', 'detail-quickstart', 'candidate-hero', 'affiliate-panel', 'detail-content-tabs'], true);
       setSelectionPanelsVisible(Boolean(currentCandidate()));
       renderSourceLibrary();
       showToast('เข้าสู่โหมด Research — สร้าง Candidate Pool ใหม่', 'info');
@@ -4058,6 +4260,7 @@ const stageMap = {
       seedContentLibraryFromPool();
       renderContentLibrary();
       renderPublishQueue();
+      renderPublishConfirm();
       showToast('เข้าสู่โหมด Schedule - แผนการโพสต์และลำดับ', 'info');
     }
   }
@@ -4119,36 +4322,12 @@ function attachLibraryHandlers() {
           showToast('รายการต้องอนุมัติก่อนจึงจะส่งเข้า Publish Queue ได้', 'warning');
           return;
         }
-        // Sub_id scheme (owner): 1 = ช่องทาง, 2 = ชื่อคอนเทนต์ — บันทึกไว้เชื่อมผลจริงจากรายงาน Shopee
-        var subId1 = prompt('Sub_id 1 — ช่องทาง (เช่น youtube / tiktok / shopee-video):', (item.publishRecord && item.publishRecord.subId1) || '');
-        if (subId1 === null) { showToast('การส่งออกถูกยกเลิก', 'info'); return; }
-        var subId2 = prompt('Sub_id 2 — ชื่อคอนเทนต์ (เช่น anfield-1115):', (item.publishRecord && item.publishRecord.subId2) || (item.name || '').slice(0, 30));
-        if (subId2 === null) { showToast('การส่งออกถูกยกเลิก', 'info'); return; }
-        // Mandatory notes before publishing (no auto-publish)
-        var notes = prompt('กรุณาใส่หมายเหตุสำหรับการส่งออก (จำเป็น):', '');
-        if (notes === null) {
-          showToast('การส่งออกถูกยกเลิก', 'info');
-          return;
-        }
-        item.status = 'EXPORTED';
-        item.exportNotes = notes;
-        item.publishRecord = {
-          subId1: subId1.trim(),
-          subId2: subId2.trim(),
-          notes: notes,
-          publishedAt: new Date().toISOString(),
-          approvedSha256: item.lineage ? (item.lineage.approvedSha256 || null) : null,
-          version: item.lineage ? (item.lineage.version || null) : null,
-        };
-        if (item.lineage) {
-          item.lineage.status = 'PUBLISHED';
-          item.lineage.publishedAt = item.publishRecord.publishedAt;
-          pushLineageEvent(item, 'เข้า Publish Queue (เผยแพร่ด้วยไฟล์อนุมัติ v' + (item.lineage.version || 1) + ')', { notes: notes, subId: [subId1, subId2].filter(Boolean).join(' / ') });
-        }
-        publishQueue.push(item);
+        // One entry point into the queue: the Publish step is where channels,
+        // Sub_id, time and notes are confirmed (the row button only takes you there).
+        librarySelectedIndex = index;
         renderContentLibrary();
-        renderPublishQueue();
-        showToast('ส่ง 1 รายการไป Publish Queue เรียบร้อย (Sub_id: ' + [subId1, subId2].filter(Boolean).join(' / ') + ')', 'success');
+        switchStage('schedule');
+        showToast('เลือกช่องทาง + เวลา แล้วกด “ยืนยันแล้วส่งเข้า Publish Queue”', 'info');
       }
     });
   });
@@ -4167,13 +4346,27 @@ function attachLibraryHandlers() {
     });
   });
 
-  // QC Full Screen
-  document.querySelectorAll('.qc-row').forEach(function(btn) {
-    btn.addEventListener('click', function() {
-      var index = parseInt(this.dataset.index, 10);
-      if (index >= 0 && index < contentLibrary.length) openQcOverlay(index);
+  // Row click selects the lineage (buttons and checkboxes keep their own behaviour)
+  document.querySelectorAll('.library-row').forEach(function(row) {
+    row.addEventListener('click', function(event) {
+      if (event.target.closest('button, input, select, a, label')) return;
+      var index = parseInt(row.dataset.index, 10);
+      if (index >= 0 && index < contentLibrary.length) selectLibraryRow(index);
     });
   });
+
+  // QC Full Screen for the selected row
+  var qcToolbar = document.getElementById('library-qc');
+  if (qcToolbar && qcToolbar.dataset.bound !== '1') {
+    qcToolbar.dataset.bound = '1';
+    qcToolbar.addEventListener('click', function() {
+      if (librarySelectedIndex < 0 || !contentLibrary[librarySelectedIndex]) {
+        showToast('เลือกแถวในตารางก่อน แล้วกด “ตรวจ Full Screen”', 'warning');
+        return;
+      }
+      openQcOverlay(librarySelectedIndex);
+    });
+  }
 
   // Row checkbox toggle
   document.querySelectorAll('.row-checkbox').forEach(function(cb) {
@@ -4284,6 +4477,9 @@ function requestLineageChanges(item, note) {
 }
 
 let qcCurrentIndex = -1;
+/* The Content Library row the operator is working on: a click on the row is
+   what makes it the active lineage, so QC and approve act on this index. */
+let librarySelectedIndex = -1;
 
 function openQcOverlay(index) {
   var item = contentLibrary[index];
@@ -4703,12 +4899,13 @@ let importedOffers = [];
 let poolFilter = '';
 let poolVisibleCount = 20;
 
+/* channels ตามที่ผูกไว้ใน Shopee Affiliate ของบัญชีนี้ (handle ใช้แสดงในขั้น Publish) */
 const PUBLISH_CHANNELS = [
-  { id: 'shopee_video', label: 'Shopee Video', note: 'ค่าเริ่มต้น' },
-  { id: 'youtube', label: 'YouTube' },
-  { id: 'tiktok', label: 'TikTok', note: 'มีใน Shopee Affiliate แล้ว' },
-  { id: 'x', label: 'X (Twitter)' },
-  { id: 'facebook', label: 'Facebook' },
+  { id: 'shopee_video', label: 'Shopee Video', note: 'ช่องทางหลัก', handle: 'bombindyboy1985' },
+  { id: 'tiktok', label: 'TikTok (Organic)', handle: 'bombindyboy' },
+  { id: 'x', label: 'X (Twitter) (Organic)', handle: 'x.com/bombindyboy1985' },
+  { id: 'facebook', label: 'Facebook (Organic)', handle: 'นกรร ธนนีย์' },
+  { id: 'youtube', label: 'YouTube', handle: '' },
 ];
 
 function setOffersStatus(message, kind) {

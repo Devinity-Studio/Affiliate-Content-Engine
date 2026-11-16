@@ -3471,6 +3471,33 @@ textarea {
   gap: 6px;
 }
 
+/* Says whether the page was actually read, before the operator adds anything. */
+.new-offer-status {
+  padding: 6px 8px;
+  border-radius: 8px;
+  font-size: 11.5px;
+  line-height: 1.45;
+  border: 1px solid transparent;
+}
+
+.new-offer-status.is-ok {
+  color: var(--v2-accent);
+  background: var(--v2-accent-soft);
+  border-color: var(--v2-accent-line);
+}
+
+.new-offer-status.is-warn {
+  color: #f0b429;
+  background: rgba(240, 180, 41, 0.14);
+  border-color: rgba(240, 180, 41, 0.32);
+}
+
+[data-theme="light"] .new-offer-status.is-warn {
+  color: #8a5300;
+  background: rgba(180, 120, 0, 0.12);
+  border-color: rgba(180, 120, 0, 0.3);
+}
+
 .new-offer-manual input {
   width: 100%;
 }
@@ -3479,6 +3506,7 @@ textarea {
   display: flex;
   gap: 6px;
   align-items: center;
+  flex-wrap: wrap;
 }
 
 .clip-preview {
@@ -6716,7 +6744,7 @@ textarea::placeholder {
 
       <!-- ---------------- LEFT: product pool ---------------- -->
       <div class="studio-col studio-col-left">
-        <section class="studio-panel">
+        <section class="studio-panel" id="pool-panel">
           <div class="studio-panel-head">
             <p class="studio-panel-title">รายการสินค้าเลือก <small id="pool-count">0 รายการ</small> <small id="profile-meta" class="pool-meta">0 source · 0 candidate</small></p>
             <span class="pool-new-offer">
@@ -6910,29 +6938,13 @@ textarea::placeholder {
 
         <section class="studio-panel hidden" id="detail-schedule">
           <div class="studio-panel-head">
-            <p class="studio-panel-title">ตั้งเวลาเผยแพร่</p>
+            <p class="studio-panel-title">ยืนยันการเผยแพร่
+              <small>เลือกช่องทาง + เวลา แล้วส่งเข้า Publish Queue</small>
+            </p>
           </div>
-          <div class="schedule-form">
-            <div class="form-group">
-              <label for="schedule-name">ชื่องาน</label>
-              <input type="text" id="schedule-name" class="form-input" placeholder="ชื่องานคอนเทนต์">
-            </div>
-            <div class="form-group">
-              <label for="schedule-date">วันที่เผยแพร่</label>
-              <input type="date" id="schedule-date" class="form-input">
-            </div>
-            <div class="form-group">
-              <label>สถานะ</label>
-              <div class="radio-group">
-                <label><input type="radio" name="schedule-status" value="schedule" checked> ตั้งเวลา</label>
-                <label><input type="radio" name="schedule-status" value="publish"> เผยแพร่ทันที</label>
-              </div>
-            </div>
-            <button type="button" id="confirm-schedule" class="btn btn-primary">บันทึกกำหนดเวลา</button>
-          </div>
-          <div id="schedule-result" class="schedule-result hidden"></div>
+          <div id="publish-confirm" class="publish-confirm"></div>
           <div class="publish-block">
-            <p class="studio-panel-title">Publish Queue <small>อนุมัติ/ส่งออกแล้ว — โพสต์ด้วยมือเท่านั้น</small></p>
+            <p class="studio-panel-title">Publish Queue <small>ยืนยันแล้ว — โพสต์ด้วยมือตามช่องทางที่เลือก</small></p>
             <ul id="publish-queue" class="publish-queue"></ul>
           </div>
         </section>
@@ -7068,7 +7080,8 @@ textarea::placeholder {
             <div class="library-actions">
               <button type="button" id="library-expand" class="btn btn-ghost btn-sm" aria-pressed="false" title="ขยายเป็นตารางเต็มจอ">⤢ ขยาย</button>
               <button type="button" id="refresh-library" class="btn btn-ghost btn-sm">รีเฟรช</button>
-              <button type="button" id="set-active" class="btn btn-primary btn-sm">ตั้งเป็น Active Lineage</button>
+              <button type="button" id="library-qc" class="btn btn-ghost btn-sm" title="ตรวจไฟล์ที่เลือกในตารางแบบจอเต็ม">ตรวจ Full Screen</button>
+              <button type="button" id="set-active" class="btn btn-primary btn-sm">ส่งเข้า Publish Queue</button>
             </div>
           </div>
           <div class="library-table-container">
@@ -8982,6 +8995,22 @@ textarea::placeholder {
     .perf-table tbody tr:hover td,
     .library-table tbody tr:hover td { background: rgba(255, 255, 255, 0.03); }
 
+    /* The row itself is the selector: picking it makes that lineage the active one. */
+    .library-table tbody tr { cursor: pointer; }
+    .library-table tbody tr.is-selected td {
+      background: var(--v2-accent-soft);
+      box-shadow: inset 0 0 0 1px var(--v2-accent-line);
+    }
+
+    /* The candidate pool is a Research-only picker. Later stages choose from the
+       Queue or the Content Library, so the left column is dropped there. */
+    body:not([data-stage="research"]) .studio-col-left { display: none; }
+    body:not([data-stage="research"]) .studio-grid { grid-template-columns: minmax(0, 1fr) 330px; }
+
+    @media (max-width: 1120px) {
+      body:not([data-stage="research"]) .studio-grid { grid-template-columns: minmax(0, 1fr); }
+    }
+
     .perf-num { color: var(--v2-ink); font-variant-numeric: tabular-nums; }
     .perf-evidence { color: var(--v2-ink-3); }
 
@@ -8990,6 +9019,47 @@ textarea::placeholder {
       border: 1px solid var(--v2-line);
       border-radius: var(--v2-r-card);
     }
+
+    /* Publish step: per-channel confirmation before anything enters the queue. */
+    .publish-confirm { display: grid; gap: 10px; }
+    .publish-target {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+      padding: 10px 12px;
+      border: 1px solid var(--v2-line);
+      border-radius: var(--v2-r-input);
+      background: var(--v2-surface-2);
+    }
+    .publish-target b { color: var(--v2-ink); }
+    .publish-channels { display: grid; gap: 6px; }
+    .publish-channel {
+      display: flex;
+      gap: 10px;
+      align-items: flex-start;
+      padding: 10px 12px;
+      border: 1px solid var(--v2-line);
+      border-radius: var(--v2-r-input);
+      background: var(--v2-surface);
+      cursor: pointer;
+    }
+    .publish-channel:has(input:checked) {
+      border-color: var(--v2-accent-line);
+      background: var(--v2-accent-soft);
+    }
+    .publish-channel input { margin-top: 2px; }
+    .publish-channel-body { display: grid; gap: 2px; min-width: 0; }
+    .publish-channel-body b { font-size: 12.5px; color: var(--v2-ink); }
+    .publish-channel-body span { color: var(--v2-ink-3); font-size: 11px; overflow-wrap: anywhere; }
+    .publish-when {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+      gap: 8px;
+    }
+    .publish-when label { display: grid; gap: 4px; font-size: 11px; color: var(--v2-ink-3); }
+    .publish-note { display: grid; gap: 4px; font-size: 11px; color: var(--v2-ink-3); }
+    .publish-actions { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
 
     /* Publish Queue: what was approved and sent out, with the link to hand. */
     .publish-block {
@@ -9001,6 +9071,19 @@ textarea::placeholder {
     }
 
     .publish-queue { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+
+    .publish-empty {
+      display: grid;
+      gap: 6px;
+      justify-items: start;
+      padding: 12px 14px;
+      border: 1px dashed var(--v2-line);
+      border-radius: var(--v2-r-input);
+      background: var(--v2-surface-2);
+    }
+
+    .publish-empty p { margin: 0; }
+    .publish-empty .muted { color: var(--v2-ink-3); }
     .publish-queue .queue-item {
       display: flex;
       align-items: center;
