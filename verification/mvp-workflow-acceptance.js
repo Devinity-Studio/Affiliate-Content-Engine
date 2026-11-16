@@ -131,6 +131,224 @@ function scoresOf(candidates) {
   return candidates.map((c) => [c.id, c.rank, c.scores.ranking_score, c.scores.opportunity_score, c.scores.confidence.level]);
 }
 
+/**
+ * Publish Queue behaviour of the client script (app/public/mvp.js).
+ *
+ * The queue lives entirely in the browser, so the script is loaded in a vm
+ * context with a minimal element shim: enough to set form values, read the
+ * rendered queue HTML and call the same functions the buttons call. Nothing
+ * here touches a network, a real browser or the browser profile.
+ */
+function runPublishQueueAcceptance() {
+  const vm = require('node:vm');
+  const store = new Map();
+  const elements = new Map();
+  const checkedChannels = [];
+
+  const makeEl = (id) => ({
+    id, innerHTML: '', value: '', checked: false, disabled: false, dataset: {}, style: {},
+    classList: { add() {}, remove() {}, toggle() {}, contains() { return false; } },
+    addEventListener() {}, removeEventListener() {}, focus() {}, scrollIntoView() {},
+    appendChild() {}, querySelector() { return null; }, querySelectorAll() { return []; },
+  });
+  const getEl = (id) => {
+    if (!elements.has(id)) elements.set(id, makeEl(id));
+    return elements.get(id);
+  };
+
+  const document = {
+    readyState: 'loading',
+    addEventListener() {}, removeEventListener() {},
+    getElementById: getEl,
+    querySelector: () => null,
+    querySelectorAll: (sel) => (sel === '.publish-channel-cb:checked' ? checkedChannels.map((value) => ({ value })) : []),
+    createElement: () => makeEl('created'),
+    body: { dataset: {}, classList: { add() {}, remove() {}, contains() { return false; } }, appendChild() {} },
+    documentElement: { dataset: {}, style: {} },
+  };
+
+  const localStorage = {
+    getItem: (key) => (store.has(key) ? store.get(key) : null),
+    setItem: (key, value) => store.set(key, String(value)),
+    removeItem: (key) => store.delete(key),
+  };
+
+  const sandbox = {
+    document, localStorage,
+    console: { log() {}, warn() {}, error() {}, info() {} },
+    setTimeout, clearTimeout, setInterval, clearInterval,
+    navigator: { userAgent: 'ace-acceptance', clipboard: null },
+    location: { href: 'http://127.0.0.1/mvp.html', hash: '', search: '' },
+    fetch: () => Promise.reject(new Error('network disabled in the acceptance sandbox')),
+    matchMedia: () => ({ matches: false, addEventListener() {}, addListener() {} }),
+    ResizeObserver: class { observe() {} unobserve() {} disconnect() {} },
+    IntersectionObserver: class { observe() {} unobserve() {} disconnect() {} },
+    prompt: () => null, alert() {}, confirm: () => false,
+    Event, CustomEvent, Date, JSON, Math, URL, URLSearchParams, Intl, Promise, Blob: class {}, Image: class {},
+    requestAnimationFrame: (fn) => setTimeout(fn, 0), cancelAnimationFrame: clearTimeout,
+  };
+  sandbox.window = sandbox;
+
+  const ctx = vm.createContext(sandbox);
+  const run = (code) => vm.runInContext(code, ctx, { filename: 'mvp-sandbox.js' });
+  const source = fs.readFileSync(path.join(REPO, 'app', 'public', 'mvp.js'), 'utf8');
+  try {
+    vm.runInContext(source, ctx, { filename: 'app/public/mvp.js' });
+  } catch (error) {
+    check('mvp.js loads in the Publish Queue sandbox', false, error && error.message);
+    return;
+  }
+  check('mvp.js loads in the Publish Queue sandbox (boot waits for the page)',
+    run('typeof renderPublishQueue === "function" && document.readyState === "loading"'));
+
+  const queueHtml = () => getEl('publish-queue').innerHTML;
+  const cardHtml = () => getEl('publish-confirm').innerHTML;
+  const queueNames = () => Array.from(queueHtml().matchAll(/<b>([^<]*?)(?: <span class="queue-flag">เลยกำหนด<\/span>)?<\/b>/g)).map((m) => m[1].trim());
+  const setForm = (channels, date, time, notes) => {
+    checkedChannels.length = 0;
+    channels.forEach((value) => checkedChannels.push(value));
+    getEl('publish-mode').value = 'schedule';
+    getEl('publish-date').value = date;
+    getEl('publish-time').value = time;
+    getEl('publish-notes').value = notes;
+  };
+  const fixture = `
+    function aceFixture(id, name, status, record) {
+      return {
+        id: id, libraryId: 'lib-' + id, name: name, status: status, platform: 'Shopee',
+        affiliateLink: 'https://s.shopee.co.th/' + id, channels: ['tiktok'],
+        lineage: { version: 1, approvedSha256: 'sha' + id, fileUrl: '/f' + id + '.mp4' },
+        publishRecord: record || null,
+      };
+    }
+    candidatePool.length = 0; contentLibrary.length = 0; publishQueue.length = 0;
+    librarySelectedIndex = -1;
+  `;
+
+  // --- bulk confirm -------------------------------------------------------
+  run(fixture);
+  run(`contentLibrary.push(aceFixture(1, 'สินค้า A', 'APPROVE'), aceFixture(2, 'สินค้า B', 'APPROVE'));
+       contentLibrary[0].selected = true; contentLibrary[1].selected = true;
+       renderPublishConfirm();`);
+  const bulkCard = cardHtml();
+  check('Publish card groups ticked approved rows into one batch',
+    bulkCard.includes('ยืนยันพร้อมกัน 2 รายการ') && bulkCard.includes('ยืนยัน 2 รายการแล้วส่งเข้า Publish Queue'),
+    bulkCard.slice(0, 90));
+
+  setForm(['tiktok', 'x'], '2026-12-05', '19:30', 'ชุดเดียวกัน');
+  run("confirmPublish(['lib-1', 'lib-2']);");
+  const batchState = JSON.parse(run(`JSON.stringify({
+    statuses: contentLibrary.map(function (item) { return item.status; }),
+    queue: publishQueue.map(function (item) { return item.libraryId; }),
+    records: contentLibrary.map(function (item) { return item.publishRecord; }),
+  })`));
+  check('confirming a batch exports each ticked row exactly once',
+    batchState.statuses.join(',') === 'EXPORTED,EXPORTED' && batchState.queue.join(',') === 'lib-1,lib-2',
+    batchState.statuses.join(',') + ' / queue ' + batchState.queue.join(','));
+  check('batch rows share channels, time and notes but keep their own sub_id 2',
+    batchState.records.every((record) => record.channels.join('/') === 'tiktok/x'
+      && record.scheduledAt === '2026-12-05T19:30' && record.notes === 'ชุดเดียวกัน')
+    && batchState.records[0].subId2 === 'lib-1' && batchState.records[1].subId2 === 'lib-2',
+    JSON.stringify(batchState.records.map((record) => [record.subId2, record.scheduledAt])));
+
+  // Re-confirming the same rows must reuse their queue entry, not add one.
+  run(`contentLibrary.forEach(function (item) { item.status = 'APPROVE'; });`);
+  setForm(['tiktok'], '2026-12-06', '09:00', '');
+  run("confirmPublish(['lib-1', 'lib-2']);");
+  const dupState = JSON.parse(run(`JSON.stringify({
+    queue: publishQueue.length,
+    keys: publishQueue.map(function (item) { return item.libraryId; }),
+    records: contentLibrary.map(function (item) { return item.publishRecord.scheduledAt; }),
+  })`));
+  check('re-confirming an already queued row does not duplicate the queue entry',
+    dupState.queue === 2 && new Set(dupState.keys).size === 2
+    && dupState.records.join(',') === '2026-12-06T09:00,2026-12-06T09:00',
+    `queue ${dupState.queue} (${dupState.keys.join(',')})`);
+
+  run(`contentLibrary.forEach(function (item) { item.status = 'APPROVE'; item.publishRecord = null; });
+       publishQueue.length = 0;`);
+  setForm([], '2026-12-06', '10:00', '');
+  run("confirmPublish(['lib-1', 'lib-2']);");
+  const refused = JSON.parse(run(`JSON.stringify({
+    statuses: contentLibrary.map(function (item) { return item.status; }),
+    queue: publishQueue.length,
+    records: contentLibrary.map(function (item) { return item.publishRecord; }),
+  })`));
+  check('a batch with no channel selected is refused and changes nothing',
+    refused.statuses.join(',') === 'APPROVE,APPROVE' && refused.queue === 0
+    && refused.records.every((record) => record === null),
+    `${refused.statuses.join(',')} / queue ${refused.queue}`);
+
+  // --- reschedule queued rows --------------------------------------------
+  run(fixture);
+  run(`contentLibrary.push(
+      aceFixture(1, 'คิวหนึ่ง', 'EXPORTED', { channels: ['tiktok'], mode: 'schedule', scheduledAt: '2026-12-10T09:00', notes: 'เดิม', subId1: 'tiktok', subId2: 'lib-1' }),
+      aceFixture(2, 'คิวสอง', 'EXPORTED', { channels: ['facebook'], mode: 'schedule', scheduledAt: '2026-12-11T09:00', notes: 'เดิม', subId1: 'facebook', subId2: 'lib-2' }),
+      aceFixture(3, 'คิวสาม', 'EXPORTED', { channels: ['x'], mode: 'schedule', scheduledAt: '2026-12-12T09:00', notes: 'เดิม', subId1: 'x', subId2: 'lib-3' })
+    );
+    publishQueue.push(contentLibrary[0], contentLibrary[1], contentLibrary[2]);
+    librarySelectedIndex = 0;`);
+
+  setForm(['shopee_video'], '2026-12-20', '08:15', 'เลื่อนรายเดียว');
+  run('savePublishPlan([contentLibrary[0]]);');
+  const singleEdit = JSON.parse(run(`JSON.stringify({
+    queue: publishQueue.length,
+    record: contentLibrary[0].publishRecord,
+    status: contentLibrary[0].status,
+    other: contentLibrary[1].publishRecord.scheduledAt,
+  })`));
+  check('editing a queued row rewrites it in place without a second queue entry',
+    singleEdit.queue === 3 && singleEdit.status === 'EXPORTED'
+    && singleEdit.record.scheduledAt === '2026-12-20T08:15'
+    && singleEdit.record.channels.join('/') === 'shopee_video'
+    && singleEdit.record.subId2 === 'lib-1'
+    && singleEdit.other === '2026-12-11T09:00',
+    `queue ${singleEdit.queue} · ${singleEdit.record.scheduledAt} · other ${singleEdit.other}`);
+
+  setForm(['tiktok', 'facebook'], '2026-12-22', '21:45', 'เลื่อนพร้อมกัน');
+  run('savePublishPlan([contentLibrary[1], contentLibrary[2]]);');
+  const bulkEdit = JSON.parse(run(`JSON.stringify({
+    queue: publishQueue.length,
+    first: contentLibrary[0].publishRecord.scheduledAt,
+    second: contentLibrary[1].publishRecord,
+    third: contentLibrary[2].publishRecord,
+  })`));
+  check('rescheduling several queued rows applies one plan and leaves the rest alone',
+    bulkEdit.queue === 3 && bulkEdit.first === '2026-12-20T08:15'
+    && bulkEdit.second.scheduledAt === '2026-12-22T21:45' && bulkEdit.third.scheduledAt === '2026-12-22T21:45'
+    && bulkEdit.second.channels.join('/') === 'tiktok/facebook' && bulkEdit.third.channels.join('/') === 'tiktok/facebook'
+    && bulkEdit.second.notes === 'เลื่อนพร้อมกัน',
+    `queue ${bulkEdit.queue} · ${bulkEdit.second.scheduledAt} · ${bulkEdit.third.scheduledAt}`);
+
+  // --- ordering + overdue badge ------------------------------------------
+  run(fixture);
+  run(`contentLibrary.push(
+      aceFixture(1, 'อนาคตไกล', 'EXPORTED', { channels: ['tiktok'], mode: 'schedule', scheduledAt: '2030-01-10T10:00', notes: '' }),
+      aceFixture(2, 'เลยกำหนดแล้ว', 'EXPORTED', { channels: ['x'], mode: 'schedule', scheduledAt: '2020-01-05T10:00', notes: '' }),
+      aceFixture(3, 'อนาคตใกล้', 'EXPORTED', { channels: ['facebook'], mode: 'schedule', scheduledAt: '2030-01-05T10:00', notes: '' }),
+      aceFixture(4, 'ไม่มีเวลา', 'EXPORTED', null)
+    );
+    publishQueue.push(contentLibrary[0], contentLibrary[1], contentLibrary[2], contentLibrary[3]);
+    renderPublishQueue();`);
+
+  const ordered = queueNames();
+  check('Publish Queue lists the nearest slot first and untimed rows last',
+    ordered.join('|') === 'เลยกำหนดแล้ว|อนาคตใกล้|อนาคตไกล|ไม่มีเวลา', ordered.join(' | '));
+
+  const html = queueHtml();
+  const overdueRows = Array.from(html.matchAll(/<li class="queue-item is-overdue">([\s\S]*?)<\/li>/g)).map((m) => m[1]);
+  check('only the row whose slot already passed is flagged overdue',
+    overdueRows.length === 1 && overdueRows[0].includes('เลยกำหนดแล้ว') && overdueRows[0].includes('เลยกำหนด</span>')
+    && !/อนาคตใกล้|อนาคตไกล|ไม่มีเวลา/.test(overdueRows[0]),
+    `${overdueRows.length} overdue row(s)`);
+  check('each queued row keeps its edit and copy actions with stable keys',
+    (html.match(/class="chip-btn pq-edit" data-key="lib-\d+"/g) || []).length === 4
+    && (html.match(/class="chip-btn pq-copy" data-index="\d+"/g) || []).length === 4);
+  const order = JSON.parse(run('JSON.stringify(publishQueue.map(function (item) { return item.libraryId; }))'));
+  check('sorting the queue view does not reorder the stored queue',
+    order.join(',') === 'lib-1,lib-2,lib-3,lib-4', order.join(','));
+}
+
 (async () => {
   console.log('=== MVP affiliate workflow acceptance — temporary fixture state only ===');
   console.log(`started: ${new Date().toISOString()}`);
@@ -151,6 +369,9 @@ function scoresOf(candidates) {
   check('node --check app/mvp/service.js', syntax.status === 0, `exit ${syntax.status}${syntax.stderr ? ` — ${syntax.stderr.trim()}` : ''}`);
   const syntax2 = spawnSync(process.execPath, ['--check', path.join(REPO, 'app', 'public', 'mvp.js')], { encoding: 'utf8' });
   check('node --check app/public/mvp.js', syntax2.status === 0, `exit ${syntax2.status}${syntax2.stderr ? ` — ${syntax2.stderr.trim()}` : ''}`);
+
+  // 0. Publish Queue behaviour of the client script (no server, no browser)
+  runPublishQueueAcceptance();
 
   const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'ace-mvp-acceptance-'));
   for (const dir of ['app', 'data', 'docs']) fs.cpSync(path.join(REPO, dir), path.join(tmp, dir), { recursive: true });
