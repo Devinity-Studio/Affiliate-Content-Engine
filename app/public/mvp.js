@@ -2973,10 +2973,13 @@ function renderPublishConfirm() {
         : 'แก้ช่องทาง/เวลาได้โดยไม่ต้องยืนยันใหม่ — สถานะยัง EXPORTED')
     : (bulk ? 'ช่องทาง/เวลาเดียวกันทุกแถว' : 'ติ๊กหลายแถวใน Content Library เพื่อยืนยันพร้อมกัน');
 
+  const postedBlock = (editing && saved.postedAt) ? publishPostedChannelsHtml(editing, chosen) : '';
+
   host.innerHTML =
     '<div class="publish-target">' + head + '</div>' +
     '<div class="publish-channels">' + publishChannelCardsHtml(chosen, publishSubId2(first)) + '</div>' +
     publishWhenInputsHtml(formRecord) +
+    postedBlock +
     '<div class="publish-actions">' + actions +
       '<button type="button" class="btn btn-ghost" id="publish-qc-btn">ตรวจ Full Screen ก่อน</button>' +
       '<span class="muted small">' + hint + ' — ACE ไม่โพสต์อัตโนมัติ</span>' +
@@ -3041,6 +3044,24 @@ function confirmPublish(targetKeys) {
 
 /* One queued row: open the card on it. Several ticked rows: reschedule them
    together. Both paths write the same publishRecord fields, nothing posts. */
+/* In the edit card: which channels were really posted to, for a posted row. */
+function publishPostedChannelsHtml(item, planned) {
+  const posted = (item.publishRecord && item.publishRecord.postedChannels) || [];
+  const ids = (planned && planned.length) ? planned : posted;
+  return '<div class="publish-posted">' +
+    '<div class="publish-posted-head">โพสต์แล้ว ' + escapeHtml(publishPostedLabel(item.publishRecord.postedAt)) +
+      ' — ช่องทางที่โพสต์จริง</div>' +
+    '<div class="publish-posted-opts">' +
+      ids.map(function(id) {
+        return '<label class="publish-posted-opt"><input type="checkbox" class="publish-posted-cb" value="' +
+          escapeHtml(id) + '"' + (posted.indexOf(id) !== -1 ? ' checked' : '') + '> ' +
+          escapeHtml(channelLabel(id)) + '</label>';
+      }).join('') +
+    '</div>' +
+    '<p class="muted small">ติ๊กเฉพาะช่องทางที่โพสต์จริง — ใช้บันทึกย้อนหลัง ไม่มีการโพสต์อัตโนมัติ</p>' +
+  '</div>';
+}
+
 function openPublishEdit(key) {
   const index = contentLibrary.findIndex(function(entry) { return publishKey(entry) === key; });
   if (index < 0) return;
@@ -3063,6 +3084,13 @@ function savePublishPlan(items) {
   const plan = readPublishForm();
   if (!plan) return;
 
+  // Editing one already-posted row also lets the real channels be corrected.
+  const postedPicks = queued.length === 1 ? readPostedChannelPicks() : null;
+  if (postedPicks && !postedPicks.length) {
+    showToast('เลือกอย่างน้อย 1 ช่องทางที่โพสต์จริง', 'warning');
+    return;
+  }
+
   const stamp = plan.mode === 'now' ? 'ทันที' : plan.scheduledAt;
   queued.forEach(function(item) {
     item.channels = plan.channels;
@@ -3074,6 +3102,7 @@ function savePublishPlan(items) {
       notes: plan.notes,
       subId1: plan.channels[0]
     });
+    if (postedPicks) applyPostedChannels(item, postedPicks);
     if (item.lineage) {
       pushLineageEvent(item, 'แก้ตารางโพสต์: ' + plan.channels.join(', ') + ' · ' + stamp, { channels: plan.channels });
     }
@@ -3827,49 +3856,26 @@ function togglePublishQueueFilter(next) {
   renderPublishQueue();
 }
 
-/* Post form: the row whose form is open and the channels ticked in it. */
-let publishPostingKey = null;
-let publishPostingChannels = [];
-
-function startPublishPosting(key) {
+/* One click marks the row posted on the channels already in its plan. The real
+   channels can be corrected afterwards from แก้ไข (applyPostedChannels). */
+function markPublishPosted(key) {
   const item = publishQueueItemByKey(key);
   if (!item) return;
-  publishPostingKey = key;
-  publishPostingChannels = publishPlannedChannels(item.publishRecord, item);
-  publishEditKey = null;
-  renderPublishQueue();
-}
-
-function togglePublishPostingChannel(id, checked) {
-  const at = publishPostingChannels.indexOf(id);
-  if (checked && at === -1) publishPostingChannels.push(id);
-  if (!checked && at !== -1) publishPostingChannels.splice(at, 1);
-}
-
-function cancelPublishPosting() {
-  publishPostingKey = null;
-  publishPostingChannels = [];
-  renderPublishQueue();
-}
-
-function confirmPublishPosting() {
-  const item = publishQueueItemByKey(publishPostingKey);
-  if (!item) return;
-  if (!publishPostingChannels.length) {
-    showToast('เลือกอย่างน้อย 1 ช่องทางที่โพสต์จริงก่อนยืนยัน', 'warning');
+  if (item.publishRecord && item.publishRecord.postedAt) return;
+  const channels = publishPlannedChannels(item.publishRecord, item);
+  if (!channels.length) {
+    showToast('รายการนี้ยังไม่มีช่องทางในตาราง — กด “แก้ไข” เพื่อเลือกช่องทางก่อน', 'warning');
     return;
   }
-  const posted = publishPostingChannels.slice();
   item.publishRecord = Object.assign({}, item.publishRecord, {
     postedAt: new Date().toISOString(),
-    postedChannels: posted,
+    postedChannels: channels,
   });
-  if (item.lineage) pushLineageEvent(item, 'ทำเครื่องหมายว่าโพสต์แล้ว · ' + posted.map(channelLabel).join(', '));
-  publishPostingKey = null;
-  publishPostingChannels = [];
+  if (item.lineage) pushLineageEvent(item, 'ทำเครื่องหมายว่าโพสต์แล้ว · ' + channels.map(channelLabel).join(', '));
+  publishEditKey = null;
   savePoolState();
   renderPublishQueue();
-  showToast('บันทึกว่าโพสต์แล้ว ' + posted.length + ' ช่องทาง — ยังต้องโพสต์ด้วยมือตามเดิม (ACE ไม่โพสต์อัตโนมัติ)', 'success');
+  showToast('ทำเครื่องหมายว่าโพสต์แล้ว ' + channels.length + ' ช่องทาง — แก้ช่องทางจริงได้ที่ปุ่ม “แก้ไข”', 'success');
 }
 
 function undoPublishPosting(key) {
@@ -3885,21 +3891,21 @@ function undoPublishPosting(key) {
   showToast('กลับเป็นยังไม่โพสต์ — รายการยังอยู่ในคิว', 'info');
 }
 
-function publishPostingFormHtml(entry) {
-  if (!entry.channels.length) {
-    return '<span class="pq-post-form"><span class="muted small">รายการนี้ไม่มีช่องทางในตาราง — กด “แก้ไข” เพื่อเลือกช่องทางก่อน</span></span>';
-  }
-  return '<span class="pq-post-form">' +
-    '<span class="pq-post-label">โพสต์จริงไปที่:</span>' +
-    entry.channels.map(function(id) {
-      return '<label class="pq-post-opt"><input type="checkbox" class="pq-post-ch" value="' + escapeHtml(id) + '"' +
-        (publishPostingChannels.indexOf(id) !== -1 ? ' checked' : '') + '> ' + escapeHtml(channelLabel(id)) + '</label>';
-    }).join('') +
-    '<span class="pq-post-actions">' +
-      '<button type="button" class="chip-btn pq-post-confirm">ยืนยันโพสต์แล้ว</button>' +
-      '<button type="button" class="chip-btn pq-post-cancel">ยกเลิก</button>' +
-    '</span>' +
-  '</span>';
+/* Correcting the real channels of an already posted row (from แก้ไข). */
+function applyPostedChannels(item, ids) {
+  if (!item || !item.publishRecord || !item.publishRecord.postedAt) return false;
+  if (!ids || !ids.length) return false;
+  item.publishRecord = Object.assign({}, item.publishRecord, { postedChannels: ids.slice() });
+  if (item.lineage) pushLineageEvent(item, 'แก้ช่องทางที่โพสต์จริง · ' + ids.map(channelLabel).join(', '));
+  return true;
+}
+
+function readPostedChannelPicks() {
+  const boxes = document.querySelectorAll('.publish-posted-cb');
+  if (!boxes.length) return null;
+  return Array.prototype.map.call(document.querySelectorAll('.publish-posted-cb:checked'), function(box) {
+    return box.value;
+  });
 }
 
 function publishEmptyItemHtml(title, detail) {
@@ -3993,7 +3999,6 @@ function renderPublishQueue() {
           ' · ช่องทาง: ' + escapeHtml(entry.channels.map(channelLabel).join(' · ') || '—') + '</span>' +
         postedLine +
         (item.exportNotes ? '<span class="queue-meta">' + escapeHtml(item.exportNotes) + '</span>' : '') +
-        (publishPostingKey === key ? publishPostingFormHtml(entry) : '') +
       '</span>' +
       '<span class="queue-actions">' +
         (entry.posted
@@ -4010,11 +4015,6 @@ function renderPublishQueue() {
   if (list.dataset.bound !== '1') {
     list.dataset.bound = '1';
     list.addEventListener('change', function(event) {
-      const postCh = event.target.closest('.pq-post-ch');
-      if (postCh) {
-        togglePublishPostingChannel(postCh.value, postCh.checked);
-        return;
-      }
       const cb = event.target.closest('.pq-check');
       if (!cb) return;
       const key = cb.dataset.key;
@@ -4026,20 +4026,12 @@ function renderPublishQueue() {
     list.addEventListener('click', function(event) {
       const postBtn = event.target.closest('.pq-post');
       if (postBtn) {
-        startPublishPosting(postBtn.dataset.key);
+        markPublishPosted(postBtn.dataset.key);
         return;
       }
       const unpostBtn = event.target.closest('.pq-unpost');
       if (unpostBtn) {
         undoPublishPosting(unpostBtn.dataset.key);
-        return;
-      }
-      if (event.target.closest('.pq-post-confirm')) {
-        confirmPublishPosting();
-        return;
-      }
-      if (event.target.closest('.pq-post-cancel')) {
-        cancelPublishPosting();
         return;
       }
       const editBtn = event.target.closest('.pq-edit');

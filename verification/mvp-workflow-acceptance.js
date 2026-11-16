@@ -144,6 +144,8 @@ function runPublishQueueAcceptance() {
   const store = new Map();
   const elements = new Map();
   const checkedChannels = [];
+  const postedBoxes = []; // .publish-posted-cb the edit card rendered
+  const postedChecked = []; // which of them the operator ticks
 
   const makeEl = (id) => ({
     id, innerHTML: '', value: '', checked: false, disabled: false, dataset: {}, style: {},
@@ -161,7 +163,12 @@ function runPublishQueueAcceptance() {
     addEventListener() {}, removeEventListener() {},
     getElementById: getEl,
     querySelector: () => null,
-    querySelectorAll: (sel) => (sel === '.publish-channel-cb:checked' ? checkedChannels.map((value) => ({ value })) : []),
+    querySelectorAll: (sel) => {
+    if (sel === '.publish-channel-cb:checked') return checkedChannels.map((value) => ({ value }));
+    if (sel === '.publish-posted-cb') return postedBoxes.map((value) => ({ value }));
+    if (sel === '.publish-posted-cb:checked') return postedChecked.map((value) => ({ value }));
+    return [];
+  },
     createElement: () => makeEl('created'),
     body: { dataset: {}, classList: { add() {}, remove() {}, contains() { return false; } }, appendChild() {} },
     documentElement: { dataset: {}, style: {} },
@@ -381,24 +388,12 @@ function runPublishQueueAcceptance() {
     `${queueRowCount()} row(s), total chip ${chipMarkup('').slice(0, 50)}`);
 
   // --- marking a row as posted -------------------------------------------
-  run('startPublishPosting("lib-2");');
-  const formHtml = queueHtml();
-  check('the post action asks which channels were actually published to',
-    formHtml.includes('pq-post-form') && formHtml.includes('โพสต์จริงไปที่:')
-    && (formHtml.match(/class="pq-post-ch" value="[a-z_]+" checked/g) || []).length === 1,
-    'form renders the planned channels ticked');
+  check('the queue row carries no inline post form — one button is the whole action',
+    !queueHtml().includes('pq-post-form') && !queueHtml().includes('publish-posted-cb')
+    && (queueHtml().match(/class="chip-btn pq-post" data-key="lib-\d+"/g) || []).length === 4,
+    'no form markup in the queue');
 
-  run('togglePublishPostingChannel("x", false); confirmPublishPosting();');
-  const refusedPost = JSON.parse(run(`JSON.stringify({
-    posted: Boolean(publishQueue[1].publishRecord.postedAt),
-    channels: publishQueue[1].publishRecord.postedChannels || [],
-    key: publishPostingKey,
-  })`));
-  check('confirming with no channel ticked is refused and keeps the row unposted',
-    refusedPost.posted === false && refusedPost.channels.length === 0 && refusedPost.key === 'lib-2',
-    `posted ${refusedPost.posted} / form still open`);
-
-  run('togglePublishPostingChannel("x", true); togglePublishPostingChannel("facebook", true); confirmPublishPosting();');
+  run('markPublishPosted("lib-2");');
   const postedState = JSON.parse(run(`JSON.stringify({
     postedAt: publishQueue[1].publishRecord.postedAt || '',
     channels: publishQueue[1].publishRecord.postedChannels || [],
@@ -407,17 +402,21 @@ function runPublishQueueAcceptance() {
     events: (publishQueue[1].lineage && publishQueue[1].lineage.history) || [],
   })`));
   const postedHtml = queueHtml();
-  check('marking a row posted records the timestamp and the real channels only',
-    Boolean(postedState.postedAt) && postedState.channels.join('/') === 'x/facebook'
+  check('one click marks the row posted with the channels already in its plan',
+    Boolean(postedState.postedAt) && postedState.channels.join('/') === 'x'
     && postedState.status === 'EXPORTED' && postedState.scheduledAt === '2020-01-05T10:00'
     && postedState.events.some((h) => /โพสต์แล้ว/.test(h.event || '')),
     postedState.channels.join('/') + ' · ' + postedState.postedAt.slice(0, 16));
   check('the posted row shows its state, timestamp and channels and swaps the action',
     postedHtml.includes('queue-flag is-posted">โพสต์แล้ว')
-    && postedHtml.includes('โพสต์เมื่อ') && postedHtml.includes('ช่องทางที่โพสต์จริง: X (Twitter) (Organic) · Facebook (Organic)')
+    && postedHtml.includes('โพสต์เมื่อ') && postedHtml.includes('ช่องทางที่โพสต์จริง: X (Twitter) (Organic)')
     && postedHtml.includes('class="chip-btn pq-unpost" data-key="lib-2"')
-    && !/class="queue-item is-overdue"><input type="checkbox" class="pq-check" data-key="lib-2"/.test(postedHtml.replace(/ aria-label="[^"]*"/, '')),
+    && !postedHtml.includes('pq-post-form'),
     'posted row rendered');
+  run('markPublishPosted("lib-2");');
+  check('marking an already posted row again changes nothing',
+    run('publishQueue[1].publishRecord.postedAt') === postedState.postedAt,
+    'timestamp kept');
   check('a posted row is no longer counted as ค้างโพสต์ and sinks below the work left',
     run("document.getElementById('publish-queue-summary').innerHTML").includes('ค้างโพสต์ 0')
     && run("document.getElementById('publish-queue-summary').innerHTML").includes('โพสต์แล้ว 1')
@@ -439,6 +438,39 @@ function runPublishQueueAcceptance() {
   check('undoing a post clears the timestamp and puts the row back in ค้างโพสต์',
     undone.postedAt === null && undone.channels === null && undone.due === true,
     `postedAt ${undone.postedAt} / due ${undone.due}`);
+
+  // --- correcting the real channels from the edit card --------------------
+  run('markPublishPosted("lib-2");');
+  const reMarked = JSON.parse(run('JSON.stringify(publishQueue[1].publishRecord)'));
+  run('publishEditKey = "lib-2"; publishQueueSelection = []; renderPublishConfirm();');
+  const editCard = cardHtml();
+  check('the edit card asks which channels the posted row really went to',
+    editCard.includes('ช่องทางที่โพสต์จริง') && editCard.includes('publish-posted-cb')
+    && editCard.includes('checked'),
+    editCard.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim().slice(-70));
+
+  postedBoxes.length = 0;
+  postedBoxes.push('x', 'facebook');
+  postedChecked.length = 0;
+  postedChecked.push('facebook');
+  setForm(['x', 'facebook'], '2026-12-30', '09:00', '');
+  run('savePublishPlan([publishQueue[1]]);');
+  const corrected = JSON.parse(run(`JSON.stringify({
+    channels: publishQueue[1].publishRecord.postedChannels || [],
+    planned: publishQueue[1].publishRecord.channels || [],
+    postedAt: publishQueue[1].publishRecord.postedAt,
+    events: (publishQueue[1].lineage && publishQueue[1].lineage.history) || [],
+  })`));
+  check('saving the edit card rewrites the real channels and keeps the posted stamp',
+    corrected.channels.join('/') === 'facebook' && corrected.planned.join('/') === 'x/facebook'
+    && corrected.postedAt === reMarked.postedAt
+    && corrected.events.some((h) => /แก้ช่องทางที่โพสต์จริง/.test(h.event || '')),
+    corrected.channels.join('/') + ' · postedAt kept');
+  check('the queue row now names the corrected channel',
+    queueHtml().includes('ช่องทางที่โพสต์จริง: Facebook (Organic)'),
+    'row shows Facebook only');
+  postedBoxes.length = 0;
+  postedChecked.length = 0;
 
   run('selectAllPublishQueue();');
   const allSelected = JSON.parse(run(`JSON.stringify({

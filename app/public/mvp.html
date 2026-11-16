@@ -2261,24 +2261,28 @@ textarea:focus-visible {
   color: #9ff0d2;
 }
 
-/* Post form inside a queue row: which channels were actually published to. */
-.pq-post-form {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 8px;
-  margin-top: 7px;
-  padding: 7px 9px;
+/* Edit card, posted row: which channels were really published to. */
+.publish-posted {
+  margin-top: 10px;
+  padding: 9px 11px;
   border: 1px dashed var(--line-soft);
   border-radius: 8px;
 }
 
-.pq-post-label {
-  font-size: 11px;
-  color: var(--text-dim, #9fb0bd);
+.publish-posted-head {
+  font-size: 11.5px;
+  font-weight: 650;
+  color: #9ff0d2;
 }
 
-.pq-post-opt {
+.publish-posted-opts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 6px;
+}
+
+.publish-posted-opt {
   display: inline-flex;
   align-items: center;
   gap: 4px;
@@ -2286,16 +2290,18 @@ textarea:focus-visible {
   cursor: pointer;
 }
 
-.pq-post-opt input {
+.publish-posted-opt input {
   margin: 0;
   accent-color: var(--v2-accent, #3ee0c0);
   cursor: pointer;
 }
 
-.pq-post-actions {
-  display: inline-flex;
-  gap: 6px;
-  margin-left: auto;
+.publish-posted p {
+  margin: 6px 0 0;
+}
+
+[data-theme="light"] .publish-posted-head {
+  color: #0d6b4d;
 }
 
 [data-theme="light"] .queue-flag.is-waiting {
