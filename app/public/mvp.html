@@ -5254,18 +5254,6 @@ textarea {
 
 /* ---------- Affiliate link + channels ---------- */
 
-.aff-link-row {
-  display: flex;
-  gap: 6px;
-  align-items: center;
-  flex-wrap: wrap;
-}
-
-.aff-link-row input {
-  flex: 1 1 220px;
-  min-width: 0;
-}
-
 .aff-channels {
   display: flex;
   flex-wrap: wrap;
@@ -5811,32 +5799,6 @@ body {
   font-family: var(--mono);
 }
 
-.studio-search {
-  flex: 1;
-  min-width: 220px;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 8px 14px;
-  border: 1px solid #4a3a86;
-  border-radius: 999px;
-  background: rgba(10, 8, 24, 0.8);
-}
-
-.studio-search input {
-  flex: 1;
-  background: none;
-  border: 0;
-  outline: none;
-  color: var(--ink);
-  font: inherit;
-  font-size: 13px;
-}
-
-.studio-search input::placeholder {
-  color: #7c74ad;
-}
-
 .studio-topbar-actions {
   display: flex;
   align-items: center;
@@ -6142,37 +6104,6 @@ body {
 .donut-legend .medium::before { color: var(--amber); }
 .donut-legend .low::before { color: var(--red); }
 
-.profile-card {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 10px;
-  border: 1px solid var(--line);
-  border-radius: 12px;
-  background: rgba(30, 18, 60, 0.7);
-}
-
-.profile-avatar {
-  display: grid;
-  place-items: center;
-  width: 34px;
-  height: 34px;
-  border-radius: 50%;
-  background: linear-gradient(160deg, #7b3ff2, #35d7e8);
-  font-size: 15px;
-}
-
-.profile-name {
-  font-size: 12px;
-  font-weight: 700;
-  color: #fff;
-}
-
-.profile-meta {
-  font-size: 10.5px;
-  color: var(--ink-mute);
-}
-
 /* ---------- Product hero (center) ---------- */
 
 .candidate-hero {
@@ -6324,30 +6255,6 @@ body {
 }
 
 /* ---------- Right column ---------- */
-
-.queue-tabs {
-  display: flex;
-  gap: 4px;
-  flex-wrap: wrap;
-  margin-bottom: 8px;
-}
-
-.queue-tabs button {
-  padding: 4px 9px;
-  border: 0;
-  border-radius: 6px;
-  background: none;
-  color: var(--ink-mute);
-  font: inherit;
-  font-size: 11px;
-  font-weight: 600;
-  cursor: pointer;
-}
-
-.queue-tabs button.is-active {
-  background: linear-gradient(90deg, #ff6b1a, #e05bd0);
-  color: #fff;
-}
 
 .queue-item-mini {
   display: grid;
@@ -6797,16 +6704,10 @@ textarea::placeholder {
         <p class="stage-track-label">STAGE<b id="stage-counter">1 of 8</b></p>
       </div>
 
-      <div class="studio-search">
-        <input type="search" id="studio-search" placeholder="ค้นหา" aria-label="ค้นหาสินค้า">
-        <span aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><circle cx="11" cy="11" r="6.5"/><path d="m20 20-3.8-3.8"/></svg></span>
-      </div>
-
       <div class="studio-topbar-actions">
         <button type="button" id="refresh-header" class="icon-pill" aria-label="แจ้งเตือน">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M18 9a6 6 0 1 0-12 0c0 5-2 6-2 6h16s-2-1-2-6"/><path d="M10 19.5a2.2 2.2 0 0 0 4 0"/></svg><span class="dot" id="queue-count">0</span>
         </button>
-        <button type="button" class="icon-pill" aria-label="ธีม"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><circle cx="12" cy="12" r="4"/><path d="M12 2.5V5M12 19v2.5M4.9 4.9l1.8 1.8M17.3 17.3l1.8 1.8M2.5 12H5M19 12h2.5M4.9 19.1l1.8-1.8M17.3 6.7l1.8-1.8"/></svg></button>
         <button type="button" class="icon-pill" aria-label="ตั้งค่า"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .34 1.87l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.7 1.7 0 0 0-1.87-.34 1.7 1.7 0 0 0-1 1.55V21a2 2 0 1 1-4 0v-.09A1.7 1.7 0 0 0 9 19.36a1.7 1.7 0 0 0-1.87.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.7 1.7 0 0 0 .34-1.87 1.7 1.7 0 0 0-1.55-1H3a2 2 0 1 1 0-4h.09A1.7 1.7 0 0 0 4.64 9a1.7 1.7 0 0 0-.34-1.87l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.7 1.7 0 0 0 1.87.34H9a1.7 1.7 0 0 0 1-1.55V3a2 2 0 1 1 4 0v.09a1.7 1.7 0 0 0 1 1.55 1.7 1.7 0 0 0 1.87-.34l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.7 1.7 0 0 0-.34 1.87V9a1.7 1.7 0 0 0 1.55 1H21a2 2 0 1 1 0 4h-.09a1.7 1.7 0 0 0-1.51 1z"/></svg></button>
       </div>
     </header>
@@ -6817,7 +6718,7 @@ textarea::placeholder {
       <div class="studio-col studio-col-left">
         <section class="studio-panel">
           <div class="studio-panel-head">
-            <p class="studio-panel-title">รายการสินค้าเลือก <small id="pool-count">0 รายการ</small></p>
+            <p class="studio-panel-title">รายการสินค้าเลือก <small id="pool-count">0 รายการ</small> <small id="profile-meta" class="pool-meta">0 source · 0 candidate</small></p>
             <span class="pool-new-offer">
               <button type="button" id="quick-start" class="chip-btn accent">+ ข้อเสนอใหม่</button>
               <div id="new-offer-menu" class="new-offer-menu hidden">
@@ -6840,23 +6741,17 @@ textarea::placeholder {
                 <p class="muted small new-offer-note">AI คัดจากข้อมูลจริงล่าสุด: ข้อความ Product Offer ที่วางไว้ → รายการพรีวิว → สินค้าในคลัง (รวม Capture) · เชื่อม Shopee API ตรงไม่ได้ยัง จึงใช้ Capture / วางข้อความ / ลิงก์สาธารณะ · ต้องผูก API Key ใน Settings ⚙️</p>
               </div>
             </span>
+            <div class="pool-source-actions">
+              <button type="button" id="pool-snap" class="chip-btn">📸 Snap รูป</button>
+              <button type="button" id="pool-offers" class="chip-btn">⬆ Offers / CSV</button>
+            </div>
             <span id="ai-status-chip" class="ai-status-chip is-off"></span>
-            <button type="button" id="batch-drafts" class="chip-btn hidden" title="สร้าง hook/สคริปต์/แคปชันให้ทุกสินค้าในคลัง (AI จริง) แล้วคัดลอก/ดาวน์โหลดเป็นชุดเดียว">✨ ชุดโพสต์ทั้งคลัง</button>
-            <button type="button" id="tracking-csv" class="chip-btn hidden" title="ดาวน์โหลด CSV บันทึกผลจริงรายคลิป (views/clicks/orders/ค่าคอม)">📊 เทมเพลตติดตามผล</button>
-            <button type="button" id="results-csv" class="chip-btn hidden" title="นำเข้า CSV ผลลัพธ์จริงที่กรอกแล้ว — ระบบจะจับคู่สินค้าและแสดงผลจริงบนการ์ด">📥 นำเข้าผล (CSV)</button>
             <input type="file" id="results-csv-file" accept=".csv,.tsv,.txt" class="hidden">
           </div>
           <div id="candidate-pool" class="candidate-pool"></div>
           <p id="no-candidates" class="muted small hidden">ไม่มี candidate ใน pool</p>
         </section>
 
-        <div class="profile-card">
-          <span class="profile-avatar" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><circle cx="12" cy="8.5" r="3.5"/><path d="M5 20c.8-3.6 3.5-5.8 7-5.8s6.2 2.2 7 5.8"/></svg></span>
-          <div>
-            <p class="profile-name" id="profile-name">Shopee Affiliate</p>
-            <p class="profile-meta" id="profile-meta">0 source · 0 candidate</p>
-          </div>
-        </div>
       </div>
 
       <!-- ---------------- CENTER: selected product ---------------- -->
@@ -6883,15 +6778,10 @@ textarea::placeholder {
         <!-- Affiliate link + publish channels (Shopee Video is the default) -->
         <section class="studio-panel" id="affiliate-panel">
           <div class="studio-panel-head">
-            <p class="studio-panel-title">ลิงก์ข้อเสนอ & ช่องทางเผยแพร่
+            <p class="studio-panel-title">ช่องทางเผยแพร่
               <small id="hero-link-state">ยังไม่มีลิงก์</small>
             </p>
             <button type="button" id="aff-advanced-toggle" class="chip-btn">ตั้งค่าขั้นสูง</button>
-          </div>
-          <div class="aff-link-row">
-            <input id="aff-link" type="text" placeholder="วางลิงก์ s.shopee.co.th จากปุ่ม “เอา ลิงก์”">
-            <button type="button" id="aff-save-link" class="chip-btn">บันทึก</button>
-            <button type="button" id="aff-copy" class="chip-btn accent">คัดลอก</button>
           </div>
           <div class="aff-channels" id="aff-channels"></div>
           <p id="aff-estimate" class="muted small">ค่าคอมมิชชันโดยประมาณจะแสดงตามอัตราของสินค้า</p>
@@ -6986,12 +6876,6 @@ textarea::placeholder {
             <p class="studio-panel-title">Queue <small>Research → Production → Export</small></p>
             <button type="button" id="snap-products" class="chip-btn">Snap</button>
           </div>
-          <div class="queue-tabs" id="queue-tabs">
-            <button type="button" class="is-active" data-queue="research">Research</button>
-            <button type="button" data-queue="production">Production</button>
-            <button type="button" data-queue="export">Export</button>
-            <button type="button" data-queue="publish">Publish</button>
-          </div>
           <div id="schedule-queue"></div>
         </section>
 
@@ -7047,6 +6931,10 @@ textarea::placeholder {
             <button type="button" id="confirm-schedule" class="btn btn-primary">บันทึกกำหนดเวลา</button>
           </div>
           <div id="schedule-result" class="schedule-result hidden"></div>
+          <div class="publish-block">
+            <p class="studio-panel-title">Publish Queue <small>อนุมัติ/ส่งออกแล้ว — โพสต์ด้วยมือเท่านั้น</small></p>
+            <ul id="publish-queue" class="publish-queue"></ul>
+          </div>
         </section>
 
         <section class="studio-panel right-drawer hidden" id="drawer-source-library">
@@ -7102,6 +6990,11 @@ textarea::placeholder {
                 <button type="button" id="snap-ai-extract" class="btn btn-outline">อ่านข้อมูลด้วย AI</button>
                 <span id="snap-ai-status" class="muted small"></span>
               </div>
+            </div>
+            <div class="snap-panel">
+              <label class="snap-category"><input type="radio" name="snap-category" value="clothing" checked><span>เสื้อผ้าแฟชั่น</span></label>
+              <label class="snap-category"><input type="radio" name="snap-category" value="beauty"><span>ความงาม</span></label>
+              <label class="snap-category"><input type="radio" name="snap-category" value="food"><span>อาหารและเครื่องดื่ม</span></label>
             </div>
             <div class="snap-fields">
               <div class="form-group">
@@ -7173,6 +7066,7 @@ textarea::placeholder {
           <div class="library-toolbar">
             <span class="library-title">Content Library</span>
             <div class="library-actions">
+              <button type="button" id="library-expand" class="btn btn-ghost btn-sm" aria-pressed="false" title="ขยายเป็นตารางเต็มจอ">⤢ ขยาย</button>
               <button type="button" id="refresh-library" class="btn btn-ghost btn-sm">รีเฟรช</button>
               <button type="button" id="set-active" class="btn btn-primary btn-sm">ตั้งเป็น Active Lineage</button>
             </div>
@@ -7236,20 +7130,6 @@ textarea::placeholder {
         <button type="button" class="btn btn-secondary" data-dismiss="modal">ยกเลิก</button>
         <button type="button" class="btn btn-primary" id="confirm-offers">เพิ่มข้อเสนอเป็น Candidate</button>
       </div>
-    </div>
-  </div>
-
-  <div id="snap-workflow" class="snap-workflow hidden">
-    <h4>📸 Workflow Snap Shopee</h4>
-    <div class="snap-steps">
-      <div class="snap-step is-active"><span class="snap-step-num">1</span><span class="snap-step-desc">เลือกหมวดหมู่</span></div>
-      <div class="snap-step"><span class="snap-step-num">2</span><span class="snap-step-desc">ถ่ายภาพสินค้า</span></div>
-      <div class="snap-step"><span class="snap-step-num">3</span><span class="snap-step-desc">บันทึกข้อมูล</span></div>
-    </div>
-    <div class="snap-panel">
-      <label class="snap-category"><input type="radio" name="snap-category" value="clothing" checked><span>เสื้อผ้าแฟชั่น</span></label>
-      <label class="snap-category"><input type="radio" name="snap-category" value="beauty"><span>ความงาม</span></label>
-      <label class="snap-category"><input type="radio" name="snap-category" value="food"><span>อาหารและเครื่องดื่ม</span></label>
     </div>
   </div>
 
@@ -7468,6 +7348,7 @@ textarea::placeholder {
           <input id="actor-search" type="search" placeholder="ค้นชื่อ / บทบาท / แท็ก">
           <button type="button" id="actor-gen-toggle" class="chip-btn">✨ สร้างด้วย AI</button>
           <button type="button" id="actor-new" class="chip-btn accent">+ นักแสดงใหม่</button>
+          <button type="button" id="actor-expand" class="chip-btn" aria-pressed="false" title="ขยายเป็นตารางกว้าง">⤢ ขยาย</button>
           <button type="button" id="actor-close" class="btn btn-ghost btn-sm">ปิด</button>
         </div>
       </header>
@@ -7582,6 +7463,15 @@ textarea::placeholder {
         <h4>⚙️ ตั้งค่า — AI Agent (OpenRouter)</h4>
         <button type="button" id="settings-close" class="btn btn-ghost">ปิด</button>
       </div>
+      <div class="settings-theme">
+        <p class="settings-theme-label">ธีม (Appearance)</p>
+        <div class="theme-switch" role="group" aria-label="เลือกธีม">
+          <button type="button" class="theme-opt" data-theme-choice="dark">🌙 มืด</button>
+          <button type="button" class="theme-opt" data-theme-choice="light">☀️ สว่าง</button>
+        </div>
+        <p class="muted small">จำค่าไว้ในเครื่องนี้ (localStorage) — มีผลกับทุกหน้าจอทันที</p>
+      </div>
+
       <p class="muted small">คีย์จะถูกส่งขึ้นเซิร์ฟเวอร์ครั้งเดียวและเก็บใน<b>หน่วยความจำ</b>เท่านั้น — ปิดเซิร์ฟเวอร์เมื่อไหร่คีย์หายทันที ไม่เขียนลงไฟล์ ไม่เก็บในเบราว์เซอร์ และอ่านกลับมาได้เฉพาะรูปแบบปิดบัง (••••1234)</p>
       <div class="settings-form">
         <label><span>ผู้ให้บริการ AI (provider) — ทุกขั้นตอนใช้ตัวที่เลือกเป็นค่าเริ่มต้น</span>
@@ -7759,38 +7649,6 @@ textarea::placeholder {
 
     .stage-track-label { color: var(--ace-mute); }
     .stage-track-label b { color: #fff; }
-
-    .studio-search input {
-      width: 260px;
-      max-width: 42vw;
-      padding: 9px 34px 9px 14px;
-      border-radius: 999px;
-      border: 1px solid var(--ace-line);
-      background: var(--ace-surface-2);
-      color: var(--ace-ink);
-      font: inherit;
-    }
-
-    .studio-search input::placeholder { color: #8b82b8; }
-
-    .studio-search input:focus-visible {
-      outline: none;
-      border-color: var(--ace-line-strong);
-      box-shadow: 0 0 0 3px rgba(139, 124, 255, 0.18);
-    }
-
-    .studio-search > span {
-      position: absolute;
-      right: 12px;
-      display: grid;
-      place-items: center;
-      color: var(--ace-mute);
-      pointer-events: none;
-    }
-
-    .studio-search > span svg { width: 16px; height: 16px; }
-
-    .studio-search { position: relative; display: flex; align-items: center; }
 
     .icon-pill {
       position: relative;
@@ -8029,22 +7887,6 @@ textarea::placeholder {
       background: var(--ace-surface-2);
       border-color: var(--ace-line);
     }
-
-    .profile-card {
-      border: 1px solid var(--ace-line);
-      border-radius: var(--ace-radius-panel);
-      background: var(--ace-surface);
-    }
-
-    .profile-avatar {
-      display: grid;
-      place-items: center;
-      border-radius: 50%;
-      background: linear-gradient(135deg, var(--brand-primary), var(--brand-cyan));
-      color: #fff;
-    }
-
-    .profile-avatar svg { width: 18px; height: 18px; }
 
     /* ---------- tabs & chips ---------- */
 
@@ -8483,14 +8325,1244 @@ textarea::placeholder {
     .pool-new-offer { flex: none; margin-left: auto; }
 
     #quick-start, .chip-btn { white-space: nowrap; }
-<arg_value><b88a6f17>    @media (max-width: 860px) {
-      .studio-search input { width: 100%; max-width: none; }
-    }
-
-    @media (prefers-reduced-motion: reduce) {
+    @media (prefers-reduced-motion: reduce) {
       * {
         transition-duration: 0.01ms !important;
         animation-duration: 0.01ms !important;
+      }
+    }
+    </style>
+
+    <style id="ace-theme-v2">
+    /* =====================================================================
+       ACE theme v2 — "Studio Slate"
+
+       A full re-skin that loads after every earlier CSS generation: neutral
+       charcoal surfaces, one mint accent, amber reserved for money, hairline
+       borders instead of glow, one radius/spacing scale, calmer typography.
+       Layout, markup, state classes (.hidden / .is-active / [aria-pressed])
+       and every workflow gate are untouched — only the visual layer changes.
+
+       To re-skin again, edit the tokens in :root below; nothing else needs to
+       move.
+       ===================================================================== */
+    :root {
+      /* palette */
+      --v2-bg: #0a0d11;
+      --v2-bg-deep: #070a0d;
+      --v2-surface: #12171d;
+      --v2-surface-2: #171d25;
+      --v2-surface-3: #1e252f;
+      --v2-line: rgba(255, 255, 255, 0.08);
+      --v2-line-strong: rgba(255, 255, 255, 0.16);
+      --v2-ink: #e9eef4;
+      --v2-ink-2: #b3c0cc;
+      --v2-ink-3: #7b8896;
+      --v2-accent: #3ee0c0;
+      --v2-accent-soft: rgba(62, 224, 192, 0.14);
+      --v2-accent-line: rgba(62, 224, 192, 0.4);
+      --v2-accent-ink: #04231d;
+      --v2-money: #ffc46b;
+      --v2-ok: #5be49b;
+      --v2-warn: #f7c268;
+      --v2-danger: #ff8080;
+
+      /* one radius / spacing / elevation scale */
+      --v2-r-panel: 16px;
+      --v2-r-card: 12px;
+      --v2-r-input: 10px;
+      --v2-shadow: 0 1px 0 rgba(255, 255, 255, 0.04) inset, 0 18px 40px -30px rgba(0, 0, 0, 0.9);
+      --v2-shadow-lift: 0 1px 0 rgba(255, 255, 255, 0.06) inset, 0 24px 48px -28px rgba(0, 0, 0, 0.95);
+      --v2-ease: cubic-bezier(0.22, 0.61, 0.36, 1);
+
+      /* re-point every legacy token so old rules pick up the new palette */
+      --brand-primary: var(--v2-accent);
+      --brand-primary-deep: #26b79c;
+      --brand-accent: var(--v2-money);
+      --brand-accent-2: #ff8fa3;
+      --brand-cyan: #79d6e8;
+      --brand-green: var(--v2-ok);
+      --ace-bg: var(--v2-bg);
+      --ace-surface: var(--v2-surface);
+      --ace-surface-2: var(--v2-surface-2);
+      --ace-line: var(--v2-line);
+      --ace-line-strong: var(--v2-line-strong);
+      --ace-ink: var(--v2-ink);
+      --ace-mute: var(--v2-ink-3);
+      --ace-radius-panel: var(--v2-r-panel);
+      --ace-radius-card: var(--v2-r-card);
+      --ace-radius-input: var(--v2-r-input);
+      --ace-shadow: var(--v2-shadow);
+      --ink: var(--v2-ink);
+      --ink-soft: var(--v2-ink-2);
+      --ink-mute: var(--v2-ink-3);
+      --paper: var(--v2-bg);
+      --card: var(--v2-surface);
+      --line: var(--v2-line);
+      --line-soft: rgba(255, 255, 255, 0.05);
+      --radius: var(--v2-r-panel);
+      --shadow: var(--v2-shadow);
+      --tree: var(--v2-accent);
+      --tree-text: var(--v2-accent-ink);
+      --tree-2: var(--v2-surface-2);
+      --tree-line: var(--v2-line-strong);
+      --studio-panel: var(--v2-surface);
+      --studio-orange: var(--v2-money);
+      --studio-cyan: var(--v2-accent);
+      --studio-magenta: #ff8fa3;
+      --green: var(--v2-ok);
+      --green-soft: rgba(91, 228, 155, 0.12);
+      --green-line: rgba(91, 228, 155, 0.38);
+      --amber: var(--v2-warn);
+      --amber-soft: rgba(247, 194, 104, 0.12);
+      --amber-line: rgba(247, 194, 104, 0.38);
+      --red: var(--v2-danger);
+      --red-soft: rgba(255, 128, 128, 0.12);
+      --red-line: rgba(255, 128, 128, 0.38);
+      --indigo: var(--v2-accent);
+      --indigo-soft: var(--v2-accent-soft);
+      --indigo-line: var(--v2-accent-line);
+      --serif: var(--sans);
+    }
+
+    /* ---------- base ---------- */
+
+    html {
+      background: var(--v2-bg-deep);
+    }
+
+    html,
+    body {
+      background:
+        radial-gradient(1100px 620px at 78% -12%, rgba(62, 224, 192, 0.1) 0%, transparent 62%),
+        radial-gradient(900px 520px at 6% 108%, rgba(255, 196, 107, 0.06) 0%, transparent 60%),
+        var(--v2-bg);
+      color: var(--v2-ink);
+      font-size: 14.5px;
+      line-height: 1.6;
+      letter-spacing: 0.005em;
+    }
+
+    ::selection {
+      background: var(--v2-accent-soft);
+      color: var(--v2-ink);
+    }
+
+    :focus-visible {
+      outline: 2px solid var(--v2-accent);
+      outline-offset: 2px;
+      border-radius: 6px;
+    }
+
+    * {
+      scrollbar-width: thin;
+      scrollbar-color: var(--v2-surface-3) transparent;
+    }
+
+    *::-webkit-scrollbar { width: 10px; height: 10px; }
+    *::-webkit-scrollbar-thumb {
+      background: var(--v2-surface-3);
+      border: 3px solid transparent;
+      border-radius: 999px;
+      background-clip: content-box;
+    }
+
+    a { color: var(--v2-accent); text-decoration-color: var(--v2-accent-line); }
+
+    h2, h3, h4 {
+      color: var(--v2-ink);
+      letter-spacing: -0.01em;
+      font-weight: 700;
+    }
+
+    .muted { color: var(--v2-ink-3); }
+    .small { font-size: 11.5px; line-height: 1.5; }
+
+    /* ---------- top bar ---------- */
+
+    .studio-topbar {
+      background: linear-gradient(180deg, rgba(10, 13, 17, 0.94), rgba(10, 13, 17, 0.72));
+      border-bottom: 1px solid var(--v2-line);
+      backdrop-filter: blur(14px) saturate(120%);
+      -webkit-backdrop-filter: blur(14px) saturate(120%);
+    }
+
+    .studio-logo-mark {
+      background: linear-gradient(140deg, var(--v2-accent), #1f9c86);
+      color: var(--v2-accent-ink);
+      border-radius: 11px;
+      box-shadow: 0 8px 22px -14px rgba(62, 224, 192, 0.9);
+    }
+
+    .studio-logo-title {
+      color: var(--v2-ink);
+      font-weight: 800;
+      letter-spacing: 0.14em;
+      font-size: 11px;
+    }
+
+    .studio-logo-sub {
+      color: var(--v2-ink-3);
+      letter-spacing: 0.16em;
+      font-size: 9.5px;
+      text-transform: uppercase;
+    }
+
+    .detail-panel input[type="search"] {
+      background: var(--v2-surface-2);
+      border: 1px solid var(--v2-line);
+      border-radius: 999px;
+      color: var(--v2-ink);
+      transition: border-color 140ms var(--v2-ease), background 140ms var(--v2-ease);
+    }
+
+    .icon-pill,
+    .profile-pill,
+    .mode-pill {
+      background: var(--v2-surface-2);
+      border: 1px solid var(--v2-line);
+      color: var(--v2-ink-2);
+      border-radius: 999px;
+      transition: background 140ms var(--v2-ease), border-color 140ms var(--v2-ease), color 140ms var(--v2-ease);
+    }
+
+    .icon-pill:hover,
+    .profile-pill:hover,
+    .mode-pill:hover {
+      background: var(--v2-surface-3);
+      border-color: var(--v2-line-strong);
+      color: var(--v2-ink);
+    }
+
+    .icon-pill .dot {
+      background: var(--v2-money);
+      color: var(--v2-accent-ink);
+      font-weight: 800;
+    }
+
+    .mode-pill {
+      color: var(--v2-accent);
+      border-color: var(--v2-accent-line);
+      background: var(--v2-accent-soft);
+      font-weight: 700;
+      letter-spacing: 0.02em;
+    }
+
+    .mode-pill.is-advance {
+      color: var(--v2-money);
+      border-color: rgba(255, 196, 107, 0.45);
+      background: rgba(255, 196, 107, 0.12);
+    }
+
+    .profile-pill-dot {
+      background: var(--v2-accent);
+      box-shadow: 0 0 0 3px var(--v2-accent-soft);
+    }
+
+    /* ---------- stage progress ---------- */
+
+    .stage-track {
+      background: var(--v2-surface-2);
+      border: 1px solid var(--v2-line);
+      border-radius: 999px;
+      overflow: hidden;
+    }
+
+    .stage-track span { background: transparent; }
+
+    .stage-track span.is-on {
+      background: linear-gradient(90deg, var(--v2-accent), #1f9c86);
+    }
+
+    .stage-track-label {
+      color: var(--v2-ink-3);
+      letter-spacing: 0.12em;
+      font-size: 9.5px;
+    }
+
+    .stage-track-label b { color: var(--v2-ink-2); }
+
+    /* ---------- footer nav ---------- */
+
+    .mvp-footer {
+      background: linear-gradient(180deg, rgba(10, 13, 17, 0.55), rgba(7, 10, 13, 0.96));
+      border-top: 1px solid var(--v2-line);
+      backdrop-filter: blur(14px);
+      -webkit-backdrop-filter: blur(14px);
+    }
+
+    .footer-nav {
+      gap: 2px;
+      align-items: center;
+    }
+
+    .footer-nav-btn {
+      color: var(--v2-ink-3);
+      font-weight: 700;
+      font-size: 12.5px;
+      letter-spacing: 0.01em;
+      text-transform: none;
+      padding: 7px 12px;
+      border-radius: 999px;
+      transition: color 140ms var(--v2-ease), background 140ms var(--v2-ease);
+    }
+
+    .footer-nav-btn:hover {
+      color: var(--v2-ink);
+      background: var(--v2-surface-2);
+      text-shadow: none;
+    }
+
+    .footer-nav-btn.active,
+    .footer-nav-btn[aria-pressed="true"] {
+      color: var(--v2-accent-ink);
+      background: linear-gradient(140deg, var(--v2-accent), #29c3a6);
+      text-shadow: none;
+      box-shadow: 0 8px 22px -16px rgba(62, 224, 192, 0.9);
+    }
+
+    .nav-sep { color: var(--v2-line-strong); }
+
+    .stage-step-btn {
+      background: var(--v2-surface-2);
+      border: 1px solid var(--v2-line);
+      color: var(--v2-ink-2);
+      border-radius: 10px;
+    }
+
+    .stage-step-btn:hover {
+      background: var(--v2-surface-3);
+      border-color: var(--v2-line-strong);
+      color: var(--v2-ink);
+    }
+
+    /* ---------- panels ---------- */
+
+    .studio-panel,
+    .detail-panel,
+    .library-panel,
+    .snap-panel,
+    .offers-import {
+      background: var(--v2-surface);
+      border: 1px solid var(--v2-line);
+      border-radius: var(--v2-r-panel);
+      box-shadow: var(--v2-shadow);
+    }
+
+    .studio-panel { padding: 13px 14px; }
+
+    .studio-panel-head {
+      border-bottom: 1px solid var(--v2-line);
+      padding-bottom: 9px;
+      margin-bottom: 10px;
+    }
+
+    .studio-panel-title {
+      color: var(--v2-ink-2);
+      font-size: 10.5px;
+      font-weight: 700;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+    }
+
+    .studio-panel-title::before {
+      background: var(--v2-accent);
+      border-radius: 2px;
+      width: 3px;
+      height: 12px;
+    }
+
+    .studio-panel-title small {
+      color: var(--v2-ink-3);
+      font-weight: 600;
+      letter-spacing: 0.02em;
+      text-transform: none;
+    }
+
+    /* Workspace size, folded next to the pool count instead of its own card. */
+    .studio-panel-title .pool-meta {
+      margin-left: 2px;
+      padding-left: 8px;
+      border-left: 1px solid var(--v2-line);
+      font-weight: 500;
+    }
+
+    /* The pool header reads as a title block with one obvious primary action. */
+    .studio-col-left .studio-panel-head {
+      flex-direction: column;
+      align-items: stretch;
+      gap: 10px;
+    }
+
+    .studio-col-left .pool-new-offer { display: block; margin-left: 0; }
+    .studio-col-left .pool-new-offer > #quick-start { width: 100%; justify-content: center; }
+
+    /* Snap / Offers live in the Source Library drawer; these chips always reach it. */
+    .pool-source-actions { display: flex; gap: 6px; }
+    .pool-source-actions .chip-btn { flex: 1 1 0; justify-content: center; }
+    .studio-col-left .ai-status-chip { align-self: flex-start; }
+
+    .no-candidates,
+    .no-offers {
+      background: var(--v2-surface-2);
+      border-color: var(--v2-line);
+      color: var(--v2-ink-3);
+    }
+
+    .field-label {
+      color: var(--v2-ink-2);
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+    }
+
+    /* ---------- buttons ---------- */
+
+    .btn {
+      border-radius: var(--v2-r-input);
+      font-weight: 700;
+      letter-spacing: 0.01em;
+      transition: background 140ms var(--v2-ease), border-color 140ms var(--v2-ease), color 140ms var(--v2-ease), transform 140ms var(--v2-ease);
+    }
+
+    .btn:active { transform: translateY(1px); }
+
+    .btn-primary {
+      background: linear-gradient(140deg, var(--v2-accent), #29c3a6);
+      border: 1px solid transparent;
+      color: var(--v2-accent-ink);
+      box-shadow: 0 10px 24px -18px rgba(62, 224, 192, 0.95);
+    }
+
+    .btn-primary:hover {
+      filter: brightness(1.06);
+      box-shadow: 0 14px 28px -18px rgba(62, 224, 192, 1);
+    }
+
+    .btn-outline {
+      background: transparent;
+      border: 1px solid var(--v2-line-strong);
+      color: var(--v2-ink-2);
+    }
+
+    .btn-outline:hover {
+      border-color: var(--v2-accent-line);
+      color: var(--v2-ink);
+      background: var(--v2-accent-soft);
+    }
+
+    .btn-ghost {
+      background: var(--v2-surface-2);
+      border: 1px solid var(--v2-line);
+      color: var(--v2-ink-2);
+    }
+
+    .btn-ghost:hover {
+      background: var(--v2-surface-3);
+      color: var(--v2-ink);
+      border-color: var(--v2-line-strong);
+    }
+
+    .chip-btn {
+      background: var(--v2-surface-2);
+      border: 1px solid var(--v2-line);
+      border-radius: 999px;
+      color: var(--v2-ink-2);
+      font-weight: 700;
+      transition: background 140ms var(--v2-ease), border-color 140ms var(--v2-ease), color 140ms var(--v2-ease);
+    }
+
+    .chip-btn:hover {
+      background: var(--v2-surface-3);
+      border-color: var(--v2-line-strong);
+      color: var(--v2-ink);
+    }
+
+    .chip-btn.accent {
+      background: var(--v2-accent-soft);
+      border-color: var(--v2-accent-line);
+      color: var(--v2-accent);
+    }
+
+    .chip-btn.accent:hover {
+      background: rgba(62, 224, 192, 0.2);
+      color: #9df5e3;
+    }
+
+    .btn-send {
+      background: linear-gradient(140deg, var(--v2-money), #f2a63a);
+      color: #251603;
+      border: 1px solid transparent;
+      border-radius: var(--v2-r-input);
+      font-weight: 800;
+      letter-spacing: 0.03em;
+    }
+
+    .btn-send:hover { filter: brightness(1.06); }
+
+    /* ---------- forms ---------- */
+
+    .form-input,
+    .detail-panel select,
+    .detail-panel textarea,
+    .detail-panel input[type="text"],
+    .detail-panel input[type="number"],
+    .detail-panel input[type="url"],
+    .detail-panel input[type="date"],
+    #report-stage .perf-table input {
+      background: var(--v2-surface-2);
+      border: 1px solid var(--v2-line);
+      border-radius: var(--v2-r-input);
+      color: var(--v2-ink);
+    }
+
+    .form-input:focus-visible,
+    .detail-panel select:focus-visible,
+    .detail-panel textarea:focus-visible {
+      border-color: var(--v2-accent-line);
+      box-shadow: 0 0 0 3px var(--v2-accent-soft);
+      outline: none;
+    }
+
+    .form-input::placeholder,
+    .detail-panel textarea::placeholder { color: var(--v2-ink-3); }
+
+    .switch-row input[type="checkbox"],
+    .detail-panel input[type="checkbox"] { accent-color: var(--v2-accent); }
+
+    /* ---------- product cards, queues, lists ---------- */
+
+    .candidate-card,
+    .source-card,
+    .queue-item,
+    .snap-step,
+    .offers-preview .offer-row,
+    .actor-card,
+    .sync-item,
+    .offer-item,
+    .beat-card {
+      background: var(--v2-surface-2);
+      border: 1px solid var(--v2-line);
+      border-radius: var(--v2-r-card);
+      transition: border-color 140ms var(--v2-ease), background 140ms var(--v2-ease), transform 140ms var(--v2-ease);
+    }
+
+    .candidate-card:hover,
+    .source-card:hover,
+    .queue-item:hover,
+    .actor-card:hover {
+      background: var(--v2-surface-3);
+      border-color: var(--v2-line-strong);
+      transform: translateY(-1px);
+      box-shadow: var(--v2-shadow-lift);
+    }
+
+    .candidate-card .card-title { color: var(--v2-ink); font-weight: 700; }
+    .candidate-card-image { background: var(--v2-surface-3); }
+    .candidate-card-image.is-placeholder { color: var(--v2-ink-3); background: repeating-linear-gradient(135deg, var(--v2-surface-2), var(--v2-surface-2) 8px, var(--v2-surface-3) 8px, var(--v2-surface-3) 16px); }
+
+    .queue-index {
+      background: var(--v2-surface-3);
+      color: var(--v2-ink-2);
+      border-radius: 8px;
+      font-weight: 700;
+    }
+
+    /* ---------- hero ---------- */
+
+    .candidate-hero {
+      background: var(--v2-surface);
+      border: 1px solid var(--v2-line);
+      border-radius: var(--v2-r-panel);
+      box-shadow: var(--v2-shadow);
+    }
+
+    .hero-name { color: var(--v2-ink); letter-spacing: -0.01em; }
+    .hero-note, .hero-facts { color: var(--v2-ink-3); }
+    .hero-price { color: var(--v2-money); font-variant-numeric: tabular-nums; }
+    .hero-stars { color: var(--v2-money); }
+
+    /* ---------- tabs / rails ---------- */
+
+    .studio-tab {
+      color: var(--v2-ink-3);
+      border-radius: 999px;
+      font-weight: 700;
+      transition: color 140ms var(--v2-ease), background 140ms var(--v2-ease);
+    }
+
+    .studio-tab:hover { color: var(--v2-ink); background: var(--v2-surface-2); }
+
+    .studio-tab.is-active {
+      color: var(--v2-accent);
+      background: var(--v2-accent-soft);
+    }
+
+    .rail-btn {
+      border-radius: var(--v2-r-input);
+      color: var(--v2-ink-3);
+      transition: color 140ms var(--v2-ease), background 140ms var(--v2-ease);
+    }
+
+    .rail-btn:hover { color: var(--v2-ink); background: var(--v2-surface-2); }
+
+    .rail-btn.is-active { color: var(--v2-accent); background: var(--v2-accent-soft); }
+
+    .actor-type-chip {
+      background: var(--v2-surface-2);
+      border: 1px solid var(--v2-line);
+      border-radius: 999px;
+      color: var(--v2-ink-2);
+    }
+
+    .actor-type-chip.is-active {
+      background: var(--v2-accent-soft);
+      border-color: var(--v2-accent-line);
+      color: var(--v2-accent);
+    }
+
+    /* ---------- menus / popovers ---------- */
+
+    .new-offer-menu,
+    .profile-menu {
+      background: var(--v2-surface-2);
+      border: 1px solid var(--v2-line-strong);
+      border-radius: var(--v2-r-card);
+      box-shadow: 0 28px 60px -30px rgba(0, 0, 0, 0.95);
+    }
+
+    .new-offer-item,
+    .profile-menu-item {
+      border-radius: 9px;
+      color: var(--v2-ink-2);
+      transition: background 120ms var(--v2-ease), color 120ms var(--v2-ease);
+    }
+
+    .new-offer-item:hover,
+    .profile-menu-item:hover { background: var(--v2-surface-3); color: var(--v2-ink); }
+
+    .profile-menu-item.is-active { background: var(--v2-accent-soft); color: var(--v2-accent); }
+
+    .menu-divider { background: var(--v2-line); }
+
+    .menu-section-label {
+      color: var(--v2-ink-3);
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      font-size: 9.5px;
+    }
+
+    /* ---------- tables ---------- */
+
+    .perf-table,
+    .library-table {
+      border-collapse: separate;
+      border-spacing: 0;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .perf-table th,
+    .library-table th,
+    .library-th {
+      background: var(--v2-surface-2);
+      color: var(--v2-ink-3);
+      border-color: var(--v2-line);
+      font-size: 10.5px;
+      font-weight: 700;
+      letter-spacing: 0.09em;
+      text-transform: uppercase;
+    }
+
+    .perf-table td,
+    .library-table td {
+      border-color: var(--v2-line);
+      color: var(--v2-ink-2);
+    }
+
+    .perf-table tbody tr:hover td,
+    .library-table tbody tr:hover td { background: rgba(255, 255, 255, 0.03); }
+
+    .perf-num { color: var(--v2-ink); font-variant-numeric: tabular-nums; }
+    .perf-evidence { color: var(--v2-ink-3); }
+
+    .library-table-container {
+      background: var(--v2-surface);
+      border: 1px solid var(--v2-line);
+      border-radius: var(--v2-r-card);
+    }
+
+    /* Publish Queue: what was approved and sent out, with the link to hand. */
+    .publish-block {
+      margin-top: 14px;
+      padding-top: 12px;
+      border-top: 1px solid var(--v2-line);
+      display: grid;
+      gap: 8px;
+    }
+
+    .publish-queue { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+    .publish-queue .queue-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+      padding: 8px 10px;
+      border: 1px solid var(--v2-line);
+      border-radius: var(--v2-r-input);
+      background: var(--v2-surface-2);
+    }
+
+    /* The QC player must fit the reviewer's screen (1080×1920 portrait is tall). */
+    #qc-video {
+      display: block;
+      width: 100%;
+      max-width: 420px;
+      max-height: min(68vh, 700px);
+      height: auto;
+      margin: 0 auto;
+      border-radius: var(--v2-r-card);
+      background: #000;
+    }
+
+    /* ---- Expandable data panels: Content Library + Actor Studio ---- */
+
+    /* Collapsed: scroll inside a bounded box so many rows stay visible. */
+    #detail-library .library-table-container {
+      max-height: 52vh;
+      overflow: auto;
+    }
+
+    #detail-library.is-expanded {
+      position: fixed;
+      inset: 18px;
+      z-index: 85;
+      display: flex;
+      flex-direction: column;
+      width: auto;
+      max-width: none;
+      max-height: none;
+      box-shadow: 0 34px 90px -24px rgba(0, 0, 0, 0.7);
+    }
+
+    #detail-library.is-expanded .library-table-container {
+      flex: 1 1 auto;
+      min-height: 0;
+      max-height: none;
+    }
+
+    #detail-library.is-expanded .library-table th,
+    #detail-library.is-expanded .library-table td {
+      padding-top: 10px;
+      padding-bottom: 10px;
+    }
+
+    #actor-overlay .actor-shell { height: min(90vh, 940px); }
+    /* Let the roster fill the shell instead of collapsing to its content height. */
+    #actor-overlay .actor-panes { flex: 1 1 auto; min-height: 0; }
+
+    #actor-overlay.is-expanded .actor-shell {
+      width: min(1560px, 96vw);
+      height: 94vh;
+      max-height: 94vh;
+    }
+
+    /* Expanded roster reads as a wide multi-column table above the editor. */
+    #actor-overlay.is-expanded .actor-panes {
+      grid-template-columns: minmax(0, 1fr);
+      grid-template-rows: minmax(0, 42%) minmax(0, 1fr);
+    }
+
+    #actor-overlay.is-expanded .actor-pane-list {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+      align-content: start;
+      max-height: none;
+      border-right: 0;
+      border-bottom: 1px solid var(--v2-line);
+    }
+
+    /* ---------- dashboard + report ---------- */
+
+    .dashboard-header {
+      border-bottom: 1px solid var(--v2-line);
+      padding-bottom: 13px;
+    }
+
+    .dashboard-header h2 {
+      color: var(--v2-ink);
+      font-size: 20px;
+      font-weight: 700;
+      letter-spacing: -0.015em;
+    }
+
+    .dashboard-card,
+    .dashboard-trends,
+    .trend-chart {
+      background: var(--v2-surface);
+      border: 1px solid var(--v2-line);
+      border-radius: var(--v2-r-card);
+      box-shadow: var(--v2-shadow);
+    }
+
+    .dashboard-card { position: relative; overflow: hidden; }
+
+    .dashboard-card::before {
+      background: var(--v2-accent);
+      width: 100%;
+      height: 2px;
+      top: 0;
+      left: 0;
+    }
+
+    .dashboard-card.clicks-card::before { background: var(--v2-accent); }
+    .dashboard-card.orders-card::before { background: var(--v2-money); }
+    .dashboard-card.commission-card::before { background: var(--v2-ok); }
+    .dashboard-card.sales-card::before { background: var(--v2-money); }
+
+    .dashboard-card .card-head h3 {
+      color: var(--v2-ink-3);
+      font-size: 10.5px;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+    }
+
+    .card-value {
+      color: var(--v2-ink);
+      font-variant-numeric: tabular-nums;
+      letter-spacing: -0.02em;
+    }
+
+    .card-change { color: var(--v2-ink-3); }
+
+    .dashboard-trends h4 {
+      color: var(--v2-ink-2);
+      font-size: 11.5px;
+      font-weight: 700;
+      letter-spacing: 0.02em;
+    }
+
+    .rev-window {
+      background: var(--v2-surface-2);
+      border: 1px solid var(--v2-line);
+      border-radius: var(--v2-r-card);
+    }
+
+    .rev-window-title { color: var(--v2-ink-3); letter-spacing: 0.1em; text-transform: uppercase; font-size: 9.5px; }
+    .rev-big { color: var(--v2-money); font-variant-numeric: tabular-nums; }
+    .rev-line { color: var(--v2-ink-3); }
+
+    .top5-row {
+      background: var(--v2-surface-2);
+      border: 1px solid var(--v2-line);
+      border-radius: var(--v2-r-card);
+    }
+
+    .top5-rank { background: var(--v2-accent-soft); color: var(--v2-accent); border-radius: 8px; }
+    .top5-name { color: var(--v2-ink); }
+    .top5-value { color: var(--v2-money); font-variant-numeric: tabular-nums; }
+
+    #report-stage .report-empty-box {
+      background: var(--v2-surface);
+      border: 1px dashed var(--v2-line-strong);
+      border-radius: var(--v2-r-panel);
+    }
+
+    #report-stage .report-crumbs button { color: var(--v2-ink-3); }
+    #report-stage .report-crumbs button:hover { color: var(--v2-ink); background: var(--v2-surface-3); }
+    #report-stage .report-crumbs .crumb-sep { color: var(--v2-line-strong); }
+    #report-stage .report-crumbs .crumb-current { color: var(--v2-accent); }
+
+    #report-stage .chip-btn.is-active {
+      background: var(--v2-accent-soft);
+      border-color: var(--v2-accent-line);
+      color: var(--v2-accent);
+    }
+
+    #report-stage .perf-table tbody tr.is-clickable:hover td { background: var(--v2-accent-soft); }
+
+    /* ---------- overlays ---------- */
+
+    .qc-overlay,
+    .actor-overlay,
+    .settings-overlay,
+    .modal {
+      background: rgba(4, 7, 9, 0.78);
+      backdrop-filter: blur(7px);
+      -webkit-backdrop-filter: blur(7px);
+    }
+
+    .qc-shell,
+    .actor-shell,
+    .settings-card,
+    .modal-card {
+      background: var(--v2-surface);
+      border: 1px solid var(--v2-line-strong);
+      border-radius: var(--v2-r-panel);
+      box-shadow: 0 40px 90px -40px rgba(0, 0, 0, 1);
+    }
+
+    .qc-head,
+    .actor-head { border-bottom: 1px solid var(--v2-line); }
+    .qc-title, .actor-title { color: var(--v2-ink); letter-spacing: -0.01em; }
+    .qc-stage video { border-radius: var(--v2-r-card); background: #000; }
+    .qc-meta-row { border-bottom: 1px solid var(--v2-line); }
+    .qc-meta-row span { color: var(--v2-ink-3); }
+    .qc-meta-row b { color: var(--v2-ink); }
+    .qc-history-row { border-bottom: 1px solid var(--v2-line); }
+    .qc-history-when { color: var(--v2-ink-3); }
+    .qc-mini { background: var(--v2-surface-2); border: 1px solid var(--v2-line); border-radius: var(--v2-r-card); }
+
+    /* ---------- slots, toasts, status ---------- */
+
+    .slot-row {
+      background: var(--v2-surface-2);
+      border: 1px solid var(--v2-line);
+      border-radius: var(--v2-r-input);
+    }
+
+    .slot-row .slot-time {
+      color: var(--v2-accent);
+      font-family: var(--mono);
+      font-variant-numeric: tabular-nums;
+    }
+
+    .slot-remove { color: var(--v2-ink-3); }
+    .slot-remove:hover { color: var(--v2-danger); }
+
+    .toast {
+      background: var(--v2-surface-3);
+      border: 1px solid var(--v2-line-strong);
+      color: var(--v2-ink);
+      border-radius: var(--v2-r-card);
+      box-shadow: 0 24px 50px -30px rgba(0, 0, 0, 1);
+    }
+
+    .status-active { color: var(--v2-ok); border-color: var(--green-line); background: var(--green-soft); }
+    .status-approved, .status-pending, .status-rejected, .status-draft { border-radius: 999px; }
+
+    .lineage-line { background: var(--v2-line); }
+
+    /* ---------- Settings: appearance switch ---------- */
+
+    .settings-theme {
+      border-bottom: 1px solid var(--v2-line);
+      padding-bottom: 13px;
+      margin-bottom: 13px;
+    }
+
+    .settings-theme-label {
+      color: var(--v2-ink-3);
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      margin-bottom: 7px;
+    }
+
+    .theme-switch {
+      display: inline-flex;
+      gap: 4px;
+      padding: 4px;
+      border: 1px solid var(--v2-line);
+      border-radius: 12px;
+      background: var(--v2-surface-2);
+    }
+
+    .theme-opt {
+      padding: 7px 16px;
+      border: 1px solid transparent;
+      border-radius: 9px;
+      background: transparent;
+      color: var(--v2-ink-3);
+      font-size: 12px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: background 140ms var(--v2-ease), color 140ms var(--v2-ease), border-color 140ms var(--v2-ease);
+    }
+
+    .theme-opt:hover { color: var(--v2-ink); background: var(--v2-surface-3); }
+
+    .theme-opt[aria-pressed="true"] {
+      background: var(--v2-accent-soft);
+      border-color: var(--v2-accent-line);
+      color: var(--v2-accent);
+    }
+
+    /* =====================================================================
+       Light theme — same tokens, same components, inverted surface scale.
+       Every rule below is a token swap or a surface that was hardcoded dark
+       in an earlier CSS generation, so the layout stays identical.
+       ===================================================================== */
+
+    [data-theme="light"] {
+      --v2-bg: #f5f8f7;
+      --v2-bg-deep: #eaf0ee;
+      --v2-surface: #ffffff;
+      --v2-surface-2: #f2f6f4;
+      --v2-surface-3: #e6eeea;
+      --v2-line: rgba(9, 30, 26, 0.1);
+      --v2-line-strong: rgba(9, 30, 26, 0.22);
+      --v2-ink: #0d1a16;
+      --v2-ink-2: #394a45;
+      --v2-ink-3: #64746e;
+      --v2-accent: #0b8e76;
+      --v2-accent-soft: rgba(11, 142, 118, 0.12);
+      --v2-accent-line: rgba(11, 142, 118, 0.38);
+      --v2-accent-ink: #ffffff;
+      --v2-money: #94590a;
+      --v2-ok: #0f7a4d;
+      --v2-warn: #8a5a04;
+      --v2-danger: #b3261e;
+      --v2-shadow: 0 1px 2px rgba(9, 30, 26, 0.06), 0 16px 34px -28px rgba(9, 30, 26, 0.5);
+      --v2-shadow-lift: 0 1px 2px rgba(9, 30, 26, 0.08), 0 22px 40px -28px rgba(9, 30, 26, 0.55);
+
+      --brand-primary: var(--v2-accent);
+      --brand-primary-deep: #087863;
+      --brand-accent: #c47f12;
+      --brand-accent-2: #d1477a;
+      --brand-cyan: #0c7f8c;
+      --brand-green: var(--v2-ok);
+      --ace-bg: var(--v2-bg);
+      --ace-surface: var(--v2-surface);
+      --ace-surface-2: var(--v2-surface-2);
+      --ace-line: var(--v2-line);
+      --ace-line-strong: var(--v2-line-strong);
+      --ace-ink: var(--v2-ink);
+      --ace-mute: var(--v2-ink-3);
+      --ace-shadow: var(--v2-shadow);
+      --ink: var(--v2-ink);
+      --ink-soft: var(--v2-ink-2);
+      --ink-mute: var(--v2-ink-3);
+      --paper: var(--v2-bg);
+      --card: var(--v2-surface);
+      --line: var(--v2-line);
+      --line-soft: rgba(9, 30, 26, 0.06);
+      --shadow: var(--v2-shadow);
+      --tree: var(--v2-accent);
+      --tree-text: var(--v2-accent-ink);
+      --tree-2: var(--v2-surface-2);
+      --tree-line: var(--v2-line-strong);
+      --studio-panel: var(--v2-surface);
+      --green: var(--v2-ok);
+      --green-soft: rgba(15, 122, 77, 0.1);
+      --green-line: rgba(15, 122, 77, 0.34);
+      --amber: var(--v2-warn);
+      --amber-soft: rgba(138, 90, 4, 0.1);
+      --amber-line: rgba(138, 90, 4, 0.3);
+      --red: var(--v2-danger);
+      --red-soft: rgba(179, 38, 30, 0.08);
+      --red-line: rgba(179, 38, 30, 0.3);
+      --indigo: var(--v2-accent);
+      --indigo-soft: var(--v2-accent-soft);
+      --indigo-line: var(--v2-accent-line);
+    }
+
+    [data-theme="light"] html,
+    [data-theme="light"] body,
+    html[data-theme="light"],
+    [data-theme="light"] body {
+      background:
+        radial-gradient(1000px 560px at 80% -14%, rgba(11, 142, 118, 0.1) 0%, transparent 60%),
+        radial-gradient(820px 480px at 4% 108%, rgba(196, 127, 18, 0.07) 0%, transparent 58%),
+        var(--v2-bg);
+      color: var(--v2-ink);
+    }
+
+    [data-theme="light"] .studio-topbar {
+      background: linear-gradient(180deg, rgba(255, 255, 255, 0.94), rgba(255, 255, 255, 0.74));
+      border-bottom-color: var(--v2-line);
+    }
+
+    [data-theme="light"] .mvp-footer {
+      background: linear-gradient(180deg, rgba(255, 255, 255, 0.6), rgba(240, 245, 243, 0.97));
+      border-top-color: var(--v2-line);
+    }
+
+    [data-theme="light"] .footer-nav-btn.active,
+    [data-theme="light"] .footer-nav-btn[aria-pressed="true"] {
+      color: #ffffff;
+      background: linear-gradient(140deg, var(--v2-accent), #087863);
+    }
+
+    [data-theme="light"] .btn-primary {
+      color: #ffffff;
+      background: linear-gradient(140deg, var(--v2-accent), #087863);
+    }
+
+    [data-theme="light"] .btn-send {
+      background: linear-gradient(140deg, #e7ab2f, #c9861a);
+      color: #2a1a02;
+    }
+
+    [data-theme="light"] .mode-pill { color: var(--v2-accent); }
+    [data-theme="light"] .mode-pill.is-advance { color: #8a5a04; }
+
+    [data-theme="light"] .icon-pill,
+    [data-theme="light"] .profile-pill,
+    [data-theme="light"] .stage-step-btn,
+    [data-theme="light"] .skip-link {
+      background: var(--v2-surface);
+      border-color: var(--v2-line);
+      color: var(--v2-ink-2);
+    }
+
+    [data-theme="light"] .icon-pill .dot { color: #251603; }
+
+    /* surfaces that carried a dark literal in an earlier generation */
+    [data-theme="light"] .candidate-card,
+    [data-theme="light"] .candidate-hero,
+    [data-theme="light"] .source-card,
+    [data-theme="light"] .queue-item,
+    [data-theme="light"] .queue-item-mini,
+    [data-theme="light"] .offer-row,
+    [data-theme="light"] .snap-step,
+    [data-theme="light"] .snap-preview-area,
+    [data-theme="light"] .plan-beat,
+    [data-theme="light"] .sb-row,
+    [data-theme="light"] .prod-actor,
+    [data-theme="light"] .frame-frame,
+    [data-theme="light"] .quickstart,
+    [data-theme="light"] .empty-state,
+    [data-theme="light"] .drop-zone,
+    [data-theme="light"] .channel-chip,
+    [data-theme="light"] .badge-mock,
+    [data-theme="light"] .actor-row,
+    [data-theme="light"] .actor-preview,
+    [data-theme="light"] .actor-pane-list,
+    [data-theme="light"] .settings-status,
+    [data-theme="light"] .slot-row,
+    [data-theme="light"] .rev-window,
+    [data-theme="light"] .top5-row,
+    [data-theme="light"] .library-table-container,
+    [data-theme="light"] .mvp-side,
+    [data-theme="light"] .sidebar,
+    [data-theme="light"] .shopee-menu {
+      background: var(--v2-surface-2);
+      border-color: var(--v2-line);
+      color: var(--v2-ink);
+    }
+
+    [data-theme="light"] .candidate-card:hover,
+    [data-theme="light"] .source-card:hover,
+    [data-theme="light"] .queue-item:hover {
+      background: var(--v2-surface-3);
+    }
+
+    [data-theme="light"] .candidate-card.is-selected,
+    [data-theme="light"] .pipeline-step.is-active,
+    [data-theme="light"] .snap-step.is-active {
+      background: var(--v2-accent-soft);
+      border-color: var(--v2-accent-line);
+    }
+
+    [data-theme="light"] .hero-image,
+    [data-theme="light"] .actor-preview-initials,
+    [data-theme="light"] .quality-donut::after {
+      background: var(--v2-surface-3);
+      color: var(--v2-ink-2);
+    }
+
+    /* Text that earlier generations hardcoded white on a surface this theme
+       lightens. Anything sitting on a gradient or a tinted badge is left alone. */
+    [data-theme="light"] .offer-row-name,
+    [data-theme="light"] .candidate-card .draft-content,
+    [data-theme="light"] .bullet-list b,
+    [data-theme="light"] .plan-field b,
+    [data-theme="light"] .quickstart h4,
+    [data-theme="light"] .empty-state b {
+      color: var(--v2-ink);
+    }
+
+    [data-theme="light"] .frame-visual.preset-cool,
+    [data-theme="light"] .frame-visual.preset-warm,
+    [data-theme="light"] .frame-visual.preset-light {
+      background: linear-gradient(140deg, var(--v2-surface-3), var(--v2-surface-2));
+      color: var(--v2-ink-2);
+    }
+
+    [data-theme="light"] .btn-secondary {
+      background: var(--v2-surface-2);
+      border: 1px solid var(--v2-line);
+      color: var(--v2-ink-2);
+    }
+
+    [data-theme="light"] .btn-primary:hover { filter: brightness(0.96); }
+
+    [data-theme="light"] .new-offer-menu,
+    [data-theme="light"] .profile-menu,
+    [data-theme="light"] .toast {
+      background: var(--v2-surface);
+      border-color: var(--v2-line-strong);
+      box-shadow: 0 28px 60px -34px rgba(9, 30, 26, 0.55);
+    }
+
+    [data-theme="light"] .qc-overlay,
+    [data-theme="light"] .actor-overlay,
+    [data-theme="light"] .settings-overlay,
+    [data-theme="light"] .modal {
+      background: rgba(13, 26, 22, 0.38);
+    }
+
+    [data-theme="light"] .qc-shell,
+    [data-theme="light"] .actor-shell,
+    [data-theme="light"] .settings-card,
+    [data-theme="light"] .modal-card,
+    [data-theme="light"] .modal-content {
+      background: var(--v2-surface);
+      border-color: var(--v2-line-strong);
+      box-shadow: 0 40px 90px -44px rgba(9, 30, 26, 0.7);
+    }
+
+    [data-theme="light"] .modal-footer,
+    [data-theme="light"] .qc-head,
+    [data-theme="light"] .actor-head {
+      border-color: var(--v2-line);
+    }
+
+    [data-theme="light"] .perf-table th,
+    [data-theme="light"] .library-table th,
+    [data-theme="light"] .library-th {
+      background: var(--v2-surface-2);
+      color: var(--v2-ink-3);
+    }
+
+    [data-theme="light"] .perf-table tbody tr:hover td,
+    [data-theme="light"] .library-table tbody tr:hover td {
+      background: rgba(9, 30, 26, 0.04);
+    }
+
+    [data-theme="light"] .actor-type-chip,
+    [data-theme="light"] .actor-type-filter {
+      background: var(--v2-surface-2);
+      border-color: var(--v2-line);
+      color: var(--v2-ink-2);
+    }
+
+    [data-theme="light"] .actor-type-chip.is-active {
+      background: var(--v2-accent-soft);
+      border-color: var(--v2-accent-line);
+      color: var(--v2-accent);
+    }
+
+    [data-theme="light"] .actor-avatar {
+      background: var(--v2-surface-3);
+      color: var(--v2-ink-2);
+    }
+
+    [data-theme="light"] .rail-btn::after { background: var(--v2-surface-3); }
+
+    [data-theme="light"] .qc-stage video { background: #000; }
+
+    /* ---------- motion ---------- */
+
+    @media (prefers-reduced-motion: reduce) {
+      *,
+      *::before,
+      *::after {
+        transition-duration: 0.01ms !important;
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
       }
     }
     </style>

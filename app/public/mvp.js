@@ -428,15 +428,14 @@ function attachEventListeners() {
   bindSettingsPanel();
   bindNewOfferMenu();
   bindRightNav();
-  var batchBtn = document.getElementById('batch-drafts');
-  if (batchBtn) batchBtn.addEventListener('click', generateBatchPostKits);
-  var trackBtn = document.getElementById('tracking-csv');
-  if (trackBtn) trackBtn.addEventListener('click', downloadTrackingCsv);
-  var resultsBtn = document.getElementById('results-csv');
+  bindPublishSchedule();
+  bindSourceShortcuts();
+  bindExpandToggles();
+  // The revenue tools live only in the "+ ข้อเสนอใหม่" menu; the hidden file input
+  // below is what that menu opens for the results import.
   var resultsInput = document.getElementById('results-csv-file');
-  if (resultsBtn && resultsInput && resultsBtn.dataset.bound !== '1') {
-    resultsBtn.dataset.bound = '1';
-    resultsBtn.addEventListener('click', function() { resultsInput.click(); });
+  if (resultsInput && resultsInput.dataset.bound !== '1') {
+    resultsInput.dataset.bound = '1';
     resultsInput.addEventListener('change', function() {
       handleResultsCsvFile(resultsInput.files && resultsInput.files[0]);
       resultsInput.value = '';
@@ -684,8 +683,6 @@ function renderAfterProfileChange() {
   selectedCandidateId = null;
   lastDraft = null;
   if (dom.contentDraftPanel) dom.contentDraftPanel.classList.add('hidden');
-  const search = document.getElementById('studio-search');
-  if (search) search.value = '';
   renderCandidatePool();
   renderContentLibrary();
   renderDashboard();
@@ -1561,13 +1558,13 @@ function renderCandidatePool() {
   if (!candidatePool || candidatePool.length === 0) {
     if (container) container.innerHTML = '';
     if (noData) {
-      noData.style.display = 'block';
+      noData.classList.remove('hidden');
       noData.textContent = 'ยังไม่มี candidate ในคลัง — วางข้อความจากหน้า Product Offer แล้วกด “อ่านข้อเสนอทั้งหมด” หรือ “✨ อ่านด้วย AI”, หรือใช้ Capture bookmarklet';
     }
     return;
   }
 
-  if (noData) noData.style.display = 'none';
+  if (noData) noData.classList.add('hidden');
 
   const term = (poolFilter || '').trim().toLowerCase();
   const filtered = term
@@ -1748,9 +1745,13 @@ function moveCandidateToLibrary(candidate) {
 
 // ----- Snap / Upload Workflow -----
 function showSnapWorkflow() {
-  hideAllSections();
-  if (dom.snapWorkflow) dom.snapWorkflow.classList.remove('hidden');
+  // The upload form lives in the Source Library drawer; open it explicitly so
+  // Snap still works when the right-hand rail is hidden on a narrow window.
+  if (typeof switchStage === 'function') switchStage('research');
+  openDrawer('source-library', true);
   resetSnapForm();
+  scrollToBlock('snap-upload-area');
+  showToast('ลากรูปสินค้าวาง หรือคลิกกรอบเพื่ออัปโหลด แล้วกด “สร้าง Candidate Card”', 'info');
 }
 
 function resetSnapForm() {
@@ -2562,35 +2563,151 @@ function addRecurringTask() {
   showToast('เพิ่มโปรไฟล์ Schedule แล้ว (' + slots.length + ' รอบ/วัน)' + (next ? ' — ครั้งถัดไป ' + next.toLocaleString('th-TH', { weekday: 'short', hour: '2-digit', minute: '2-digit' }) : ''), 'success');
 }
 
+/* Content Library and Actor Studio can widen into a full table view;
+   the same button (or Esc) returns them to their drawer size. */
+const EXPAND_PANELS = [
+  { button: 'library-expand', panel: 'detail-library' },
+  { button: 'actor-expand', panel: 'actor-overlay' }
+];
+
+function setPanelExpanded(panelId, expanded) {
+  const panel = document.getElementById(panelId);
+  if (!panel) return;
+  panel.classList.toggle('is-expanded', expanded);
+  const pair = EXPAND_PANELS.filter(function(p) { return p.panel === panelId; })[0];
+  const btn = pair && document.getElementById(pair.button);
+  if (!btn) return;
+  btn.setAttribute('aria-pressed', expanded ? 'true' : 'false');
+  btn.textContent = expanded ? '⤡ ย่อ' : '⤢ ขยาย';
+}
+
+function bindExpandToggles() {
+  EXPAND_PANELS.forEach(function(pair) {
+    const btn = document.getElementById(pair.button);
+    if (!btn || btn.dataset.bound === '1') return;
+    btn.dataset.bound = '1';
+    btn.addEventListener('click', function() {
+      const panel = document.getElementById(pair.panel);
+      setPanelExpanded(pair.panel, !(panel && panel.classList.contains('is-expanded')));
+    });
+  });
+  if (document.body.dataset.expandBound === '1') return;
+  document.body.dataset.expandBound = '1';
+  document.addEventListener('keydown', function(event) {
+    if (event.key !== 'Escape') return;
+    EXPAND_PANELS.forEach(function(pair) { setPanelExpanded(pair.panel, false); });
+  });
+}
+
+const DRAWER_IDS = {
+  'schedule': 'drawer-schedule',
+  'queue': 'drawer-queue',
+  'content-library': 'detail-library',
+  'source-library': 'drawer-source-library'
+};
+
+/* One owner for the right-hand drawers, so the rail, the Queue "Snap" button
+   and the pool shortcuts open the same panel even when the rail is hidden. */
+function openDrawer(key, forceOpen) {
+  const targetId = DRAWER_IDS[key];
+  const panel = targetId ? document.getElementById(targetId) : null;
+  if (!panel) return null;
+  const wasHidden = panel.classList.contains('hidden');
+  Object.keys(DRAWER_IDS).forEach(function(name) {
+    const other = document.getElementById(DRAWER_IDS[name]);
+    if (other) other.classList.add('hidden');
+  });
+  document.querySelectorAll('.rail-btn[data-drawer]').forEach(function(btn) { btn.classList.remove('is-active'); });
+  if (!wasHidden && !forceOpen) return panel;
+  panel.classList.remove('hidden');
+  const railBtn = document.querySelector('.rail-btn[data-drawer="' + key + '"]');
+  if (railBtn) railBtn.classList.add('is-active');
+  if (key === 'schedule') { renderSlotInputs(null); renderScheduleTasks(); }
+  if (key === 'content-library' && typeof renderContentLibrary === 'function') renderContentLibrary();
+  if (key === 'source-library' && typeof renderSourceLibrary === 'function') renderSourceLibrary();
+  return panel;
+}
+
+/* Pool shortcuts: open the Source Library drawer and scroll to the block that
+   holds the upload / Offers import, independent of the rail's visibility. */
+/* The drawer only has a height once it is visible, so scroll on the next frame. */
+function scrollToBlock(targetId) {
+  const target = document.getElementById(targetId);
+  if (!target) return;
+  window.requestAnimationFrame(function() { target.scrollIntoView({ block: 'center' }); });
+}
+
+function openSourceDrawer(targetId) {
+  if (document.body.dataset.stage !== 'research') switchStage('research');
+  openDrawer('source-library', true);
+  scrollToBlock(targetId);
+}
+
+/* Publish schedule: the Publish Queue already holds approved work, so the
+   date the operator picks is recorded on those entries (no auto-publish). */
+function applyPublishSchedule() {
+  const titleEl = document.getElementById('schedule-name');
+  const dateEl = document.getElementById('schedule-date');
+  const modeEl = document.querySelector('input[name="schedule-status"]:checked');
+  const host = document.getElementById('schedule-result');
+  const title = titleEl ? titleEl.value.trim() : '';
+  const date = dateEl ? dateEl.value : '';
+  const mode = modeEl ? modeEl.value : 'schedule';
+
+  if (!publishQueue.length) {
+    showToast('ยังไม่มีรายการใน Publish Queue — อนุมัติใน Finalize แล้วกด “ส่งเข้า Publish Queue” ก่อน', 'warning');
+    return;
+  }
+  if (mode === 'schedule' && !date) {
+    showToast('เลือกวันที่ต้องการโพสต์ก่อน หรือเลือก “เผยแพร่ทันที”', 'warning');
+    if (dateEl) dateEl.focus();
+    return;
+  }
+
+  const label = mode === 'publish' ? 'เผยแพร่ทันที (โพสต์ด้วยมือ)' : 'ตั้งเวลา ' + date;
+  publishQueue.forEach(function(item) {
+    item.scheduledAt = mode === 'publish' ? new Date().toISOString() : date;
+    item.scheduleMode = mode;
+    if (title) item.scheduleTitle = title;
+    if (item.lineage && typeof pushLineageEvent === 'function') {
+      pushLineageEvent(item, 'ตั้งกำหนดโพสต์: ' + label, { title: title || null });
+    }
+  });
+  renderPublishQueue();
+
+  if (host) {
+    host.classList.remove('hidden');
+    host.innerHTML = '<p><b>' + escapeHtml(title || 'กำหนดการโพสต์') + '</b> — ' + escapeHtml(label) + '</p>' +
+      '<ul>' + publishQueue.map(function(item) {
+        return '<li>' + escapeHtml(item.name) + (item.affiliateLink ? ' — <a href="' + escapeHtml(item.affiliateLink) + '" target="_blank" rel="noopener noreferrer">ลิงก์</a>' : '') + '</li>';
+      }).join('') + '</ul>' +
+      '<p class="muted small">ACE ไม่โพสต์อัตโนมัติ — คัดลอกลิงก์/แคปชันแล้วโพสต์เองตามช่องทางที่เลือก</p>';
+  }
+  showToast('บันทึกกำหนดการโพสต์แล้ว (' + publishQueue.length + ' รายการ)', 'success');
+}
+
+function bindPublishSchedule() {
+  const btn = document.getElementById('confirm-schedule');
+  if (!btn || btn.dataset.bound === '1') return;
+  btn.dataset.bound = '1';
+  btn.addEventListener('click', applyPublishSchedule);
+}
+
+function bindSourceShortcuts() {
+  [['pool-snap', 'snap-upload-area'], ['pool-offers', 'offers-import']].forEach(function(pair) {
+    const btn = document.getElementById(pair[0]);
+    if (!btn || btn.dataset.bound === '1') return;
+    btn.dataset.bound = '1';
+    btn.addEventListener('click', function() { openSourceDrawer(pair[1]); });
+  });
+}
+
 function bindRightNav() {
   const rail = document.querySelector('.studio-rail');
   if (!rail || rail.dataset.navBound === '1') return;
   rail.dataset.navBound = '1';
-  const ids = {
-    'schedule': 'drawer-schedule',
-    'queue': 'drawer-queue',
-    'content-library': 'detail-library',
-    'source-library': 'drawer-source-library',
-  };
   rail.querySelectorAll('[data-drawer]').forEach(function(btn) {
-    btn.addEventListener('click', function() {
-      const targetId = ids[btn.dataset.drawer];
-      const panel = targetId ? document.getElementById(targetId) : null;
-      if (!panel) return;
-      const wasHidden = panel.classList.contains('hidden');
-      Object.keys(ids).forEach(function(key) {
-        const p = document.getElementById(ids[key]);
-        if (p) p.classList.add('hidden');
-      });
-      rail.querySelectorAll('[data-drawer]').forEach(function(b) { b.classList.remove('is-active'); });
-      if (wasHidden) {
-        panel.classList.remove('hidden');
-        btn.classList.add('is-active');
-        if (btn.dataset.drawer === 'schedule') { renderSlotInputs(null); renderScheduleTasks(); }
-        if (btn.dataset.drawer === 'content-library' && typeof renderContentLibrary === 'function') renderContentLibrary();
-        if (btn.dataset.drawer === 'source-library' && typeof renderSourceLibrary === 'function') renderSourceLibrary();
-      }
-    });
+    btn.addEventListener('click', function() { openDrawer(btn.dataset.drawer); });
   });
   rail.querySelectorAll('[data-action="actors"]').forEach(function(btn) {
     btn.addEventListener('click', function() {
@@ -3165,10 +3282,30 @@ function renderPublishQueue() {
   list.innerHTML = publishQueue.map(function(item, i) {
     return '<li class="queue-item">' +
       '<span class="queue-index">' + (i + 1) + '</span>' +
-      '<span class="queue-title">' + item.name + '</span>' +
-      '<span class="muted small">' + (item.exportNotes || '') + '</span>' +
+      '<span class="queue-title">' + escapeHtml(item.name) + '</span>' +
+      '<span class="muted small">' + escapeHtml(item.exportNotes || '') + '</span>' +
+      (item.affiliateLink
+        ? '<button type="button" class="chip-btn pq-copy" data-index="' + i + '">คัดลอกลิงก์</button>'
+        : '') +
     '</li>';
   }).join('');
+
+  if (list.dataset.bound !== '1') {
+    list.dataset.bound = '1';
+    list.addEventListener('click', function(event) {
+      const copyBtn = event.target.closest('.pq-copy');
+      if (!copyBtn) return;
+      const entry = publishQueue[Number(copyBtn.dataset.index)];
+      if (!entry || !entry.affiliateLink) return;
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(entry.affiliateLink)
+          .then(function() { showToast('คัดลอกลิงก์แล้ว — โพสต์ด้วยมือตามช่องทางที่เลือก', 'success'); })
+          .catch(function() { showToast('คัดลอกไม่สำเร็จ — คัดลอกจากข้อมูลสินค้าแทน', 'warning'); });
+      } else {
+        showToast(entry.affiliateLink, 'info');
+      }
+    });
+  }
 }
 
 // ----- Dashboard -----
@@ -3810,7 +3947,6 @@ const STAGE_SECTIONS = [
   'detail-library',
   'detail-schedule',
 
-  'snap-workflow',
   'actor-studio',
   'content-library',
   'library-sync',
@@ -3854,6 +3990,7 @@ const stageMap = {
       hideAllSections();
       // quick start + market research panel (holds the add-source buttons) + Source Library
       showSections(['detail-quickstart', 'candidate-hero', 'affiliate-panel', 'detail-content-tabs'], true);
+      setSelectionPanelsVisible(Boolean(currentCandidate()));
       renderSourceLibrary();
       showToast('เข้าสู่โหมด Research — สร้าง Candidate Pool ใหม่', 'info');
     }
@@ -3920,6 +4057,7 @@ const stageMap = {
       showSections(['detail-schedule', 'detail-library'], false);
       seedContentLibraryFromPool();
       renderContentLibrary();
+      renderPublishQueue();
       showToast('เข้าสู่โหมด Schedule - แผนการโพสต์และลำดับ', 'info');
     }
   }
@@ -4341,6 +4479,14 @@ function starsFor(rating) {
   return stars;
 }
 
+/** The link/channel panel and the presentation tabs only mean something once a product is selected. */
+function setSelectionPanelsVisible(visible) {
+  ['affiliate-panel', 'detail-content-tabs'].forEach(function(id) {
+    var el = document.getElementById(id);
+    if (el) el.classList.toggle('hidden', !visible);
+  });
+}
+
 function renderCandidateHero() {
   var c = currentCandidate();
   var name = document.getElementById('hero-name');
@@ -4362,9 +4508,11 @@ function renderCandidateHero() {
     if (image) { image.hidden = true; image.removeAttribute('src'); }
     renderCandidateTabs(null);
     renderAffiliatePanel();
+    setSelectionPanelsVisible(false);
     return;
   }
 
+  setSelectionPanelsVisible(true);
   name.textContent = c.name;
   if (note) {
     note.textContent = [c.shopName, c.category, c.evidence].filter(Boolean).join(' · ') || 'สินค้าจาก Shopee';
@@ -4547,14 +4695,6 @@ function bindStudioShell() {
     });
   }
 
-  var search = document.getElementById('studio-search');
-  if (search) {
-    search.addEventListener('input', function() {
-      poolFilter = search.value.trim();
-      poolVisibleCount = 20;
-      renderCandidatePool();
-    });
-  }
 }
 
 // ----- Product Offer import (Shopee Affiliate = only data source) -----
@@ -5014,9 +5154,9 @@ function renderAffiliatePanel() {
   const link = document.getElementById('aff-link');
   const channels = document.getElementById('aff-channels');
   const estimate = document.getElementById('aff-estimate');
-  if (!link || !channels) return;
+  if (!channels) return;
 
-  link.value = c ? c.affiliateLink || '' : '';
+  if (link) link.value = c ? c.affiliateLink || '' : '';
   const state = document.getElementById('hero-link-state');
   if (state) state.textContent = c && c.affiliateLink ? 'มีลิงก์แล้ว' : 'ยังไม่มีลิงก์';
 
@@ -5033,9 +5173,11 @@ function renderAffiliatePanel() {
     }
   }
 
-  link.placeholder = c
-    ? 'ยังไม่มีลิงก์ — กด “เอา ลิงก์” ใน Shopee Affiliate แล้ววางที่นี่'
-    : 'เลือกสินค้าก่อน';
+  if (link) {
+    link.placeholder = c
+      ? 'ยังไม่มีลิงก์ — กด “เอา ลิงก์” ใน Shopee Affiliate แล้ววางที่นี่'
+      : 'เลือกสินค้าก่อน';
+  }
 
   channels.innerHTML = PUBLISH_CHANNELS.map(function(channel) {
     const active = c ? c.channels.indexOf(channel.id) !== -1 : channel.id === 'shopee_video';
@@ -5069,17 +5211,6 @@ function renderAffiliatePanel() {
         ' — อัตราเดียวกันทุกช่องทาง ตัวเลขจริงขึ้นกับ Shopee';
     }
   }
-}
-
-function applyAffiliateLink() {
-  const c = ensureCandidateSettings(currentCandidate());
-  if (!c) return;
-  const input = document.getElementById('aff-link');
-  c.affiliateLink = input ? input.value.trim() : c.affiliateLink;
-  const badge = document.getElementById('hero-link-state');
-  if (badge) badge.textContent = c.affiliateLink ? 'มีลิงก์แล้ว' : 'ยังไม่มีลิงก์';
-  renderStudioMeta();
-  showToast(c.affiliateLink ? 'บันทึกลิงก์ข้อเสนอแล้ว' : 'ล้างลิงก์แล้ว', 'success');
 }
 
 function buildAffiliateLink() {
@@ -5125,37 +5256,12 @@ function bindAffiliatePanel() {
     });
   }
 
-  const copy = document.getElementById('aff-copy');
-  if (copy && copy.dataset.bound !== '1') {
-    copy.dataset.bound = '1';
-    copy.addEventListener('click', function() {
-      const input = document.getElementById('aff-link');
-      const value = input ? input.value.trim() : '';
-      if (!value) { showToast('ยังไม่มีลิงก์ให้คัดลอก', 'warning'); return; }
-      if (navigator.clipboard && navigator.clipboard.writeText) {
-        navigator.clipboard.writeText(value).then(function() {
-          showToast('คัดลอกลิงก์แล้ว', 'success');
-        }).catch(function() {
-          showToast('คัดลอกไม่สำเร็จ — คัดลอกด้วยมือได้เลย', 'warning');
-        });
-      } else {
-        input.select();
-        showToast('เลือกข้อความลิงก์แล้ว — กด Ctrl+C', 'info');
-      }
-    });
-  }
-
   const build = document.getElementById('aff-build-link');
   if (build && build.dataset.bound !== '1') {
     build.dataset.bound = '1';
     build.addEventListener('click', buildAffiliateLink);
   }
 
-  const save = document.getElementById('aff-save-link');
-  if (save && save.dataset.bound !== '1') {
-    save.dataset.bound = '1';
-    save.addEventListener('click', applyAffiliateLink);
-  }
 }
 
 // ===========================================================
@@ -5248,6 +5354,7 @@ function openActorStudio(actorId) {
 function closeActorStudio() {
   const overlay = document.getElementById('actor-overlay');
   if (overlay) overlay.classList.add('hidden');
+  setPanelExpanded('actor-overlay', false);
 }
 
 function renderActorStudio() {
@@ -6214,7 +6321,49 @@ function connectCaptureBridge() {
 
 // ----- Boot -----
 
+// ----- Theme (dark / light) -----
+// The switch lives in Settings (nav ⚙); there is no top-bar theme button.
+
+const THEME_KEY = 'ace.theme.v1';
+
+function currentTheme() {
+  return document.documentElement.dataset.theme === 'light' ? 'light' : 'dark';
+}
+
+function applyTheme(theme, persist) {
+  const value = theme === 'light' ? 'light' : 'dark';
+  document.documentElement.dataset.theme = value;
+  document.documentElement.style.colorScheme = value;
+  document.querySelectorAll('[data-theme-choice]').forEach(function(btn) {
+    btn.setAttribute('aria-pressed', btn.dataset.themeChoice === value ? 'true' : 'false');
+  });
+  if (!persist) return;
+  try {
+    localStorage.setItem(THEME_KEY, value);
+  } catch (error) {
+    // Storage blocked/full: the theme still applies for this session.
+  }
+}
+
+function initTheme() {
+  let saved = null;
+  try { saved = localStorage.getItem(THEME_KEY); } catch (error) { saved = null; }
+  applyTheme(saved || 'dark', false);
+}
+
+function bindThemeSwitch() {
+  const host = document.querySelector('.theme-switch');
+  if (!host || host.dataset.bound === '1') return;
+  host.dataset.bound = '1';
+  host.addEventListener('click', function(e) {
+    const btn = e.target instanceof Element ? e.target.closest('[data-theme-choice]') : null;
+    if (btn) applyTheme(btn.dataset.themeChoice, true);
+  });
+}
+
 function boot() {
+  initTheme();
+  bindThemeSwitch();
   initDomElements();
   attachEventListeners();
   loadProfileState();
