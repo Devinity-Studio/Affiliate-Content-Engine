@@ -7004,6 +7004,7 @@ textarea::placeholder {
                 <button type="button" id="pq-clear-selection" class="chip-btn">ล้างการเลือก</button>
               </div>
             </div>
+            <div id="publish-queue-summary" class="publish-queue-summary"></div>
             <ul id="publish-queue" class="publish-queue"></ul>
           </div>
         </section>
@@ -9188,6 +9189,32 @@ textarea::placeholder {
     }
 
     .queue-select-actions { display: flex; flex: none; gap: 6px; margin-left: auto; }
+
+    /* Queue overview: how much is late, what comes next, how many channels. */
+    .publish-queue-summary { display: flex; flex-wrap: wrap; gap: 6px; }
+    .publish-queue-summary:empty { display: none; }
+
+    .pq-stat {
+      padding: 2px 8px;
+      border-radius: 999px;
+      border: 1px solid var(--v2-line);
+      background: var(--v2-surface-2);
+      color: var(--v2-ink-3);
+      font-size: 11px;
+      line-height: 1.6;
+    }
+
+    .pq-stat.is-late {
+      color: #ff8f8f;
+      border-color: rgba(255, 99, 99, 0.35);
+      background: rgba(255, 99, 99, 0.12);
+    }
+
+    [data-theme="light"] .pq-stat.is-late {
+      color: #a32121;
+      border-color: rgba(198, 40, 40, 0.28);
+      background: rgba(198, 40, 40, 0.1);
+    }
 
     @media (max-width: 1120px) {
       /* Long panel hints wrap instead of being cut off in the narrow column. */

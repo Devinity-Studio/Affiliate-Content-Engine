@@ -3779,10 +3779,33 @@ function publishIsOverdue(item) {
   return time !== Infinity && time < Date.now();
 }
 
+/* One-line picture of the queue before planning: how many sit in it, how many
+   slots already passed, when the next one lands, and how many channels are used. */
+function publishQueueSummaryHtml() {
+  const overdue = publishQueue.filter(publishIsOverdue).length;
+  const next = publishQueue
+    .filter(function(item) { return publishSortTime(item) !== Infinity && !publishIsOverdue(item); })
+    .sort(function(a, b) { return publishSortTime(a) - publishSortTime(b); })[0];
+  const channels = [];
+  publishQueue.forEach(function(item) {
+    const ids = (item.publishRecord && item.publishRecord.channels) || item.channels || [];
+    ids.forEach(function(id) { if (channels.indexOf(id) === -1) channels.push(id); });
+  });
+  return '<span class="pq-stat">' + publishQueue.length + ' รายการในคิว</span>' +
+    '<span class="pq-stat' + (overdue ? ' is-late' : '') + '">เลยกำหนด ' + overdue + '</span>' +
+    '<span class="pq-stat">' +
+      (next ? 'ถัดไป ' + escapeHtml(publishWhenLabel(next.publishRecord)) : 'ไม่มีรอบถัดไปที่ตั้งเวลาไว้') +
+    '</span>' +
+    '<span class="pq-stat" title="' + escapeHtml(channels.map(channelLabel).join(' · ')) + '">ใช้ ' +
+      channels.length + ' ช่องทาง</span>';
+}
+
 function renderPublishQueue() {
   savePoolState();
   var list = document.getElementById('publish-queue');
   if (!list) return;
+  const summary = document.getElementById('publish-queue-summary');
+  if (summary) summary.innerHTML = publishQueue.length ? publishQueueSummaryHtml() : '';
   if (!publishQueue.length) {
     list.innerHTML = '<li class="publish-empty">' + publishQueueEmptyHtml() + '</li>';
     return;

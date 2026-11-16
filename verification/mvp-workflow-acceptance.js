@@ -349,6 +349,12 @@ function runPublishQueueAcceptance() {
     order.join(',') === 'lib-1,lib-2,lib-3,lib-4', order.join(','));
 
   // --- select-all / clear in the queue -----------------------------------
+  const summary = run("document.getElementById('publish-queue-summary').innerHTML");
+  check('queue summary counts rows, late slots and channels and names the next slot',
+    summary.includes('4 รายการในคิว') && summary.includes('เลยกำหนด 1')
+    && /ถัดไป 5 ม\.ค\. 2573/.test(summary) && summary.includes('ใช้ 3 ช่องทาง'),
+    summary.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 120));
+
   run('selectAllPublishQueue();');
   const allSelected = JSON.parse(run(`JSON.stringify({
     selection: publishQueueSelection.slice(),
@@ -368,6 +374,11 @@ function runPublishQueueAcceptance() {
   })`));
   check('clearing the queue selection unticks every row',
     cleared.selection === 0 && cleared.checked === 0, `${cleared.selection} selected / ${cleared.checked} rendered checks`);
+
+  run('publishQueue.length = 0; renderPublishQueue();');
+  check('queue summary disappears when the queue is empty',
+    run("document.getElementById('publish-queue-summary').innerHTML") === '',
+    'summary cleared with the queue');
 }
 
 (async () => {
