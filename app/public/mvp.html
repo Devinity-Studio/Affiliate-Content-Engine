@@ -7365,6 +7365,54 @@ textarea::placeholder {
     </div>
   </div>
 
+  <!-- Step 6 (Easy) — รายงานจริง 4 ระยะ + drill down ช่องทาง → คอนเทนต์ → วัน -->
+  <div id="report-stage" class="dashboard-area hidden" aria-label="รายงานผลจริง">
+    <style>
+      #report-stage .report-crumbs { display: flex; gap: 4px; flex-wrap: wrap; align-items: center; margin-bottom: 8px; }
+      #report-stage .report-crumbs button { background: none; border: 0; color: #8f86c8; font: inherit; font-size: 12px; cursor: pointer; padding: 2px 5px; border-radius: 6px; }
+      #report-stage .report-crumbs button:hover { color: #fff; background: rgba(139, 124, 255, 0.14); }
+      #report-stage .report-crumbs .crumb-sep { color: #4d4680; }
+      #report-stage .report-crumbs .crumb-current { color: #ffb27a; font-weight: 700; font-size: 12px; }
+      #report-stage .chip-btn.is-active { border-color: rgba(255, 107, 26, 0.65); background: rgba(255, 107, 26, 0.18); color: #ffc99e; }
+      #report-stage .perf-table tbody tr.is-clickable { cursor: pointer; }
+      #report-stage .perf-table tbody tr.is-clickable:hover td { background: rgba(139, 124, 255, 0.12); }
+      #report-stage .report-empty-box { border: 1px dashed rgba(139, 124, 255, 0.35); border-radius: 12px; padding: 18px; }
+    </style>
+    <div class="dashboard-header">
+      <div>
+        <h2>รายงานผลจริง</h2>
+        <p class="muted small" id="report-window-note">ตัวเลขทั้งหมดมาจากไฟล์ผลลัพธ์ที่นำเข้า (perfHistory) — ไม่มีการประมาณหรือเดาค่า</p>
+      </div>
+      <div class="dashboard-toolbar" id="report-periods"></div>
+    </div>
+
+    <div id="report-empty" class="report-empty-box hidden">
+      <h4>ยังไม่มีข้อมูลผลจริงให้รายงาน</h4>
+      <p class="muted small">หน้านี้จะแสดงรายงาน 4 ระยะ (วันนี้ / 7 วัน / 30 วัน / สะสม) เมื่อมีข้อมูลจริง — นำเข้าไฟล์ CSV ผลลัพธ์ (views / clicks / orders / ค่าคอม) จากรายงาน Shopee Affiliate ก่อน</p>
+      <button type="button" id="report-import" class="btn btn-primary">นำเข้า CSV ผลลัพธ์</button>
+    </div>
+
+    <div id="report-body" class="hidden">
+      <div class="dashboard-grid" id="report-kpis"></div>
+      <div class="dashboard-trends">
+        <h4 id="report-chart-title">รายได้รายวัน (เฉพาะวันที่มีข้อมูล)</h4>
+        <div class="trend-chart"><canvas id="report-canvas" width="880" height="260"></canvas></div>
+        <div class="trend-notes" id="report-chart-note"></div>
+      </div>
+      <div class="dashboard-trends">
+        <div class="report-crumbs" id="report-crumbs"></div>
+        <table class="perf-table">
+          <thead id="report-thead"></thead>
+          <tbody id="report-tbody"></tbody>
+        </table>
+      </div>
+      <div class="dashboard-trends hidden" id="report-server-block">
+        <h4>แหล่งข้อมูลที่สอง — ผลที่บันทึกผ่าน API (/api/mvp/analytics)</h4>
+        <div id="report-server-body"></div>
+      </div>
+    </div>
+  </div>
+
   <div id="ai-shortlist-panel" class="detail-panel hidden" aria-label="AI shortlist">
     <div class="section-header">
       <h4>✨ AI Shortlist — คัดจากข้อมูลจริงในคลัง</h4>
@@ -8388,6 +8436,17 @@ textarea::placeholder {
 
     .mode-pill:hover { filter: brightness(1.15); }
 
+    /* AI status chip: hidden until hovering the "+ ข้อเสนอใหม่" button */
+    .ai-status-chip {
+      opacity: 0;
+      visibility: hidden;
+      transition: opacity 0.15s ease, visibility 0.15s ease;
+    }
+
+    .pool-new-offer:hover + .ai-status-chip,
+    .pool-new-offer:focus-within + .ai-status-chip,
+    .ai-status-chip:hover { opacity: 1; visibility: visible; }
+
     /* legacy cream surfaces → dark (invisible-text fix) */
     .draft-text, .evidence, .choice, .evidence-group, .source-list li, .claim-group,
     .issue-block, .trace-check, .trace-caption, .beat-card, .calendar-day,
@@ -8407,6 +8466,23 @@ textarea::placeholder {
       text-transform: uppercase;
       color: var(--ace-mute);
     }
+
+    /* panel head: tidy 1-2 lines (title never stacks, button never wraps) */
+    .studio-panel-head { flex-wrap: wrap; }
+
+    .studio-panel-title {
+      flex: 1 1 auto;
+      min-width: 0;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .studio-panel-title small { white-space: nowrap; }
+
+    .pool-new-offer { flex: none; margin-left: auto; }
+
+    #quick-start, .chip-btn { white-space: nowrap; }
 <arg_value><b88a6f17>    @media (max-width: 860px) {
       .studio-search input { width: 100%; max-width: none; }
     }

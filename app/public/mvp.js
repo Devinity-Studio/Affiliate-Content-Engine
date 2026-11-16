@@ -382,6 +382,8 @@ function attachEventListeners() {
       clearPoolState();
       loadFixtures();
       seedSourceLibraryFromPool();
+      renderStageNav();
+      if (document.body.dataset.stage === 'report') renderReport();
       showToast('ล้างคลังแล้ว — เริ่มต้นใหม่จากศูนย์ (ข้อมูลจริงเท่านั้น)', 'info');
     });
   }
@@ -720,8 +722,32 @@ function currentMode() {
   return p && p.mode === 'advance' ? 'advance' : 'easy';
 }
 
+// Easy Mode is the revenue lane, not a filtered copy of the full workflow:
+// 1 สินค้า → 2 แผน/ผลิต → 3 ตรวจ/อนุมัติ → 4 ลิงก์ + เผยแพร่ → 5 ติดตาม → 6 รายงาน.
+// Storyboard / Production / Actor stay in Advance, and qcMiniLoop() switches the
+// profile to Advance when detail editing is needed, so no step becomes unreachable.
+// ACE_EASY_STAGE_KEYS / STUDIO_STAGES are derived from ACE_STAGE_NAV (see below).
+
 function stageKeysForMode(mode) {
-  return mode === 'easy' ? ['research', 'plan', 'storyboard', 'production', 'finalize', 'schedule', 'dashboard'] : STUDIO_STAGES.slice();
+  if (mode !== 'easy') return STUDIO_STAGES.slice();
+  // Step 6 exists only once there is real result evidence to report on — it is
+  // hidden rather than shown as a duplicate of Monitor.
+  return ACE_EASY_STAGE_KEYS.filter(function(key) {
+    return key !== 'report' || hasReportData();
+  });
+}
+
+/**
+ * The Easy lane as a readable string, derived from the same nav table that draws
+ * the footer bar, so a label or a hidden step can never disagree with what the
+ * operator actually sees.
+ */
+function easyLaneLabel() {
+  const keys = stageKeysForMode('easy');
+  return ACE_STAGE_NAV
+    .filter(function(step) { return step.easy && keys.indexOf(step.key) !== -1; })
+    .map(function(step) { return step.easy.replace(/^\d+\s*·\s*/, ''); })
+    .join(' → ');
 }
 
 function updateModeToggle() {
@@ -731,21 +757,18 @@ function updateModeToggle() {
   btn.textContent = mode === 'easy' ? '⚡ Easy' : '🛠 Advance';
   btn.classList.toggle('is-advance', mode === 'advance');
   btn.title = mode === 'easy'
-    ? 'Easy Mode — สายรายได้: เลือกสินค้า → ผลิตเลย → เช็ค/อนุมัติ (กดเพื่อไป Advance)'
-    : 'Advance Mode — ครบทุกขั้นของ Workflow (กดเพื่อกลับ Easy)';
+    ? 'Easy Mode — ' + stageKeysForMode('easy').length + ' ขั้น: ' + easyLaneLabel() + ' (กดเพื่อไป Advance ถ้าต้องแก้ละเอียด)'
+    : 'Advance Mode — ครบทุกขั้น Plan / Storyboard / Production / Actor (กดเพื่อกลับ Easy)';
 }
 
+// renderStageNav() owns everything that describes the lane (nav bar, progress,
+// mode tooltip). Only one case is left here: the visible stage left the lane.
 function applyModeUi(skipStageReset) {
-  updateModeToggle();
   renderStageNav();
   const keys = stageKeysForMode(currentMode());
-  const current = document.body.dataset.stage;
-  if (skipStageReset) {
-    updateStudioStage(current && keys.indexOf(current) !== -1 ? current : keys[0]);
-    return;
-  }
-  if (keys.indexOf(current) === -1) switchStage(keys[0]);
-  else updateStudioStage(current);
+  if (keys.indexOf(document.body.dataset.stage) !== -1) return;
+  if (skipStageReset) updateStudioStage(keys[0]);
+  else switchStage(keys[0]);
 }
 
 function setMode(mode) {
@@ -755,7 +778,7 @@ function setMode(mode) {
   saveProfileState();
   applyModeUi();
   showToast(mode === 'easy'
-    ? '⚡ Easy Mode — สายรายได้: เลือกสินค้า → ผลิตเลย → เช็ค/อนุมัติ'
+    ? '⚡ Easy Mode — ' + stageKeysForMode('easy').length + ' ขั้น: ' + easyLaneLabel()
     : '🛠 Advance Mode — ครบทุกขั้น: Plan / Storyboard / Production / Actor', 'info');
 }
 
@@ -768,6 +791,7 @@ async function easyProduce() {
   const btn = document.getElementById('hero-easy-produce');
   if (btn) { btn.disabled = true; btn.textContent = '⚡ กำลังผลิต…'; }
   try {
+    // Easy keeps a production preset even when the operator never picked one.
     candidate.preset = candidate.preset || 'product-hero';
     showToast('⚡ ผลิตเลย (1/2): AI เขียนคอนเทนต์…', 'info');
     await openContentDraft(candidate.id);
@@ -777,10 +801,13 @@ async function easyProduce() {
     }
     showToast('⚡ ผลิตเลย (2/2): เรนเดอร์ MP4 + เสียงพากย์ไทย…', 'info');
     await renderPreviewClip();
-    const item = contentLibrary.find(function(it) { return it.libraryId === 'lib-' + candidate.id; });
-    const idx = contentLibrary.indexOf(item);
+    const index = contentLibrary.indexOf(ensureLibraryItemForCandidate(candidate));
+    if (index === -1) {
+      showToast('ผลิตเสร็จ แต่ไม่พบรายการใน Content Library — เปิดคลังเพื่อตรวจด้วยมือ', 'warning');
+      return;
+    }
     showToast('⚡ ผลิตเสร็จ — เปิดจอตรวจ Full Screen ให้เลย', 'success');
-    if (idx >= 0) openQcOverlay(idx);
+    openQcOverlay(index);
   } finally {
     if (btn) { btn.disabled = false; btn.textContent = '⚡ ผลิตเลย'; }
   }
@@ -2330,6 +2357,8 @@ function handleResultsCsvFile(file) {
       renderCandidatePool();
       renderContentLibrary();
       renderDashboard();
+      renderStageNav();
+      if (document.body.dataset.stage === 'report') renderReport();
       showToast('นำเข้าหลักฐาน ' + rows.length + ' แถว — จับคู่ได้ ' + result.matched + ' (ไม่จับคู่ ' + result.unmatched + ') · Orders ' + result.orders + ' · ค่าคอม ฿' + result.commission.toLocaleString('th-TH', { maximumFractionDigits: 2 }) + (result.invalid ? ' · คลิกที่ผิด ' + result.invalid : ''), result.matched ? 'success' : 'warning');
     } catch (error) {
       showToast('อ่านไฟล์ไม่สำเร็จ: ' + error.message, 'error');
@@ -3161,7 +3190,12 @@ function collectPerfEntries() {
   };
   contentLibrary.forEach(function(item) { pushFrom(item.name, item); });
   candidatePool.forEach(function(c) {
-    const hasLib = contentLibrary.some(function(it) { return it.libraryId === 'lib-' + c.id && (it.perfHistory || it.perf); });
+    // A library entry may carry a legacy id (`lib-<timestamp>-<random>`), so
+    // match on either form before counting the candidate a second time.
+    const hasLib = contentLibrary.some(function(it) {
+      const sameItem = it.libraryId === 'lib-' + c.id || String(it.id) === String(c.id);
+      return sameItem && (it.perfHistory || it.perf);
+    });
     if (!hasLib) pushFrom(c.name, c);
   });
   return entries;
@@ -3294,7 +3328,10 @@ function collectPerfRows() {
   candidatePool.forEach(function(c) {
     if (!c.perf) return;
     const libId = 'lib-' + c.id;
-    const hasLib = contentLibrary.some(function(it) { return it.libraryId === libId && (it.perfHistory || it.perf); });
+    const hasLib = contentLibrary.some(function(it) {
+      const sameItem = it.libraryId === libId || String(it.id) === String(c.id);
+      return sameItem && (it.perfHistory || it.perf);
+    });
     if (!hasLib) {
       const hist = itemPerfHistory(c);
       const revenueTotal = hist.reduce(function(s, h) { return s + (h.commission_thb || 0); }, 0);
@@ -3339,6 +3376,377 @@ function drawTrendChart() {
     ctx.textAlign = 'center';
     ctx.fillText(c.platform || '', x, height - 4);
   });
+}
+
+// ----- Report (Easy step 6): 4 windows + drill down channel → content → day -----
+//
+// Every number here comes from imported result evidence (perfHistory on library
+// items / pool candidates). Nothing is estimated. Rows recorded through the
+// server (/api/mvp/results) are shown in a separate, clearly labelled block so
+// the two sources can never silently add up to a made-up total.
+
+const REPORT_WINDOWS = [
+  { key: 'day', label: 'วันนี้', days: 1 },
+  { key: '7d', label: '7 วัน', days: 7 },
+  { key: '30d', label: '30 วัน', days: 30 },
+  { key: 'all', label: 'สะสม', days: null },
+];
+
+let reportWindowKey = '7d';
+let reportDrill = { level: 'channel', channel: null, contentId: null };
+
+function reportDayString(date) {
+  const pad = function(n) { return (n < 10 ? '0' : '') + n; };
+  return date.getFullYear() + '-' + pad(date.getMonth() + 1) + '-' + pad(date.getDate());
+}
+
+function reportCutoff(key) {
+  const win = REPORT_WINDOWS.filter(function(w) { return w.key === key; })[0];
+  if (!win || win.days === null) return null; // สะสม = ไม่ตัดช่วง
+  const d = new Date();
+  d.setDate(d.getDate() - (win.days - 1));
+  return reportDayString(d);
+}
+
+function reportWindowLabel() {
+  const win = REPORT_WINDOWS.filter(function(w) { return w.key === reportWindowKey; })[0];
+  return win ? win.label : reportWindowKey;
+}
+
+/** One flat row per (content, date, channel, sub_id) — the unit the results CSV carries. */
+function reportRows() {
+  const rows = [];
+  const seen = {};
+  const pushFrom = function(holder) {
+    const id = String(holder.id);
+    if (seen[id]) return; // the same candidate may also exist as a library entry
+    seen[id] = true;
+    const name = holder.name || ('#' + id);
+    itemPerfHistory(holder).forEach(function(h) {
+      const date = String(h.date || (h.imported_at || '').slice(0, 10)).slice(0, 10);
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return;
+      rows.push({
+        date: date,
+        channel: h.platform || holder.platform || 'ไม่ระบุช่องทาง',
+        subId: h.sub_id || '',
+        contentId: id,
+        content: name,
+        views: Number(h.views) || 0,
+        clicks: Number(h.clicks) || 0,
+        orders: Number(h.orders) || 0,
+        commission: Number(h.commission_thb) || 0,
+        invalid: Number(h.invalid_clicks) || 0,
+        newCustomers: Number(h.new_customers) || 0,
+      });
+    });
+  };
+  contentLibrary.forEach(pushFrom);
+  candidatePool.forEach(pushFrom);
+  return rows.sort(function(a, b) { return a.date.localeCompare(b.date); });
+}
+
+function hasReportData() {
+  return reportRows().length > 0;
+}
+
+function reportRowsInWindow() {
+  const cutoff = reportCutoff(reportWindowKey);
+  const rows = reportRows();
+  return cutoff ? rows.filter(function(r) { return r.date >= cutoff; }) : rows;
+}
+
+function reportMoney(value) {
+  return '฿' + Number(value || 0).toLocaleString('th-TH', { maximumFractionDigits: 2 });
+}
+
+function reportNum(value) {
+  return Number(value || 0).toLocaleString('th-TH');
+}
+
+function reportConv(orders, clicks) {
+  return clicks ? ((orders / clicks) * 100).toFixed(1) + '%' : '—';
+}
+
+function drawReportChart() {
+  const canvas = document.getElementById('report-canvas');
+  const note = document.getElementById('report-chart-note');
+  if (!canvas || !canvas.getContext) return;
+  const ctx = canvas.getContext('2d');
+  const w = canvas.width;
+  const h = canvas.height;
+  ctx.clearRect(0, 0, w, h);
+
+  const byDate = {};
+  reportRowsInWindow().forEach(function(r) { byDate[r.date] = (byDate[r.date] || 0) + r.commission; });
+  const series = Object.keys(byDate).sort().map(function(d) { return { date: d, commission: byDate[d] }; });
+
+  if (note) {
+    const total = series.reduce(function(s, p) { return s + p.commission; }, 0);
+    note.textContent = series.length
+      ? series.length + ' วันที่มีข้อมูลในช่วง “' + reportWindowLabel() + '” · รายได้รวม ' + reportMoney(total)
+      : 'ยังไม่มีข้อมูลในช่วง “' + reportWindowLabel() + '”';
+  }
+  if (!series.length) return;
+
+  const padL = 64, padR = 16, padT = 14, padB = 34;
+  const plotW = w - padL - padR;
+  const plotH = h - padT - padB;
+  const max = Math.max.apply(null, series.map(function(p) { return p.commission; })) || 1;
+
+  ctx.strokeStyle = 'rgba(139,124,255,0.18)';
+  ctx.fillStyle = '#8f86c8';
+  ctx.font = '10px ui-monospace, monospace';
+  ctx.textAlign = 'right';
+  for (let i = 0; i <= 4; i++) {
+    const y = padT + plotH * (i / 4);
+    ctx.beginPath(); ctx.moveTo(padL, y); ctx.lineTo(w - padR, y); ctx.stroke();
+    ctx.fillText('฿' + Math.round(max * (1 - i / 4)).toLocaleString('th-TH'), padL - 8, y + 3);
+  }
+
+  const xFor = function(i) { return series.length === 1 ? padL + plotW / 2 : padL + (plotW * i) / (series.length - 1); };
+  const yFor = function(v) { return padT + plotH - (plotH * v) / max; };
+  const accent = (getComputedStyle(document.body).getPropertyValue('--studio-orange') || '').trim() || '#ff6b1a';
+
+  ctx.strokeStyle = accent;
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  series.forEach(function(p, i) {
+    const x = xFor(i), y = yFor(p.commission);
+    if (i) ctx.lineTo(x, y); else ctx.moveTo(x, y);
+  });
+  ctx.stroke();
+  ctx.fillStyle = accent;
+  series.forEach(function(p, i) {
+    ctx.beginPath(); ctx.arc(xFor(i), yFor(p.commission), 3, 0, Math.PI * 2); ctx.fill();
+  });
+
+  ctx.fillStyle = '#8f86c8';
+  ctx.textAlign = 'center';
+  const step = Math.ceil(series.length / 7);
+  series.forEach(function(p, i) { if (i % step) return; ctx.fillText(p.date.slice(5), xFor(i), h - 12); });
+}
+
+function renderReportKpis(rows) {
+  const host = document.getElementById('report-kpis');
+  if (!host) return;
+  const total = rows.reduce(function(acc, r) {
+    acc.clicks += r.clicks; acc.orders += r.orders; acc.commission += r.commission;
+    acc.views += r.views; acc.invalid += r.invalid;
+    acc.contents[r.contentId] = true; acc.channels[r.channel] = true;
+    return acc;
+  }, { clicks: 0, orders: 0, commission: 0, views: 0, invalid: 0, contents: {}, channels: {} });
+  const contentCount = Object.keys(total.contents).length;
+  const channelCount = Object.keys(total.channels).length;
+  const card = function(title, value, sub) {
+    return '<div class="dashboard-card"><div class="card-head"><h3>' + title + '</h3></div>' +
+      '<div class="card-value">' + value + '</div>' +
+      '<div class="card-change">' + sub + '</div></div>';
+  };
+  host.innerHTML = [
+    card('รายได้ (จริง)', reportMoney(total.commission), 'ช่วง ' + reportWindowLabel()),
+    card('ออเดอร์', reportNum(total.orders), 'จาก CSV ผลลัพธ์'),
+    card('คลิก', reportNum(total.clicks), 'Conversion ' + reportConv(total.orders, total.clicks)),
+    card('เฉลี่ย / คอนเทนต์', reportMoney(contentCount ? total.commission / contentCount : 0), contentCount + ' คอนเทนต์'),
+    card('เฉลี่ย / ช่องทาง', reportMoney(channelCount ? total.commission / channelCount : 0), channelCount + ' ช่องทาง'),
+    card('Views', reportNum(total.views), 'รวมทุกแถวในช่วงนี้'),
+    card('คลิกที่ผิด', reportNum(total.invalid), 'จากรายงานคลิกที่ผิด'),
+  ].join('');
+}
+
+function renderReportCrumbs(rows) {
+  const host = document.getElementById('report-crumbs');
+  if (!host) return;
+  const parts = [];
+  if (reportDrill.level === 'channel') {
+    parts.push('<span class="crumb-current">ทุกช่องทาง</span>');
+  } else if (reportDrill.level === 'content') {
+    parts.push('<button type="button" data-report-level="channel">ทุกช่องทาง</button>');
+    parts.push('<span class="crumb-sep">›</span><span class="crumb-current">' + escapeHtml(reportDrill.channel) + '</span>');
+  } else {
+    const content = rows.filter(function(r) { return r.contentId === reportDrill.contentId; })[0];
+    parts.push('<button type="button" data-report-level="channel">ทุกช่องทาง</button>');
+    parts.push('<span class="crumb-sep">›</span><button type="button" data-report-level="content" data-channel="' + escapeHtml(reportDrill.channel) + '">' + escapeHtml(reportDrill.channel) + '</button>');
+    parts.push('<span class="crumb-sep">›</span><span class="crumb-current">' + escapeHtml(content ? content.content : reportDrill.contentId) + '</span>');
+  }
+  parts.push('<span class="muted small" style="margin-left:auto">คลิกแถวเพื่อเจาะลึก</span>');
+  host.innerHTML = parts.join('');
+}
+
+function renderReportTable(rows) {
+  const thead = document.getElementById('report-thead');
+  const tbody = document.getElementById('report-tbody');
+  if (!thead || !tbody) return;
+  const head = function(cells) {
+    thead.innerHTML = '<tr>' + cells.map(function(c) { return '<th>' + c + '</th>'; }).join('') + '</tr>';
+  };
+  const num = function(html) { return '<td class="perf-num">' + html + '</td>'; };
+
+  if (reportDrill.level === 'channel') {
+    head(['ช่องทาง', 'คอนเทนต์', 'Views', 'คลิก', 'ออเดอร์', 'Conv', 'ค่าคอม']);
+    const groups = {};
+    rows.forEach(function(r) {
+      const g = groups[r.channel] || (groups[r.channel] = { views: 0, clicks: 0, orders: 0, commission: 0, contents: {} });
+      g.views += r.views; g.clicks += r.clicks; g.orders += r.orders; g.commission += r.commission;
+      g.contents[r.contentId] = true;
+    });
+    const list = Object.keys(groups).sort(function(a, b) { return groups[b].commission - groups[a].commission; });
+    tbody.innerHTML = list.length ? list.map(function(ch) {
+      const g = groups[ch];
+      return '<tr class="is-clickable" data-drill="channel" data-channel="' + escapeHtml(ch) + '">' +
+        '<td>' + escapeHtml(ch) + '</td>' +
+        num(Object.keys(g.contents).length) +
+        num(reportNum(g.views)) + num(reportNum(g.clicks)) + num(reportNum(g.orders)) +
+        num(reportConv(g.orders, g.clicks)) + num(reportMoney(g.commission)) + '</tr>';
+    }).join('') : '<tr><td colspan="7" class="muted">ไม่มีข้อมูลในช่วงนี้</td></tr>';
+    return;
+  }
+
+  const scoped = rows.filter(function(r) { return r.channel === reportDrill.channel; });
+
+  if (reportDrill.level === 'content') {
+    head(['คอนเทนต์', 'Sub_id', 'Views', 'คลิก', 'ออเดอร์', 'Conv', 'ค่าคอม', 'วันล่าสุด']);
+    const groups = {};
+    scoped.forEach(function(r) {
+      const g = groups[r.contentId] || (groups[r.contentId] = { name: r.content, views: 0, clicks: 0, orders: 0, commission: 0, subs: {}, last: '' });
+      g.views += r.views; g.clicks += r.clicks; g.orders += r.orders; g.commission += r.commission;
+      if (r.subId) g.subs[r.subId] = true;
+      if (r.date > g.last) g.last = r.date;
+    });
+    const list = Object.keys(groups).sort(function(a, b) { return groups[b].commission - groups[a].commission; });
+    tbody.innerHTML = list.length ? list.map(function(id) {
+      const g = groups[id];
+      return '<tr class="is-clickable" data-drill="content" data-content-id="' + escapeHtml(id) + '">' +
+        '<td>' + escapeHtml(g.name) + '</td>' +
+        '<td>' + escapeHtml(Object.keys(g.subs).join(', ') || '—') + '</td>' +
+        num(reportNum(g.views)) + num(reportNum(g.clicks)) + num(reportNum(g.orders)) +
+        num(reportConv(g.orders, g.clicks)) + num(reportMoney(g.commission)) + num(g.last || '—') + '</tr>';
+    }).join('') : '<tr><td colspan="8" class="muted">ช่องทางนี้ยังไม่มีคอนเทนต์ที่มีผลในช่วงนี้</td></tr>';
+    return;
+  }
+
+  head(['วันที่', 'Sub_id', 'Views', 'คลิก', 'ออเดอร์', 'Conv', 'ค่าคอม']);
+  const days = scoped.filter(function(r) { return r.contentId === reportDrill.contentId; })
+    .sort(function(a, b) { return b.date.localeCompare(a.date); });
+  tbody.innerHTML = days.length ? days.map(function(r) {
+    return '<tr><td>' + escapeHtml(r.date) + '</td>' +
+      '<td>' + escapeHtml(r.subId || '—') + '</td>' +
+      num(reportNum(r.views)) + num(reportNum(r.clicks)) + num(reportNum(r.orders)) +
+      num(reportConv(r.orders, r.clicks)) + num(reportMoney(r.commission)) + '</tr>';
+  }).join('') : '<tr><td colspan="7" class="muted">ไม่มีข้อมูลรายวันสำหรับคอนเทนต์นี้</td></tr>';
+}
+
+function renderReportServerBlock() {
+  const block = document.getElementById('report-server-block');
+  const host = document.getElementById('report-server-body');
+  if (!block || !host) return;
+  fetch('/api/mvp/analytics', { headers: { Accept: 'application/json' } })
+    .then(function(res) { return res.ok ? res.json() : null; })
+    .then(function(data) {
+      const rows = data && Array.isArray(data.by_content)
+        ? data.by_content.filter(function(r) { return Number(r.results_count) > 0; })
+        : [];
+      if (!rows.length) { block.classList.add('hidden'); return; } // ไม่มีข้อมูล = ซ่อน ไม่โชว์กล่องว่าง
+      block.classList.remove('hidden');
+      host.innerHTML = '<table class="perf-table"><thead><tr><th>คอนเทนต์</th><th>ช่องทาง</th><th>คลิก</th><th>ออเดอร์</th><th>ค่าคอม</th><th>บันทึกล่าสุด</th></tr></thead><tbody>' +
+        rows.map(function(r) {
+          return '<tr><td>' + escapeHtml(r.title || r.content_id) + '</td>' +
+            '<td>' + escapeHtml(r.platform || r.channel || '—') + '</td>' +
+            '<td class="perf-num">' + reportNum(r.clicks) + '</td>' +
+            '<td class="perf-num">' + reportNum(r.orders) + '</td>' +
+            '<td class="perf-num">' + reportMoney(r.commission_thb) + '</td>' +
+            '<td class="perf-num">' + escapeHtml(r.last_recorded_at ? String(r.last_recorded_at).slice(0, 10) : '—') + '</td></tr>';
+        }).join('') + '</tbody></table>' +
+        '<p class="muted small">' + escapeHtml((data.source && data.source.note) || '') + ' — แสดงแยกจากตารางหลักเพื่อไม่ให้ยอดซ้ำกัน</p>';
+    })
+    .catch(function() { block.classList.add('hidden'); });
+}
+
+function renderReport() {
+  const all = reportRows();
+  const empty = document.getElementById('report-empty');
+  const body = document.getElementById('report-body');
+  const pills = document.getElementById('report-periods');
+  const note = document.getElementById('report-window-note');
+
+  if (pills) {
+    pills.innerHTML = REPORT_WINDOWS.map(function(w) {
+      return '<button type="button" class="chip-btn' + (w.key === reportWindowKey ? ' is-active' : '') +
+        '" data-report-window="' + w.key + '" aria-pressed="' + (w.key === reportWindowKey ? 'true' : 'false') + '">' +
+        w.label + '</button>';
+    }).join('');
+  }
+
+  if (!all.length) {
+    if (empty) empty.classList.remove('hidden');
+    if (body) body.classList.add('hidden');
+    if (note) note.textContent = 'ยังไม่มีข้อมูลผลจริง — หน้านี้จะซ่อนขั้นรายงานไว้งนกว่าจะมีข้อมูล';
+    return;
+  }
+
+  if (empty) empty.classList.add('hidden');
+  if (body) body.classList.remove('hidden');
+
+  const rows = reportRowsInWindow();
+  // A drill level that has no rows in this window falls back to the channel list.
+  if (reportDrill.level !== 'channel' && !rows.some(function(r) { return r.channel === reportDrill.channel; })) {
+    reportDrill = { level: 'channel', channel: null, contentId: null };
+  }
+  if (reportDrill.level === 'day' && !rows.some(function(r) { return r.contentId === reportDrill.contentId; })) {
+    reportDrill = { level: 'content', channel: reportDrill.channel, contentId: null };
+  }
+
+  if (note) {
+    note.textContent = 'ช่วง “' + reportWindowLabel() + '” · ' + rows.length + ' แถวผลลัพธ์จาก ' +
+      Object.keys(rows.reduce(function(a, r) { a[r.contentId] = true; return a; }, {})).length + ' คอนเทนต์ · แหล่งข้อมูล: ไฟล์ CSV ผลลัพธ์ที่นำเข้า (perfHistory)';
+  }
+
+  renderReportKpis(rows);
+  drawReportChart();
+  renderReportCrumbs(rows);
+  renderReportTable(rows);
+  renderReportServerBlock();
+}
+
+function bindReport() {
+  const stage = document.getElementById('report-stage');
+  if (!stage || stage.dataset.bound === '1') return;
+  stage.dataset.bound = '1';
+  stage.addEventListener('click', function(e) {
+    const target = e.target instanceof Element ? e.target : null;
+    if (!target) return;
+    const pill = target.closest('[data-report-window]');
+    if (pill) {
+      reportWindowKey = pill.dataset.reportWindow;
+      reportDrill = { level: 'channel', channel: null, contentId: null };
+      renderReport();
+      return;
+    }
+    const crumb = target.closest('[data-report-level]');
+    if (crumb) {
+      reportDrill = {
+        level: crumb.dataset.reportLevel,
+        channel: crumb.dataset.channel || null,
+        contentId: null,
+      };
+      renderReport();
+      return;
+    }
+    const row = target.closest('[data-drill]');
+    if (row) {
+      if (row.dataset.drill === 'channel') {
+        reportDrill = { level: 'content', channel: row.dataset.channel, contentId: null };
+        renderReport();
+      } else if (row.dataset.drill === 'content') {
+        reportDrill = { level: 'day', channel: reportDrill.channel, contentId: row.dataset.contentId };
+        renderReport();
+      }
+    }
+  });
+  const importBtn = document.getElementById('report-import');
+  const fileInput = document.getElementById('results-csv-file');
+  if (importBtn && fileInput) {
+    importBtn.addEventListener('click', function() { fileInput.click(); });
+  }
 }
 
 function refreshDashboard() {
@@ -3407,6 +3815,7 @@ const STAGE_SECTIONS = [
   'content-library',
   'library-sync',
   'dashboard-area',
+  'report-stage',
   'candidate-hero',
   'affiliate-panel',
   'detail-content-tabs',
@@ -3499,9 +3908,9 @@ const stageMap = {
     name: 'Report',
     activate: function() {
       hideAllSections();
-      showSections(['dashboard-area'], false);
-      refreshDashboard();
-      showToast('เข้าสู่โหมด Report — สรุปรายงาน', 'info');
+      showSections(['report-stage'], false);
+      renderReport();
+      showToast('เข้าสู่โหมด Report — รายงาน 4 ระยะ + เจาะลึก ช่องทาง → คอนเทนต์ → วัน', 'info');
     }
   },
   schedule: {
@@ -3517,18 +3926,9 @@ const stageMap = {
 };
 
 function switchStage(stageKey) {
-  document.querySelectorAll('.footer-nav-btn').forEach(function(btn) {
-    var isActive = btn.dataset.stage === stageKey;
-    btn.classList.toggle('active', isActive);
-    btn.setAttribute('aria-pressed', isActive ? 'true' : 'false');
-  });
-
+  markActiveNav(stageKey);
   document.body.dataset.stage = stageKey;
-
-  if (stageMap[stageKey]) {
-    stageMap[stageKey].activate();
-  }
-
+  if (stageMap[stageKey]) stageMap[stageKey].activate();
   updateStudioStage(stageKey);
 }
 
@@ -3651,19 +4051,34 @@ function attachLibraryHandlers() {
 
 // ----- Daily Loop: lineage + Full-Screen Quality Check + Mini Loop -----
 
+/**
+ * Resolves the one Content Library entry that represents `candidate`.
+ *
+ * The pool and the library are two views of the same product, but a library
+ * entry can carry an id this code did not create: moveCandidateToLibrary()
+ * pushes `lib-<timestamp>-<random>`. Match with a fixed precedence — canonical
+ * id, then candidate id, then affiliate link — so a render and the UI never end
+ * up pointing at two different entries. Only a candidate with no match at all
+ * gets a new entry.
+ */
 function ensureLibraryItemForCandidate(candidate) {
   if (!candidate) return null;
-  var libId = 'lib-' + candidate.id;
-  var item = contentLibrary.find(function(it) { return it.libraryId === libId; });
-  if (!item) {
-    item = Object.assign({}, candidate, {
-      libraryId: libId,
-      status: 'PENDING',
-      qualityScore: candidate.quality || 'medium',
-    });
-    contentLibrary.push(item);
-  }
-  return item;
+  const libId = 'lib-' + candidate.id;
+  const candidateId = String(candidate.id);
+  const link = String(candidate.affiliateLink || '').trim();
+  const existing =
+    contentLibrary.find(function(it) { return it.libraryId === libId; }) ||
+    contentLibrary.find(function(it) { return String(it.id) === candidateId; }) ||
+    (link ? contentLibrary.find(function(it) { return String(it.affiliateLink || '').trim() === link; }) : null);
+  if (existing) return existing;
+
+  const created = Object.assign({}, candidate, {
+    libraryId: libId,
+    status: 'PENDING',
+    qualityScore: candidate.quality || 'medium',
+  });
+  contentLibrary.push(created);
+  return created;
 }
 
 function pushLineageEvent(item, event, extra) {
@@ -3859,43 +4274,58 @@ function bindQcOverlay() {
 
 // ----- Studio shell (UX Behavior Guide) -----
 
-const STUDIO_STAGES = ['research', 'plan', 'storyboard', 'production', 'finalize', 'schedule', 'dashboard', 'report'];
-
-// Stage bar labels live here so a future product line (e.g. Research → Journalist)
-// can remap the shell by editing data only — no markup surgery.
-// key = stage key in STUDIO_STAGES / stage registry; label = text shown in the footer bar.
+// Stage table — the single source of truth for both modes. A future product line
+// (e.g. Research → Journalist) is remapped by editing data only, no markup surgery.
+//   key   = stage key used by the stage registry and [data-stage]
+//   label = Advance label; `easy` = Easy label (its presence puts the stage in the lane)
 const ACE_STAGE_NAV = [
-  { key: 'research', label: 'Research' },
-  { key: 'plan', label: 'Plan' },
+  { key: 'research', label: 'Research', easy: '1 · สินค้า' },
+  { key: 'plan', label: 'Plan', easy: '2 · แผน/ผลิต' },
   { key: 'storyboard', label: 'Storyboard' },
   { key: 'production', label: 'Production' },
-  { key: 'finalize', label: 'Finalize' },
-  { key: 'schedule', label: 'Publish' },
-  { key: 'dashboard', label: 'Monitor' },
-  { key: 'report', label: 'Report' },
+  { key: 'finalize', label: 'Finalize', easy: '3 · ตรวจ/อนุมัติ' },
+  { key: 'schedule', label: 'Publish', easy: '4 · ลิงก์ + เผยแพร่' },
+  { key: 'dashboard', label: 'Monitor', easy: '5 · ติดตาม' },
+  { key: 'report', label: 'Report', easy: '6 · รายงาน' },
 ];
 
+// Derived lists — never maintained by hand, so they cannot drift from the table.
+const STUDIO_STAGES = ACE_STAGE_NAV.map(function(step) { return step.key; });
+const ACE_EASY_STAGE_KEYS = ACE_STAGE_NAV
+  .filter(function(step) { return Boolean(step.easy); })
+  .map(function(step) { return step.key; });
+
+function markActiveNav(stageKey) {
+  document.querySelectorAll('.footer-nav-btn').forEach(function(btn) {
+    const active = btn.dataset.stage === stageKey;
+    btn.classList.toggle('active', active);
+    btn.setAttribute('aria-pressed', active ? 'true' : 'false');
+  });
+}
+
 function renderStageNav() {
-  const keys = stageKeysForMode(currentMode());
-  const steps = ACE_STAGE_NAV.filter(function(s) { return keys.indexOf(s.key) !== -1; });
-  const currentStage = document.body.dataset.stage && keys.indexOf(document.body.dataset.stage) !== -1 ? document.body.dataset.stage : (steps[0] ? steps[0].key : null);
+  const mode = currentMode();
+  const keys = stageKeysForMode(mode);
+  const steps = ACE_STAGE_NAV.filter(function(step) { return keys.indexOf(step.key) !== -1; });
+  const currentStage = keys.indexOf(document.body.dataset.stage) !== -1 ? document.body.dataset.stage : steps[0].key;
+
   const nav = document.querySelector('.footer-nav');
   if (nav) {
+    nav.dataset.mode = mode;
     nav.innerHTML = steps.map(function(step, i) {
-      const isActive = step.key === currentStage;
+      const label = mode === 'easy' && step.easy ? step.easy : step.label;
       return (i > 0 ? '<span class="nav-sep" aria-hidden="true">-</span>' : '') +
-        '<button type="button" class="footer-nav-btn stage-' + step.key + (isActive ? ' active' : '') +
-        '" data-stage="' + step.key + '" aria-pressed="' + (isActive ? 'true' : 'false') +
-        '"><span class="nav-label">' + step.label + '</span></button>';
+        '<button type="button" class="footer-nav-btn stage-' + step.key + '" data-stage="' + step.key +
+        '" aria-pressed="false"><span class="nav-label">' + label + '</span></button>';
     }).join('');
   }
+  // Highlighting (track + counter) lives only in updateStudioStage().
   const track = document.getElementById('stage-track');
-  if (track) {
-    const activeIndex = steps.findIndex(function(step) { return step.key === currentStage; });
-    track.innerHTML = steps.map(function(step, i) {
-      return '<span class="' + (i <= activeIndex ? 'is-on' : '') + '"></span>';
-    }).join('');
-  }
+  if (track) track.innerHTML = steps.map(function() { return '<span></span>'; }).join('');
+
+  markActiveNav(currentStage);
+  updateStudioStage(currentStage);
+  updateModeToggle();
 }
 
 let selectedCandidateId = null;
@@ -4039,18 +4469,21 @@ function selectCandidate(id) {
   renderCandidateHero();
 }
 
-function updateStudioStage(stageKey) {
-  const order = Array.prototype.map.call(document.querySelectorAll('.footer-nav-btn'), function(b) { return b.dataset.stage; });
-  let index = order.indexOf(stageKey);
-  if (index === -1) index = 0;
+function studioStageOrder() {
+  return Array.from(document.querySelectorAll('.footer-nav-btn'), function(btn) { return btn.dataset.stage; });
+}
 
-  var track = document.getElementById('stage-track');
+function updateStudioStage(stageKey) {
+  const order = studioStageOrder();
+  const index = Math.max(0, order.indexOf(stageKey));
+
+  const track = document.getElementById('stage-track');
   if (track) {
     Array.prototype.forEach.call(track.children, function(seg, i) {
       seg.classList.toggle('is-on', i <= index);
     });
   }
-  var counter = document.getElementById('stage-counter');
+  const counter = document.getElementById('stage-counter');
   if (counter) counter.textContent = (index + 1) + ' of ' + order.length;
 
   document.querySelectorAll('.rail-btn').forEach(function(btn) {
@@ -4059,14 +4492,10 @@ function updateStudioStage(stageKey) {
 }
 
 function studioGoStage(delta) {
-  const order = Array.prototype.map.call(document.querySelectorAll('.footer-nav-btn'), function(b) { return b.dataset.stage; });
-  let current = 0;
-  document.querySelectorAll('.footer-nav-btn').forEach(function(btn) {
-    if (btn.classList.contains('active')) current = order.indexOf(btn.dataset.stage);
-  });
-  if (current < 0) current = 0;
+  const order = studioStageOrder();
+  const current = Math.max(0, order.indexOf(document.body.dataset.stage));
   const next = Math.min(order.length - 1, Math.max(0, current + delta));
-  switchStage(order[next]);
+  if (order[next]) switchStage(order[next]);
 }
 
 function bindStudioShell() {
@@ -5792,6 +6221,7 @@ function boot() {
   applyModeUi(true);
   bindProfileSwitcher();
   bindQcOverlay();
+  bindReport();
   const easyProduceBtn = document.getElementById('hero-easy-produce');
   if (easyProduceBtn) easyProduceBtn.addEventListener('click', easyProduce);
   const modeToggleBtn = document.getElementById('mode-toggle');
