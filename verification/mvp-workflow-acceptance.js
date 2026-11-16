@@ -347,6 +347,27 @@ function runPublishQueueAcceptance() {
   const order = JSON.parse(run('JSON.stringify(publishQueue.map(function (item) { return item.libraryId; }))'));
   check('sorting the queue view does not reorder the stored queue',
     order.join(',') === 'lib-1,lib-2,lib-3,lib-4', order.join(','));
+
+  // --- select-all / clear in the queue -----------------------------------
+  run('selectAllPublishQueue();');
+  const allSelected = JSON.parse(run(`JSON.stringify({
+    selection: publishQueueSelection.slice(),
+    checked: (document.getElementById('publish-queue').innerHTML.match(/class="pq-check"[^>]*checked/g) || []).length,
+    head: document.getElementById('publish-confirm').innerHTML,
+  })`));
+  check('select-all ticks the whole queue and offers one shared reschedule',
+    allSelected.selection.length === 4 && allSelected.checked === 4
+    && allSelected.head.includes('แก้ตารางโพสต์พร้อมกัน 4 รายการ')
+    && allSelected.head.includes('บันทึก 4 รายการ'),
+    `${allSelected.selection.length} selected / ${allSelected.checked} rendered checks`);
+
+  run('clearPublishQueueSelection();');
+  const cleared = JSON.parse(run(`JSON.stringify({
+    selection: publishQueueSelection.length,
+    checked: (document.getElementById('publish-queue').innerHTML.match(/class="pq-check"[^>]*checked/g) || []).length,
+  })`));
+  check('clearing the queue selection unticks every row',
+    cleared.selection === 0 && cleared.checked === 0, `${cleared.selection} selected / ${cleared.checked} rendered checks`);
 }
 
 (async () => {

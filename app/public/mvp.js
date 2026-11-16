@@ -3100,6 +3100,33 @@ function cancelPublishEdit() {
   showToast('ยกเลิกการแก้ไข — ตารางโพสต์เดิมยังอยู่', 'info');
 }
 
+/* Tick every queued row at once so the whole queue can be rescheduled with one
+   shared channel/time choice (still manual posting only). */
+function selectAllPublishQueue() {
+  const keys = publishQueue.map(publishKey);
+  if (!keys.length) {
+    showToast('ยังไม่มีรายการใน Publish Queue', 'warning');
+    return;
+  }
+  publishEditKey = null;
+  publishQueueSelection = keys;
+  renderPublishQueue();
+  renderPublishConfirm();
+  showToast('เลือกทั้งคิวแล้ว — ' + keys.length + ' รายการ', 'info');
+}
+
+function clearPublishQueueSelection() {
+  const count = publishQueueSelection.length;
+  if (!count) {
+    showToast('ยังไม่ได้เลือกแถวใดในคิว', 'info');
+    return;
+  }
+  publishQueueSelection = [];
+  renderPublishQueue();
+  renderPublishConfirm();
+  showToast('ล้างการเลือกแล้ว (' + count + ' รายการ)', 'info');
+}
+
 /* The row action and the library toolbar both land here instead of writing to
    the queue themselves, so channels + time are confirmed in exactly one place. */
 function openPublishConfirm(index) {
@@ -3117,6 +3144,16 @@ function openPublishConfirm(index) {
 }
 
 function bindPublishSchedule() {
+  const selectAll = document.getElementById('pq-select-all');
+  if (selectAll && selectAll.dataset.bound !== '1') {
+    selectAll.dataset.bound = '1';
+    selectAll.addEventListener('click', selectAllPublishQueue);
+  }
+  const clearSelection = document.getElementById('pq-clear-selection');
+  if (clearSelection && clearSelection.dataset.bound !== '1') {
+    clearSelection.dataset.bound = '1';
+    clearSelection.addEventListener('click', clearPublishQueueSelection);
+  }
   if (document.body.dataset.finalizeJumpBound === '1') return;
   document.body.dataset.finalizeJumpBound = '1';
   document.addEventListener('click', function(event) {
@@ -3771,10 +3808,12 @@ function renderPublishQueue() {
           ' · ช่องทาง: ' + escapeHtml(publishChannelsLabel(record, item)) + '</span>' +
         (item.exportNotes ? '<span class="queue-meta">' + escapeHtml(item.exportNotes) + '</span>' : '') +
       '</span>' +
-      '<button type="button" class="chip-btn pq-edit" data-key="' + escapeHtml(key) + '">แก้ไข</button>' +
-      (item.affiliateLink
-        ? '<button type="button" class="chip-btn pq-copy" data-index="' + entry.index + '">คัดลอกลิงก์</button>'
-        : '') +
+      '<span class="queue-actions">' +
+        '<button type="button" class="chip-btn pq-edit" data-key="' + escapeHtml(key) + '">แก้ไข</button>' +
+        (item.affiliateLink
+          ? '<button type="button" class="chip-btn pq-copy" data-index="' + entry.index + '">คัดลอกลิงก์</button>'
+          : '') +
+      '</span>' +
     '</li>';
   }).join('');
 

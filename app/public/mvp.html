@@ -2217,6 +2217,7 @@ textarea:focus-visible {
 
 .queue-flag {
   display: inline-block;
+  white-space: nowrap;
   margin-left: 4px;
   padding: 1px 6px;
   border-radius: 999px;
@@ -6996,7 +6997,13 @@ textarea::placeholder {
           </div>
           <div id="publish-confirm" class="publish-confirm"></div>
           <div class="publish-block">
-            <p class="studio-panel-title">Publish Queue <small>ยืนยันแล้ว — ติ๊กหลายแถวเพื่อเลื่อนเวลา/ช่องทางพร้อมกัน</small></p>
+            <div class="publish-queue-head">
+              <p class="studio-panel-title">Publish Queue <small>ยืนยันแล้ว — ติ๊กหลายแถวหรือเลือกทั้งคิวเพื่อเลื่อนพร้อมกัน</small></p>
+              <div class="queue-select-actions">
+                <button type="button" id="pq-select-all" class="chip-btn">เลือกทั้งคิว</button>
+                <button type="button" id="pq-clear-selection" class="chip-btn">ล้างการเลือก</button>
+              </div>
+            </div>
             <ul id="publish-queue" class="publish-queue"></ul>
           </div>
         </section>
@@ -9070,6 +9077,9 @@ textarea::placeholder {
 
     @media (max-width: 1120px) {
       body:not([data-stage="research"]) .studio-grid { grid-template-columns: minmax(0, 1fr); }
+      /* Pool hidden: the remaining panels stack full width instead of halving the
+         column, which squeezed the Publish card and the queue rows. */
+      body:not([data-stage="research"]) .studio-col-right { grid-template-columns: minmax(0, 1fr); }
     }
 
     .perf-num { color: var(--v2-ink); font-variant-numeric: tabular-nums; }
@@ -9147,13 +9157,44 @@ textarea::placeholder {
     .publish-empty .muted { color: var(--v2-ink-3); }
     .publish-queue .queue-item {
       display: flex;
-      align-items: center;
+      align-items: flex-start;
       gap: 8px;
       flex-wrap: wrap;
       padding: 8px 10px;
       border: 1px solid var(--v2-line);
       border-radius: var(--v2-r-input);
       background: var(--v2-surface-2);
+    }
+
+    /* Row actions stay together and drop under the plan line only when the row
+       is too narrow for title + buttons side by side. */
+    .publish-queue .queue-title { flex: 1 1 200px; min-width: 0; }
+
+    .queue-actions {
+      display: flex;
+      flex: 0 0 auto;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-left: auto;
+    }
+
+    /* Queue header: title on the left, select-all / clear on the right. */
+    .publish-queue-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .queue-select-actions { display: flex; flex: none; gap: 6px; margin-left: auto; }
+
+    @media (max-width: 1120px) {
+      /* Long panel hints wrap instead of being cut off in the narrow column. */
+      #detail-schedule .studio-panel-title,
+      .publish-block .studio-panel-title { white-space: normal; overflow: visible; text-overflow: clip; }
+      #detail-schedule .studio-panel-title small,
+      .publish-block .studio-panel-title small { display: block; white-space: normal; margin-top: 2px; }
     }
 
     /* The QC player must fit the reviewer's screen (1080×1920 portrait is tall). */
