@@ -2098,10 +2098,7 @@ function draftAsText(candidate) {
   if (!lastDraft) return '';
   const c = ensureCandidateSettings(candidate) || candidate;
   const preset = currentProductionPreset(candidate);
-  const channels = (c.channels || []).map(function(id) {
-    const found = PUBLISH_CHANNELS.find(function(ch) { return ch.id === id; });
-    return found ? found.label : id;
-  });
+  const channels = (c.channels || []).map(channelLabel);
   const price = Number(candidate.price) || 0;
   const rate = Number(candidate.commissionRate);
   const commission = Number(candidate.commission);
@@ -2193,10 +2190,7 @@ function downloadTextFile(filename, text) {
 
 function postKitText(candidate, content, index, total, model) {
   const c = ensureCandidateSettings(candidate) || candidate;
-  const channels = (c.channels || []).map(function(id) {
-    const found = PUBLISH_CHANNELS.find(function(ch) { return ch.id === id; });
-    return found ? found.label : id;
-  });
+  const channels = (c.channels || []).map(channelLabel);
   return [
     '════════ ชุดโพสต์ ' + (index + 1) + '/' + total + ' ════════',
     '📦 ' + (c.name || ''),
@@ -2810,12 +2804,13 @@ function publishNoticeHtml(title, detail, withAction) {
 
 function publishChannelCardsHtml(chosen, sub2) {
   return PUBLISH_CHANNELS.map(function(ch) {
+    const handle = channelHandle(ch.id);
     return '<label class="publish-channel">' +
       '<input type="checkbox" class="publish-channel-cb" value="' + ch.id + '"' +
         (chosen.indexOf(ch.id) !== -1 ? ' checked' : '') + '>' +
       '<span class="publish-channel-body">' +
         '<b>' + escapeHtml(ch.label) + (ch.note ? ' · ' + escapeHtml(ch.note) : '') + '</b>' +
-        '<span>' + (channelHandle(ch.id) ? 'บัญชี: ' + escapeHtml(channelHandle(ch.id)) : 'ยังไม่ได้ผูกบัญชี') + '</span>' +
+        '<span>' + (handle ? 'บัญชี: ' + escapeHtml(handle) : 'ยังไม่ได้ผูกบัญชี') + '</span>' +
         '<span>Sub_id: ?sub_id1=' + ch.id + '&amp;sub_id2=' + escapeHtml(sub2) + '</span>' +
       '</span>' +
     '</label>';
@@ -3670,17 +3665,17 @@ function itemStatusMatches(index, filterStatus) {
   return item.status === filterStatus;
 }
 
-function channelLabel(id) {
-  const found = PUBLISH_CHANNELS.find(function(ch) { return ch.id === id; });
-  return found ? found.label : id;
+/* ---------- Publish Queue: the confirmed plan of each queued row ---------- */
+
+/* The confirmed slot as a Date, or null when nothing usable is stored. */
+function publishSlotDate(record) {
+  const when = new Date((record && record.scheduledAt) || '');
+  return isNaN(when.getTime()) ? null : when;
 }
 
-/* The confirmed plan of one queued row, so the upcoming schedule is readable
-   from the queue itself instead of only inside the Publish card. */
 function publishWhenLabel(record) {
-  if (!record || !record.scheduledAt) return 'ยังไม่ตั้งเวลา';
-  const when = new Date(record.scheduledAt);
-  if (isNaN(when.getTime())) return String(record.scheduledAt);
+  const when = publishSlotDate(record);
+  if (!when) return (record && record.scheduledAt) ? String(record.scheduledAt) : 'ยังไม่ตั้งเวลา';
   const stamp = when.toLocaleString('th-TH', {
     day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit'
   });
@@ -3694,8 +3689,8 @@ function publishChannelsLabel(record, item) {
 
 /* Sort key for the queue view: nearest slot first, rows without a time last. */
 function publishSortTime(item) {
-  const time = new Date((item.publishRecord || {}).scheduledAt || '').getTime();
-  return isNaN(time) ? Infinity : time;
+  const when = publishSlotDate(item.publishRecord);
+  return when ? when.getTime() : Infinity;
 }
 
 /* A confirmed slot that is already in the past has not been posted yet. */
@@ -5157,6 +5152,12 @@ const PUBLISH_CHANNELS = [
   { id: 'youtube', label: 'YouTube' },
 ];
 
+/* One place that turns a channel id into the label shown to the operator. */
+function channelLabel(id) {
+  const found = PUBLISH_CHANNELS.find(function(ch) { return ch.id === id; });
+  return found ? found.label : id;
+}
+
 function setOffersStatus(message, kind) {
   const el = document.getElementById('offers-status');
   if (!el) return;
@@ -5650,8 +5651,7 @@ function renderAffiliatePanel() {
     } else {
       const amount = Number(c.commission) || 0;
       const labels = c.channels.map(function(id) {
-        const found = PUBLISH_CHANNELS.find(function(ch) { return ch.id === id; });
-        return (found ? found.label : id) + ' ฿' + amount.toLocaleString('th-TH', { maximumFractionDigits: 2 });
+        return channelLabel(id) + ' ฿' + amount.toLocaleString('th-TH', { maximumFractionDigits: 2 });
       });
       estimate.textContent = 'ค่าคอมโดยประมาณต่อช่องทาง: ' + labels.join(' · ') +
         ' — อัตราเดียวกันทุกช่องทาง ตัวเลขจริงขึ้นกับ Shopee';
@@ -5683,11 +5683,7 @@ function buildAffiliateLink() {
     if (input) input.value = joined;
   }
 
-  const channels = c.channels.map(function(id) {
-    const found = PUBLISH_CHANNELS.find(function(ch) { return ch.id === id; });
-    return found ? found.label : id;
-  });
-  showToast('ต่อ Sub_id แล้ว · จะเผยแพร่ที่ ' + channels.join(', '), 'success');
+  showToast('ต่อ Sub_id แล้ว · จะเผยแพร่ที่ ' + c.channels.map(channelLabel).join(', '), 'success');
   renderAffiliatePanel();
 }
 
