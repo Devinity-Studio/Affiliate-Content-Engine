@@ -2240,6 +2240,80 @@ textarea:focus-visible {
   border-color: rgba(198, 40, 40, 0.3);
 }
 
+/* Row states: รอถึงรอบ (quiet) / ถึงรอบ (red, above) / โพสต์แล้ว (green). */
+.queue-flag.is-waiting {
+  color: #9fb0bd;
+  border-color: rgba(255, 255, 255, 0.14);
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.queue-flag.is-posted {
+  color: #7ff0c0;
+  border-color: rgba(62, 224, 192, 0.4);
+  background: rgba(62, 224, 192, 0.14);
+}
+
+.queue-item.is-posted {
+  opacity: 0.78;
+}
+
+.queue-meta.queue-posted {
+  color: #9ff0d2;
+}
+
+/* Post form inside a queue row: which channels were actually published to. */
+.pq-post-form {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-top: 7px;
+  padding: 7px 9px;
+  border: 1px dashed var(--line-soft);
+  border-radius: 8px;
+}
+
+.pq-post-label {
+  font-size: 11px;
+  color: var(--text-dim, #9fb0bd);
+}
+
+.pq-post-opt {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11.5px;
+  cursor: pointer;
+}
+
+.pq-post-opt input {
+  margin: 0;
+  accent-color: var(--v2-accent, #3ee0c0);
+  cursor: pointer;
+}
+
+.pq-post-actions {
+  display: inline-flex;
+  gap: 6px;
+  margin-left: auto;
+}
+
+[data-theme="light"] .queue-flag.is-waiting {
+  color: #5a6a72;
+  border-color: rgba(0, 0, 0, 0.14);
+  background: rgba(0, 0, 0, 0.04);
+}
+
+[data-theme="light"] .queue-flag.is-posted {
+  color: #0d6b4d;
+  border-color: rgba(15, 120, 85, 0.35);
+  background: rgba(15, 120, 85, 0.12);
+}
+
+[data-theme="light"] .queue-meta.queue-posted {
+  color: #0d6b4d;
+}
+
 .queue-controls {
   display: flex;
   gap: 4px;
@@ -9221,11 +9295,23 @@ textarea::placeholder {
       background: rgba(255, 99, 99, 0.12);
     }
 
-    /* Filtering by late keeps the red meaning instead of turning accent. */
+    /* Filtering by posted reads green; filtering by due keeps the red meaning. */
+    .pq-stat.is-done.is-active {
+      border-color: rgba(62, 224, 192, 0.45);
+      background: rgba(62, 224, 192, 0.16);
+      color: #9ff0d2;
+    }
+
     .pq-stat.is-late.is-active {
       border-color: rgba(255, 99, 99, 0.5);
       background: rgba(255, 99, 99, 0.2);
       color: #ffb3b3;
+    }
+
+    [data-theme="light"] .pq-stat.is-done.is-active {
+      color: #0d6b4d;
+      border-color: rgba(15, 120, 85, 0.4);
+      background: rgba(15, 120, 85, 0.14);
     }
 
     [data-theme="light"] .pq-stat.is-late.is-active {

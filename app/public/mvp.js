@@ -3762,34 +3762,144 @@ function publishChannelsLabel(record, item) {
   return ids.map(channelLabel).join(' · ') || '—';
 }
 
+/* Queue states: รอถึงรอบ → ถึงรอบ → โพสต์แล้ว.
+   `postedAt` / `postedChannels` on publishRecord are written only by the
+   operator's "ทำเครื่องหมายว่าโพสต์แล้ว" action. Nothing here publishes — the
+   queue records what happened by hand, it never posts by itself. */
+
+function publishPostedLabel(iso) {
+  const when = new Date(iso || '');
+  if (isNaN(when.getTime())) return '';
+  return when.toLocaleString('th-TH', {
+    day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit'
+  });
+}
+
+function publishPlannedChannels(record, item) {
+  const ids = (record && record.channels && record.channels.length) ? record.channels : ((item && item.channels) || []);
+  return ids.slice();
+}
+
 /* One pass over the queue gives the rows sorted nearest-first, each carrying its
-   parsed slot and late flag, so the summary, the filter and the rendered rows
-   can never disagree about time or lateness. */
+   parsed slot, its state and its channels, so the summary, the filter and the
+   rendered rows can never disagree. Posted rows sink below the work left. */
 function publishQueuePlan() {
   const now = Date.now();
   return publishQueue
     .map(function(item, index) {
       const record = item.publishRecord || {};
       const when = publishSlotDate(record);
-      return { item: item, index: index, record: record, when: when, late: Boolean(when) && when.getTime() < now };
+      const posted = Boolean(record.postedAt) && !isNaN(new Date(record.postedAt).getTime());
+      return {
+        item: item,
+        index: index,
+        record: record,
+        when: when,
+        channels: publishPlannedChannels(record, item),
+        posted: posted,
+        postedAt: posted ? record.postedAt : '',
+        postedChannels: posted ? (record.postedChannels || []) : [],
+        due: !posted && Boolean(when) && when.getTime() <= now,
+      };
     })
     .sort(function(a, b) {
+      if (a.posted !== b.posted) return a.posted ? 1 : -1;
       return (a.when ? a.when.getTime() : Infinity) - (b.when ? b.when.getTime() : Infinity);
     });
+}
+
+function publishQueueItemByKey(key) {
+  return publishQueue.filter(function(item) { return publishKey(item) === key; })[0] || null;
 }
 
 /* View filter driven by the summary chips; null = the whole queue. */
 let publishQueueFilter = null;
 
 function matchesPublishQueueFilter(entry) {
-  if (publishQueueFilter === 'late') return entry.late;
-  if (publishQueueFilter === 'upcoming') return Boolean(entry.when) && !entry.late;
+  if (publishQueueFilter === 'due') return entry.due;
+  if (publishQueueFilter === 'upcoming') return !entry.due && !entry.posted && Boolean(entry.when);
+  if (publishQueueFilter === 'posted') return entry.posted;
   return true;
 }
 
 function togglePublishQueueFilter(next) {
-  publishQueueFilter = publishQueueFilter === next || !next ? null : next;
+  publishQueueFilter = next && publishQueueFilter !== next ? next : null;
   renderPublishQueue();
+}
+
+/* Post form: the row whose form is open and the channels ticked in it. */
+let publishPostingKey = null;
+let publishPostingChannels = [];
+
+function startPublishPosting(key) {
+  const item = publishQueueItemByKey(key);
+  if (!item) return;
+  publishPostingKey = key;
+  publishPostingChannels = publishPlannedChannels(item.publishRecord, item);
+  publishEditKey = null;
+  renderPublishQueue();
+}
+
+function togglePublishPostingChannel(id, checked) {
+  const at = publishPostingChannels.indexOf(id);
+  if (checked && at === -1) publishPostingChannels.push(id);
+  if (!checked && at !== -1) publishPostingChannels.splice(at, 1);
+}
+
+function cancelPublishPosting() {
+  publishPostingKey = null;
+  publishPostingChannels = [];
+  renderPublishQueue();
+}
+
+function confirmPublishPosting() {
+  const item = publishQueueItemByKey(publishPostingKey);
+  if (!item) return;
+  if (!publishPostingChannels.length) {
+    showToast('เลือกอย่างน้อย 1 ช่องทางที่โพสต์จริงก่อนยืนยัน', 'warning');
+    return;
+  }
+  const posted = publishPostingChannels.slice();
+  item.publishRecord = Object.assign({}, item.publishRecord, {
+    postedAt: new Date().toISOString(),
+    postedChannels: posted,
+  });
+  if (item.lineage) pushLineageEvent(item, 'ทำเครื่องหมายว่าโพสต์แล้ว · ' + posted.map(channelLabel).join(', '));
+  publishPostingKey = null;
+  publishPostingChannels = [];
+  savePoolState();
+  renderPublishQueue();
+  showToast('บันทึกว่าโพสต์แล้ว ' + posted.length + ' ช่องทาง — ยังต้องโพสต์ด้วยมือตามเดิม (ACE ไม่โพสต์อัตโนมัติ)', 'success');
+}
+
+function undoPublishPosting(key) {
+  const item = publishQueueItemByKey(key);
+  if (!item || !item.publishRecord) return;
+  const record = Object.assign({}, item.publishRecord);
+  delete record.postedAt;
+  delete record.postedChannels;
+  item.publishRecord = record;
+  if (item.lineage) pushLineageEvent(item, 'ยกเลิกสถานะโพสต์แล้ว');
+  savePoolState();
+  renderPublishQueue();
+  showToast('กลับเป็นยังไม่โพสต์ — รายการยังอยู่ในคิว', 'info');
+}
+
+function publishPostingFormHtml(entry) {
+  if (!entry.channels.length) {
+    return '<span class="pq-post-form"><span class="muted small">รายการนี้ไม่มีช่องทางในตาราง — กด “แก้ไข” เพื่อเลือกช่องทางก่อน</span></span>';
+  }
+  return '<span class="pq-post-form">' +
+    '<span class="pq-post-label">โพสต์จริงไปที่:</span>' +
+    entry.channels.map(function(id) {
+      return '<label class="pq-post-opt"><input type="checkbox" class="pq-post-ch" value="' + escapeHtml(id) + '"' +
+        (publishPostingChannels.indexOf(id) !== -1 ? ' checked' : '') + '> ' + escapeHtml(channelLabel(id)) + '</label>';
+    }).join('') +
+    '<span class="pq-post-actions">' +
+      '<button type="button" class="chip-btn pq-post-confirm">ยืนยันโพสต์แล้ว</button>' +
+      '<button type="button" class="chip-btn pq-post-cancel">ยกเลิก</button>' +
+    '</span>' +
+  '</span>';
 }
 
 function publishEmptyItemHtml(title, detail) {
@@ -3799,18 +3909,16 @@ function publishEmptyItemHtml(title, detail) {
   '</li>';
 }
 
-/* One-line picture of the queue before planning: how many sit in it, how many
-   slots already passed, when the next one lands, and how many channels are used.
-   The first three chips are buttons: click to filter, click again for all. */
+/* One-line picture of the queue before planning: how many sit in it, how many are
+   due but still unposted, when the next one lands, how many are posted, and how
+   many channels are used. Every chip but the channel one is a filter button. */
 function publishQueueSummaryHtml(plan) {
-  const late = plan.filter(function(entry) { return entry.late; }).length;
-  const next = plan.filter(function(entry) { return entry.when && !entry.late; })[0];
+  const due = plan.filter(function(entry) { return entry.due; }).length;
+  const posted = plan.filter(function(entry) { return entry.posted; }).length;
+  const next = plan.filter(function(entry) { return entry.when && !entry.due && !entry.posted; })[0];
   const channels = [];
   plan.forEach(function(entry) {
-    const ids = (entry.record.channels && entry.record.channels.length)
-      ? entry.record.channels
-      : (entry.item.channels || []);
-    ids.forEach(function(id) { if (channels.indexOf(id) === -1) channels.push(id); });
+    entry.channels.forEach(function(id) { if (channels.indexOf(id) === -1) channels.push(id); });
   });
 
   const chip = function(filter, classes, label, title) {
@@ -3822,10 +3930,11 @@ function publishQueueSummaryHtml(plan) {
   };
 
   return chip('', '', plan.length + ' รายการในคิว', 'แสดงทั้งคิว') +
-    chip('late', late ? ' is-late' : '', 'เลยกำหนด ' + late, 'แสดงเฉพาะรอบที่เลยกำหนด') +
+    chip('due', due ? ' is-late' : '', 'ค้างโพสต์ ' + due, 'ถึงรอบแล้วแต่ยังไม่ได้ทำเครื่องหมายว่าโพสต์') +
     chip('upcoming', '',
       next ? 'ถัดไป ' + escapeHtml(publishWhenLabel(next.record)) : 'ไม่มีรอบถัดไปที่ตั้งเวลาไว้',
       'แสดงเฉพาะรอบที่ยังไม่ถึง') +
+    chip('posted', posted ? ' is-done' : '', 'โพสต์แล้ว ' + posted, 'แสดงเฉพาะรายการที่ทำเครื่องหมายว่าโพสต์แล้ว') +
     '<span class="pq-stat" title="' + escapeHtml(channels.map(channelLabel).join(' · ')) + '">ใช้ ' +
       channels.length + ' ช่องทาง</span>';
 }
@@ -3864,20 +3973,32 @@ function renderPublishQueue() {
   list.innerHTML = rows.map(function(entry, i) {
     const item = entry.item;
     const record = entry.record;
-    const overdue = entry.late;
     const key = publishKey(item);
-    return '<li class="queue-item' + (overdue ? ' is-overdue' : '') + '">' +
+    const flag = entry.posted
+      ? '<span class="queue-flag is-posted">โพสต์แล้ว</span>'
+      : entry.due
+        ? '<span class="queue-flag">ถึงรอบ</span>'
+        : '<span class="queue-flag is-waiting">รอถึงรอบ</span>';
+    const postedLine = entry.posted
+      ? '<span class="queue-meta queue-posted">✅ โพสต์เมื่อ ' + escapeHtml(publishPostedLabel(entry.postedAt)) +
+          ' · ช่องทางที่โพสต์จริง: ' + escapeHtml(entry.postedChannels.map(channelLabel).join(' · ') || 'ไม่ได้ระบุ') + '</span>'
+      : '';
+    return '<li class="queue-item' + (entry.due ? ' is-overdue' : '') + (entry.posted ? ' is-posted' : '') + '">' +
       '<input type="checkbox" class="pq-check" data-key="' + escapeHtml(key) + '"' +
         (publishQueueSelection.indexOf(key) !== -1 ? ' checked' : '') + ' aria-label="เลือกเพื่อเลื่อนตาราง">' +
       '<span class="queue-index">' + (i + 1) + '</span>' +
       '<span class="queue-title">' +
-        '<b>' + escapeHtml(item.name) +
-          (overdue ? ' <span class="queue-flag">เลยกำหนด</span>' : '') + '</b>' +
+        '<b>' + escapeHtml(item.name) + ' ' + flag + '</b>' +
         '<span class="queue-meta">🗓 ' + escapeHtml(publishWhenLabel(record)) +
-          ' · ช่องทาง: ' + escapeHtml(publishChannelsLabel(record, item)) + '</span>' +
+          ' · ช่องทาง: ' + escapeHtml(entry.channels.map(channelLabel).join(' · ') || '—') + '</span>' +
+        postedLine +
         (item.exportNotes ? '<span class="queue-meta">' + escapeHtml(item.exportNotes) + '</span>' : '') +
+        (publishPostingKey === key ? publishPostingFormHtml(entry) : '') +
       '</span>' +
       '<span class="queue-actions">' +
+        (entry.posted
+          ? '<button type="button" class="chip-btn pq-unpost" data-key="' + escapeHtml(key) + '" title="ยกเลิกสถานะโพสต์แล้ว">ยกเลิกการโพสต์</button>'
+          : '<button type="button" class="chip-btn pq-post" data-key="' + escapeHtml(key) + '" title="ทำเครื่องหมายว่าโพสต์แล้ว (ACE ไม่โพสต์ให้)">โพสต์แล้ว</button>') +
         '<button type="button" class="chip-btn pq-edit" data-key="' + escapeHtml(key) + '">แก้ไข</button>' +
         (item.affiliateLink
           ? '<button type="button" class="chip-btn pq-copy" data-index="' + entry.index + '">คัดลอกลิงก์</button>'
@@ -3889,6 +4010,11 @@ function renderPublishQueue() {
   if (list.dataset.bound !== '1') {
     list.dataset.bound = '1';
     list.addEventListener('change', function(event) {
+      const postCh = event.target.closest('.pq-post-ch');
+      if (postCh) {
+        togglePublishPostingChannel(postCh.value, postCh.checked);
+        return;
+      }
       const cb = event.target.closest('.pq-check');
       if (!cb) return;
       const key = cb.dataset.key;
@@ -3898,6 +4024,24 @@ function renderPublishQueue() {
       renderPublishConfirm();
     });
     list.addEventListener('click', function(event) {
+      const postBtn = event.target.closest('.pq-post');
+      if (postBtn) {
+        startPublishPosting(postBtn.dataset.key);
+        return;
+      }
+      const unpostBtn = event.target.closest('.pq-unpost');
+      if (unpostBtn) {
+        undoPublishPosting(unpostBtn.dataset.key);
+        return;
+      }
+      if (event.target.closest('.pq-post-confirm')) {
+        confirmPublishPosting();
+        return;
+      }
+      if (event.target.closest('.pq-post-cancel')) {
+        cancelPublishPosting();
+        return;
+      }
       const editBtn = event.target.closest('.pq-edit');
       if (editBtn) {
         openPublishEdit(editBtn.dataset.key);

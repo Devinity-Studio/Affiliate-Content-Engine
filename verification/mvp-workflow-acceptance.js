@@ -203,7 +203,7 @@ function runPublishQueueAcceptance() {
 
   const queueHtml = () => getEl('publish-queue').innerHTML;
   const cardHtml = () => getEl('publish-confirm').innerHTML;
-  const queueNames = () => Array.from(queueHtml().matchAll(/<b>([^<]*?)(?: <span class="queue-flag">เลยกำหนด<\/span>)?<\/b>/g)).map((m) => m[1].trim());
+  const queueNames = () => Array.from(queueHtml().matchAll(/<b>([^<]*?)(?: <span class="queue-flag[^"]*">[^<]*<\/span>)?<\/b>/g)).map((m) => m[1].trim());
   const setForm = (channels, date, time, notes) => {
     checkedChannels.length = 0;
     channels.forEach((value) => checkedChannels.push(value));
@@ -337,10 +337,16 @@ function runPublishQueueAcceptance() {
 
   const html = queueHtml();
   const overdueRows = Array.from(html.matchAll(/<li class="queue-item is-overdue">([\s\S]*?)<\/li>/g)).map((m) => m[1]);
-  check('only the row whose slot already passed is flagged overdue',
-    overdueRows.length === 1 && overdueRows[0].includes('เลยกำหนดแล้ว') && overdueRows[0].includes('เลยกำหนด</span>')
+  check('only the row whose slot already passed is flagged as due',
+    overdueRows.length === 1 && overdueRows[0].includes('เลยกำหนดแล้ว') && overdueRows[0].includes('ถึงรอบ</span>')
+    && overdueRows[0].includes('รอถึงรอบ') === false
     && !/อนาคตใกล้|อนาคตไกล|ไม่มีเวลา/.test(overdueRows[0]),
-    `${overdueRows.length} overdue row(s)`);
+    `${overdueRows.length} due row(s)`);
+  check('every waiting row says so and carries a post action',
+    (html.match(/queue-flag is-waiting">รอถึงรอบ/g) || []).length === 3
+    && (html.match(/class="chip-btn pq-post" data-key="lib-\d+"/g) || []).length === 4
+    && !html.includes('pq-unpost') && !html.includes('queue-flag is-posted'),
+    (html.match(/รอถึงรอบ/g) || []).length + ' waiting flag(s)');
   check('each queued row keeps its edit and copy actions with stable keys',
     (html.match(/class="chip-btn pq-edit" data-key="lib-\d+"/g) || []).length === 4
     && (html.match(/class="chip-btn pq-copy" data-index="\d+"/g) || []).length === 4);
@@ -350,9 +356,10 @@ function runPublishQueueAcceptance() {
 
   // --- select-all / clear in the queue -----------------------------------
   const summary = run("document.getElementById('publish-queue-summary').innerHTML");
-  check('queue summary counts rows, late slots and channels and names the next slot',
-    summary.includes('4 รายการในคิว') && summary.includes('เลยกำหนด 1')
-    && /ถัดไป 5 ม\.ค\. 2573/.test(summary) && summary.includes('ใช้ 3 ช่องทาง'),
+  check('queue summary counts rows, due-posts, posted rows and channels and names the next slot',
+    summary.includes('4 รายการในคิว') && summary.includes('ค้างโพสต์ 1')
+    && /ถัดไป 5 ม\.ค\. 2573/.test(summary) && summary.includes('โพสต์แล้ว 0')
+    && summary.includes('ใช้ 3 ช่องทาง'),
     summary.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 120));
 
   // --- summary chips as filters ------------------------------------------
@@ -363,15 +370,75 @@ function runPublishQueueAcceptance() {
   };
   const queueRowCount = () => run("(document.getElementById('publish-queue').innerHTML.match(/<b>/g) || []).length");
 
-  run('togglePublishQueueFilter("late");');
-  check('the late chip filters the queue down to overdue rows',
-    queueRowCount() === 1 && chipMarkup('late').includes('is-active') && chipMarkup('late').includes('aria-pressed="true"'),
-    `${queueRowCount()} row(s), chip ${chipMarkup('late').slice(0, 60)}`);
+  run('togglePublishQueueFilter("due");');
+  check('the ค้างโพสต์ chip filters the queue down to due rows',
+    queueRowCount() === 1 && chipMarkup('due').includes('is-active') && chipMarkup('due').includes('aria-pressed="true"'),
+    `${queueRowCount()} row(s), chip ${chipMarkup('due').slice(0, 60)}`);
 
-  run('togglePublishQueueFilter("late");');
+  run('togglePublishQueueFilter("due");');
   check('clicking the same chip again restores the whole queue',
     queueRowCount() === 4 && chipMarkup('').includes('is-active'),
     `${queueRowCount()} row(s), total chip ${chipMarkup('').slice(0, 50)}`);
+
+  // --- marking a row as posted -------------------------------------------
+  run('startPublishPosting("lib-2");');
+  const formHtml = queueHtml();
+  check('the post action asks which channels were actually published to',
+    formHtml.includes('pq-post-form') && formHtml.includes('โพสต์จริงไปที่:')
+    && (formHtml.match(/class="pq-post-ch" value="[a-z_]+" checked/g) || []).length === 1,
+    'form renders the planned channels ticked');
+
+  run('togglePublishPostingChannel("x", false); confirmPublishPosting();');
+  const refusedPost = JSON.parse(run(`JSON.stringify({
+    posted: Boolean(publishQueue[1].publishRecord.postedAt),
+    channels: publishQueue[1].publishRecord.postedChannels || [],
+    key: publishPostingKey,
+  })`));
+  check('confirming with no channel ticked is refused and keeps the row unposted',
+    refusedPost.posted === false && refusedPost.channels.length === 0 && refusedPost.key === 'lib-2',
+    `posted ${refusedPost.posted} / form still open`);
+
+  run('togglePublishPostingChannel("x", true); togglePublishPostingChannel("facebook", true); confirmPublishPosting();');
+  const postedState = JSON.parse(run(`JSON.stringify({
+    postedAt: publishQueue[1].publishRecord.postedAt || '',
+    channels: publishQueue[1].publishRecord.postedChannels || [],
+    status: publishQueue[1].status,
+    scheduledAt: publishQueue[1].publishRecord.scheduledAt,
+    events: (publishQueue[1].lineage && publishQueue[1].lineage.history) || [],
+  })`));
+  const postedHtml = queueHtml();
+  check('marking a row posted records the timestamp and the real channels only',
+    Boolean(postedState.postedAt) && postedState.channels.join('/') === 'x/facebook'
+    && postedState.status === 'EXPORTED' && postedState.scheduledAt === '2020-01-05T10:00'
+    && postedState.events.some((h) => /โพสต์แล้ว/.test(h.event || '')),
+    postedState.channels.join('/') + ' · ' + postedState.postedAt.slice(0, 16));
+  check('the posted row shows its state, timestamp and channels and swaps the action',
+    postedHtml.includes('queue-flag is-posted">โพสต์แล้ว')
+    && postedHtml.includes('โพสต์เมื่อ') && postedHtml.includes('ช่องทางที่โพสต์จริง: X (Twitter) (Organic) · Facebook (Organic)')
+    && postedHtml.includes('class="chip-btn pq-unpost" data-key="lib-2"')
+    && !/class="queue-item is-overdue"><input type="checkbox" class="pq-check" data-key="lib-2"/.test(postedHtml.replace(/ aria-label="[^"]*"/, '')),
+    'posted row rendered');
+  check('a posted row is no longer counted as ค้างโพสต์ and sinks below the work left',
+    run("document.getElementById('publish-queue-summary').innerHTML").includes('ค้างโพสต์ 0')
+    && run("document.getElementById('publish-queue-summary').innerHTML").includes('โพสต์แล้ว 1')
+    && queueNames().indexOf('เลยกำหนดแล้ว') > queueNames().indexOf('อนาคตไกล'),
+    queueNames().join(' | '));
+
+  run('togglePublishQueueFilter("posted");');
+  check('the โพสต์แล้ว chip shows only the posted rows',
+    queueRowCount() === 1 && queueNames().join('|') === 'เลยกำหนดแล้ว' && chipMarkup('posted').includes('is-active'),
+    queueNames().join('|'));
+  run('togglePublishQueueFilter("posted");');
+
+  run('undoPublishPosting("lib-2");');
+  const undone = JSON.parse(run(`JSON.stringify({
+    postedAt: publishQueue[1].publishRecord.postedAt || null,
+    channels: publishQueue[1].publishRecord.postedChannels || null,
+    due: publishQueuePlan().filter(function (e) { return e.item.libraryId === 'lib-2'; })[0].due,
+  })`));
+  check('undoing a post clears the timestamp and puts the row back in ค้างโพสต์',
+    undone.postedAt === null && undone.channels === null && undone.due === true,
+    `postedAt ${undone.postedAt} / due ${undone.due}`);
 
   run('selectAllPublishQueue();');
   const allSelected = JSON.parse(run(`JSON.stringify({
