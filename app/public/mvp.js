@@ -2691,20 +2691,32 @@ function openSourceDrawer(targetId) {
   scrollToBlock(targetId);
 }
 
-/* Shown in the queue area while nothing has been confirmed yet. */
+/* ---------- Publish step: confirm channel + time, then queue ---------- */
+
 function publishQueueEmptyHtml() {
   return '<p><b>ยังไม่มีรายการใน Publish Queue</b></p>' +
     '<p class="muted small">เลือกช่องทาง + เวลาด้านบน แล้วกด “ยืนยันแล้วส่งเข้า Publish Queue” — ACE ไม่โพสต์อัตโนมัติ</p>';
 }
 
-/* Which library entry the Publish step acts on: the row picked in the table,
-   otherwise the first item that is approved and still waiting for a channel. */
+function isQueued(item) {
+  return publishQueue.some(function(entry) {
+    return (entry.libraryId && entry.libraryId === item.libraryId) || String(entry.id) === String(item.id);
+  });
+}
+
+/* Sub_id scheme (owner): 1 = channel, 2 = the library entry the report joins on. */
+function publishSubId2(item) {
+  return item.libraryId || ('lib-' + item.id);
+}
+
+/* Which entry the Publish step acts on: the row picked in the table, otherwise
+   the first approved item still waiting for a channel. */
 function publishTargetIndex() {
   if (librarySelectedIndex >= 0 && contentLibrary[librarySelectedIndex]) return librarySelectedIndex;
   return contentLibrary.findIndex(function(item) { return item.status === 'APPROVE'; });
 }
 
-function publishEmptyHtml(title, detail) {
+function publishNoticeHtml(title, detail) {
   return '<div class="publish-empty">' +
     '<p><b>' + title + '</b></p>' +
     '<p class="muted small">' + detail + '</p>' +
@@ -2712,9 +2724,22 @@ function publishEmptyHtml(title, detail) {
   '</div>';
 }
 
-/* Publish step: pick the channels registered with Shopee Affiliate (with their
-   account handle), pick the time, then confirm. Confirming is the only way a
-   row becomes EXPORTED and enters the Publish Queue. */
+function publishChannelCardsHtml(chosen, sub2) {
+  return PUBLISH_CHANNELS.map(function(ch) {
+    return '<label class="publish-channel">' +
+      '<input type="checkbox" class="publish-channel-cb" value="' + ch.id + '"' +
+        (chosen.indexOf(ch.id) !== -1 ? ' checked' : '') + '>' +
+      '<span class="publish-channel-body">' +
+        '<b>' + escapeHtml(ch.label) + (ch.note ? ' · ' + escapeHtml(ch.note) : '') + '</b>' +
+        '<span>' + (ch.handle ? 'บัญชี: ' + escapeHtml(ch.handle) : 'ยังไม่ได้ผูกบัญชี') + '</span>' +
+        '<span>Sub_id: ?sub_id1=' + ch.id + '&amp;sub_id2=' + escapeHtml(sub2) + '</span>' +
+      '</span>' +
+    '</label>';
+  }).join('');
+}
+
+/* Rendered whenever the Publish stage or the library table refreshes, so the
+   card always shows the row the operator is looking at. */
 function renderPublishConfirm() {
   const host = document.getElementById('publish-confirm');
   if (!host) return;
@@ -2723,64 +2748,47 @@ function renderPublishConfirm() {
   const item = index >= 0 ? contentLibrary[index] : null;
 
   if (!item) {
-    host.innerHTML = publishEmptyHtml(
+    host.innerHTML = publishNoticeHtml(
       'ยังไม่มีรายการให้เผยแพร่',
       'อนุมัติงานใน Finalize ก่อน (เลือกแถว → ตรวจ Full Screen → อนุมัติ) แล้วกลับมาเลือกช่องทางและเวลา'
     );
     return;
   }
-  if (item.status === 'EXPORTED') {
-    host.innerHTML = publishEmptyHtml(
-      escapeHtml(item.name || 'รายการ') + ' — ยืนยันเผยแพร่แล้ว',
-      'รายการนี้อยู่ใน Publish Queue ด้านล่าง — เลือกแถวอื่นที่อนุมัติแล้วเพื่อยืนยันเพิ่ม'
-    );
-    return;
-  }
   if (item.status !== 'APPROVE') {
-    host.innerHTML = publishEmptyHtml(
+    const detail = item.status === 'EXPORTED'
+      ? 'รายการนี้ยืนยันเผยแพร่แล้วและอยู่ใน Publish Queue ด้านล่าง — เลือกแถวอื่นที่อนุมัติแล้วเพื่อยืนยันเพิ่ม'
+      : 'ต้องอนุมัติ (APPROVE) ก่อนจึงจะยืนยันการเผยแพร่ได้ — ไปที่ Finalize เพื่อตรวจและอนุมัติ';
+    host.innerHTML = publishNoticeHtml(
       escapeHtml(item.name || 'รายการ') + ' — สถานะ ' + escapeHtml(item.status || '—'),
-      'ต้องอนุมัติ (APPROVE) ก่อนจึงจะยืนยันการเผยแพร่ได้ — ไปที่ Finalize เพื่อตรวจและอนุมัติ'
+      detail
     );
     return;
   }
 
   const candidate = candidatePool.filter(function(c) { return String(c.id) === String(item.id); })[0] || {};
-  const chosen = item.channels || candidate.channels || ['shopee_video'];
-  const sub2 = item.libraryId || ('lib-' + item.id);
   const saved = item.publishRecord || {};
-  const scheduled = saved.scheduledAt ? String(saved.scheduledAt) : '';
-  const today = new Date().toISOString().slice(0, 10);
-  const dateValue = /^\d{4}-\d{2}-\d{2}T/.test(scheduled) ? scheduled.slice(0, 10) : today;
-  const timeValue = /^\d{4}-\d{2}-\d{2}T/.test(scheduled) ? scheduled.slice(11, 16) : '19:00';
-  const modeValue = saved.mode === 'now' ? 'now' : 'schedule';
-
-  const channelCards = PUBLISH_CHANNELS.map(function(ch) {
-    const on = chosen.indexOf(ch.id) !== -1;
-    return '<label class="publish-channel">' +
-      '<input type="checkbox" class="publish-channel-cb" value="' + ch.id + '"' + (on ? ' checked' : '') + '>' +
-      '<span class="publish-channel-body">' +
-        '<b>' + escapeHtml(ch.label) + (ch.note ? ' · ' + escapeHtml(ch.note) : '') + '</b>' +
-        '<span>' + (ch.handle ? 'บัญชี: ' + escapeHtml(ch.handle) : 'ยังไม่ได้ผูกบัญชี') + '</span>' +
-        '<span>Sub_id: ?sub_id1=' + ch.id + '&amp;sub_id2=' + escapeHtml(sub2) + '</span>' +
-      '</span>' +
-    '</label>';
-  }).join('');
+  const scheduled = /^\d{4}-\d{2}-\d{2}T/.test(String(saved.scheduledAt || '')) ? String(saved.scheduledAt) : '';
+  const timestamp = (item.lineage && item.lineage.approvedSha256) || '';
 
   host.innerHTML =
     '<div class="publish-target">' +
       '<b>' + escapeHtml(item.name || 'รายการ') + '</b>' +
       '<span class="status-badge status-approve">APPROVE</span>' +
-      '<span class="muted small">v' + ((item.lineage && item.lineage.version) || 1) + ' · freeze ' +
-        escapeHtml(String((item.lineage && item.lineage.approvedSha256) || '').slice(0, 10) || '—') + '</span>' +
+      '<span class="muted small">v' + ((item.lineage && item.lineage.version) || 1) +
+        ' · freeze ' + escapeHtml(timestamp.slice(0, 10) || '—') + '</span>' +
     '</div>' +
-    '<div class="publish-channels">' + channelCards + '</div>' +
+    '<div class="publish-channels">' +
+      publishChannelCardsHtml(item.channels || candidate.channels || ['shopee_video'], publishSubId2(item)) +
+    '</div>' +
     '<div class="publish-when">' +
       '<label>โหมด<select id="publish-mode" class="form-input">' +
-        '<option value="schedule"' + (modeValue === 'schedule' ? ' selected' : '') + '>ตั้งเวลา</option>' +
-        '<option value="now"' + (modeValue === 'now' ? ' selected' : '') + '>เผยแพร่ทันที (โพสต์ด้วยมือ)</option>' +
+        '<option value="schedule"' + (saved.mode === 'now' ? '' : ' selected') + '>ตั้งเวลา</option>' +
+        '<option value="now"' + (saved.mode === 'now' ? ' selected' : '') + '>เผยแพร่ทันที (โพสต์ด้วยมือ)</option>' +
       '</select></label>' +
-      '<label>วันที่<input type="date" id="publish-date" class="form-input" value="' + dateValue + '"></label>' +
-      '<label>เวลา<input type="time" id="publish-time" class="form-input" value="' + timeValue + '"></label>' +
+      '<label>วันที่<input type="date" id="publish-date" class="form-input" value="' +
+        (scheduled ? scheduled.slice(0, 10) : new Date().toISOString().slice(0, 10)) + '"></label>' +
+      '<label>เวลา<input type="time" id="publish-time" class="form-input" value="' +
+        (scheduled ? scheduled.slice(11, 16) : '19:00') + '"></label>' +
     '</div>' +
     '<label class="publish-note">หมายเหตุ (ไม่บังคับ)' +
       '<input id="publish-notes" class="form-input" placeholder="เช่น รีวิวสั้น 20 วิ / โปร 11.11" value="' +
@@ -2793,21 +2801,18 @@ function renderPublishConfirm() {
     '</div>';
 
   const modeEl = document.getElementById('publish-mode');
+  const dateEl = document.getElementById('publish-date');
+  const timeEl = document.getElementById('publish-time');
   const syncMode = function() {
-    const now = modeEl && modeEl.value === 'now';
-    const dateEl = document.getElementById('publish-date');
-    const timeEl = document.getElementById('publish-time');
-    if (dateEl) dateEl.disabled = now;
-    if (timeEl) timeEl.disabled = now;
+    const instant = modeEl.value === 'now';
+    dateEl.disabled = instant;
+    timeEl.disabled = instant;
   };
-  if (modeEl) modeEl.addEventListener('change', syncMode);
+  modeEl.addEventListener('change', syncMode);
   syncMode();
 
-  const qcBtn = document.getElementById('publish-qc-btn');
-  if (qcBtn) qcBtn.addEventListener('click', function() { openQcOverlay(index); });
-
-  const confirmBtn = document.getElementById('publish-confirm-btn');
-  if (confirmBtn) confirmBtn.addEventListener('click', function() { confirmPublish(index); });
+  document.getElementById('publish-qc-btn').addEventListener('click', function() { openQcOverlay(index); });
+  document.getElementById('publish-confirm-btn').addEventListener('click', function() { confirmPublish(index); });
 }
 
 function confirmPublish(index) {
@@ -2821,28 +2826,26 @@ function confirmPublish(index) {
     showToast('เลือกอย่างน้อย 1 ช่องทางก่อนยืนยัน', 'warning');
     return;
   }
-  const mode = (document.getElementById('publish-mode') || {}).value || 'schedule';
-  const date = (document.getElementById('publish-date') || {}).value || '';
-  const time = (document.getElementById('publish-time') || {}).value || '';
+  const mode = document.getElementById('publish-mode').value;
+  const date = document.getElementById('publish-date').value;
+  const time = document.getElementById('publish-time').value;
   if (mode === 'schedule' && (!date || !time)) {
     showToast('เลือกวันที่และเวลาก่อนยืนยัน', 'warning');
     return;
   }
-  const notes = ((document.getElementById('publish-notes') || {}).value || '').trim();
+  const notes = document.getElementById('publish-notes').value.trim();
   const scheduledAt = mode === 'now' ? new Date().toISOString() : date + 'T' + time;
 
   item.status = 'EXPORTED';
   item.exportNotes = notes;
   item.channels = channels;
-  item.scheduledAt = scheduledAt;
-  item.scheduleMode = mode;
   item.publishRecord = {
     channels: channels,
     mode: mode,
     scheduledAt: scheduledAt,
     notes: notes,
-    subId1: channels[0] || '',
-    subId2: item.libraryId || ('lib-' + item.id),
+    subId1: channels[0],
+    subId2: publishSubId2(item),
     approvedSha256: item.lineage ? (item.lineage.approvedSha256 || null) : null,
     version: item.lineage ? (item.lineage.version || null) : null,
     publishedAt: new Date().toISOString()
@@ -2850,18 +2853,30 @@ function confirmPublish(index) {
   if (item.lineage) {
     item.lineage.status = 'PUBLISHED';
     item.lineage.publishedAt = item.publishRecord.publishedAt;
-    pushLineageEvent(item, 'ยืนยันเผยแพร่: ' + channels.join(', ') + ' · ' + (mode === 'now' ? 'ทันที' : scheduledAt), { channels: channels });
+    pushLineageEvent(item, 'ยืนยันเผยแพร่: ' + channels.join(', ') +
+      ' · ' + (mode === 'now' ? 'ทันที' : scheduledAt), { channels: channels });
   }
-  const already = publishQueue.some(function(entry) {
-    return (entry.libraryId && entry.libraryId === item.libraryId) || String(entry.id) === String(item.id);
-  });
-  if (!already) publishQueue.push(item);
+  if (!isQueued(item)) publishQueue.push(item);
 
   savePoolState();
   renderContentLibrary();
   renderPublishQueue();
-  renderPublishConfirm();
   showToast('ส่งเข้า Publish Queue แล้ว — ' + channels.length + ' ช่องทาง', 'success');
+}
+
+/* The row action and the library toolbar both land here instead of writing to
+   the queue themselves, so channels + time are confirmed in exactly one place. */
+function openPublishConfirm(index) {
+  const item = contentLibrary[index];
+  if (!item) return;
+  if (item.status !== 'APPROVE') {
+    showToast('รายการต้องอนุมัติ (APPROVE) ก่อนส่งเข้า Publish Queue', 'warning');
+    return;
+  }
+  librarySelectedIndex = index;
+  if (document.body.dataset.stage !== 'schedule') switchStage('schedule');
+  renderContentLibrary();
+  showToast('เลือกช่องทาง + เวลา แล้วกด “ยืนยันแล้วส่งเข้า Publish Queue”', 'info');
 }
 
 function bindPublishSchedule() {
@@ -3084,41 +3099,24 @@ function selectLibraryRow(index) {
     pushLineageEvent(item, 'เลือกแถวนี้เป็น Active Lineage');
     savePoolState();
     renderContentLibrary();
-    if (document.body.dataset.stage === 'schedule') renderPublishConfirm();
     showToast('ตั้งเป็น Active Lineage แล้ว — กด “ตรวจ Full Screen” เพื่อตรวจละเอียด', 'success');
     return;
   }
   renderContentLibrary();
-  if (document.body.dataset.stage === 'schedule') renderPublishConfirm();
   showToast('เลือก “' + item.name + '” เป็นรายการทำงาน', 'info');
 }
 
+/* Library toolbar: takes the checked approved row to the Publish step, where the
+   channels and time are confirmed (this button never queues by itself). */
 function setActiveLineage() {
-  var selected = contentLibrary.filter(function(item) {
+  var index = contentLibrary.findIndex(function(item) {
     return item.selected && item.status === 'APPROVE';
   });
-  if (selected.length === 0) {
+  if (index < 0) {
     showToast('กรุณาเลือกรายการที่มีสถานะ APPROVE ก่อน', 'warning');
     return;
   }
-  
-  // Prompt for notes before exporting (MANDATORY - no auto-publish)
-  var notes = prompt('กรุณาใส่หมายเหตุสำหรับการส่งออก (จำเป็น):', '');
-  if (notes === null) {
-    // User cancelled - do not proceed with publishing
-    showToast('การส่งออกถูกยกเลิก', 'info');
-    return;
-  }
-  
-  // Add notes to selected items and send to publish queue
-  selected.forEach(function(item) {
-    item.status = 'EXPORTED';
-    item.exportNotes = notes;
-    publishQueue.push(item);
-  });
-  renderContentLibrary();
-  renderPublishQueue();
-  showToast('ส่ง ' + selected.length + ' รายการไป Publish Queue เรียบร้อย (หมายเหตุ: ' + notes + ')', 'success');
+  openPublishConfirm(index);
 }
 
 // ----- Toast -----
@@ -4260,7 +4258,6 @@ const stageMap = {
       seedContentLibraryFromPool();
       renderContentLibrary();
       renderPublishQueue();
-      renderPublishConfirm();
       showToast('เข้าสู่โหมด Schedule - แผนการโพสต์และลำดับ', 'info');
     }
   }
@@ -4322,12 +4319,7 @@ function attachLibraryHandlers() {
           showToast('รายการต้องอนุมัติก่อนจึงจะส่งเข้า Publish Queue ได้', 'warning');
           return;
         }
-        // One entry point into the queue: the Publish step is where channels,
-        // Sub_id, time and notes are confirmed (the row button only takes you there).
-        librarySelectedIndex = index;
-        renderContentLibrary();
-        switchStage('schedule');
-        showToast('เลือกช่องทาง + เวลา แล้วกด “ยืนยันแล้วส่งเข้า Publish Queue”', 'info');
+        openPublishConfirm(index);
       }
     });
   });
