@@ -3573,6 +3573,28 @@ function itemStatusMatches(index, filterStatus) {
   return item.status === filterStatus;
 }
 
+function channelLabel(id) {
+  const found = PUBLISH_CHANNELS.find(function(ch) { return ch.id === id; });
+  return found ? found.label : id;
+}
+
+/* The confirmed plan of one queued row, so the upcoming schedule is readable
+   from the queue itself instead of only inside the Publish card. */
+function publishWhenLabel(record) {
+  if (!record || !record.scheduledAt) return 'ยังไม่ตั้งเวลา';
+  const when = new Date(record.scheduledAt);
+  if (isNaN(when.getTime())) return String(record.scheduledAt);
+  const stamp = when.toLocaleString('th-TH', {
+    day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit'
+  });
+  return record.mode === 'now' ? 'เผยแพร่ทันที · ' + stamp : stamp;
+}
+
+function publishChannelsLabel(record, item) {
+  const ids = (record && record.channels && record.channels.length) ? record.channels : (item.channels || []);
+  return ids.map(channelLabel).join(' · ') || '—';
+}
+
 function renderPublishQueue() {
   savePoolState();
   var list = document.getElementById('publish-queue');
@@ -3582,10 +3604,15 @@ function renderPublishQueue() {
     return;
   }
   list.innerHTML = publishQueue.map(function(item, i) {
+    const record = item.publishRecord || {};
     return '<li class="queue-item">' +
       '<span class="queue-index">' + (i + 1) + '</span>' +
-      '<span class="queue-title">' + escapeHtml(item.name) + '</span>' +
-      '<span class="muted small">' + escapeHtml(item.exportNotes || '') + '</span>' +
+      '<span class="queue-title">' +
+        '<b>' + escapeHtml(item.name) + '</b>' +
+        '<span class="queue-meta">🗓 ' + escapeHtml(publishWhenLabel(record)) +
+          ' · ช่องทาง: ' + escapeHtml(publishChannelsLabel(record, item)) + '</span>' +
+        (item.exportNotes ? '<span class="queue-meta">' + escapeHtml(item.exportNotes) + '</span>' : '') +
+      '</span>' +
       (item.affiliateLink
         ? '<button type="button" class="chip-btn pq-copy" data-index="' + i + '">คัดลอกลิงก์</button>'
         : '') +
