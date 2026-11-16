@@ -2758,11 +2758,6 @@ let publishEditKey = null;
 // Keys (libraryId) of queued rows ticked for a shared reschedule.
 let publishQueueSelection = [];
 
-function publishQueueEmptyHtml() {
-  return '<p><b>ยังไม่มีรายการใน Publish Queue</b></p>' +
-    '<p class="muted small">เลือกช่องทาง + เวลาด้านบน แล้วกด “ยืนยันแล้วส่งเข้า Publish Queue” — ACE ไม่โพสต์อัตโนมัติ</p>';
-}
-
 function isQueued(item) {
   return publishQueue.some(function(entry) {
     return (entry.libraryId && entry.libraryId === item.libraryId) || String(entry.id) === String(item.id);
@@ -3767,26 +3762,28 @@ function publishChannelsLabel(record, item) {
   return ids.map(channelLabel).join(' · ') || '—';
 }
 
-/* Sort key for the queue view: nearest slot first, rows without a time last. */
-function publishSortTime(item) {
-  const when = publishSlotDate(item.publishRecord);
-  return when ? when.getTime() : Infinity;
-}
-
-/* A confirmed slot that is already in the past has not been posted yet. */
-function publishIsOverdue(item) {
-  const time = publishSortTime(item);
-  return time !== Infinity && time < Date.now();
+/* One pass over the queue gives the rows sorted nearest-first, each carrying its
+   parsed slot and late flag, so the summary, the filter and the rendered rows
+   can never disagree about time or lateness. */
+function publishQueuePlan() {
+  const now = Date.now();
+  return publishQueue
+    .map(function(item, index) {
+      const record = item.publishRecord || {};
+      const when = publishSlotDate(record);
+      return { item: item, index: index, record: record, when: when, late: Boolean(when) && when.getTime() < now };
+    })
+    .sort(function(a, b) {
+      return (a.when ? a.when.getTime() : Infinity) - (b.when ? b.when.getTime() : Infinity);
+    });
 }
 
 /* View filter driven by the summary chips; null = the whole queue. */
 let publishQueueFilter = null;
 
-function matchesPublishQueueFilter(item) {
-  if (publishQueueFilter === 'late') return publishIsOverdue(item);
-  if (publishQueueFilter === 'upcoming') {
-    return !publishIsOverdue(item) && publishSortTime(item) !== Infinity;
-  }
+function matchesPublishQueueFilter(entry) {
+  if (publishQueueFilter === 'late') return entry.late;
+  if (publishQueueFilter === 'upcoming') return Boolean(entry.when) && !entry.late;
   return true;
 }
 
@@ -3795,30 +3792,39 @@ function togglePublishQueueFilter(next) {
   renderPublishQueue();
 }
 
+function publishEmptyItemHtml(title, detail) {
+  return '<li class="publish-empty">' +
+    '<p><b>' + title + '</b></p>' +
+    '<p class="muted small">' + detail + '</p>' +
+  '</li>';
+}
+
 /* One-line picture of the queue before planning: how many sit in it, how many
    slots already passed, when the next one lands, and how many channels are used.
    The first three chips are buttons: click to filter, click again for all. */
-function publishQueueSummaryHtml() {
-  const overdue = publishQueue.filter(publishIsOverdue).length;
-  const next = publishQueue
-    .filter(function(item) { return publishSortTime(item) !== Infinity && !publishIsOverdue(item); })
-    .sort(function(a, b) { return publishSortTime(a) - publishSortTime(b); })[0];
+function publishQueueSummaryHtml(plan) {
+  const late = plan.filter(function(entry) { return entry.late; }).length;
+  const next = plan.filter(function(entry) { return entry.when && !entry.late; })[0];
   const channels = [];
-  publishQueue.forEach(function(item) {
-    const ids = (item.publishRecord && item.publishRecord.channels) || item.channels || [];
+  plan.forEach(function(entry) {
+    const ids = (entry.record.channels && entry.record.channels.length)
+      ? entry.record.channels
+      : (entry.item.channels || []);
     ids.forEach(function(id) { if (channels.indexOf(id) === -1) channels.push(id); });
   });
+
   const chip = function(filter, classes, label, title) {
     // The total chip reads as active while no filter is applied.
     const active = filter ? publishQueueFilter === filter : publishQueueFilter === null;
-    return '<button type="button" class="pq-stat' + (classes || '') + (active ? ' is-active' : '') + '"' +
-      ' data-filter="' + (filter || '') + '" aria-pressed="' + (active ? 'true' : 'false') + '"' +
-      (title ? ' title="' + escapeHtml(title) + '"' : '') + '>' + label + '</button>';
+    return '<button type="button" class="pq-stat' + classes + (active ? ' is-active' : '') + '"' +
+      ' data-filter="' + filter + '" aria-pressed="' + (active ? 'true' : 'false') + '"' +
+      ' title="' + escapeHtml(title) + '">' + label + '</button>';
   };
-  return chip('', '', publishQueue.length + ' รายการในคิว', 'แสดงทั้งคิว') +
-    chip('late', overdue ? ' is-late' : '', 'เลยกำหนด ' + overdue, 'แสดงเฉพาะรอบที่เลยกำหนด') +
+
+  return chip('', '', plan.length + ' รายการในคิว', 'แสดงทั้งคิว') +
+    chip('late', late ? ' is-late' : '', 'เลยกำหนด ' + late, 'แสดงเฉพาะรอบที่เลยกำหนด') +
     chip('upcoming', '',
-      (next ? 'ถัดไป ' + escapeHtml(publishWhenLabel(next.publishRecord)) : 'ไม่มีรอบถัดไปที่ตั้งเวลาไว้'),
+      next ? 'ถัดไป ' + escapeHtml(publishWhenLabel(next.record)) : 'ไม่มีรอบถัดไปที่ตั้งเวลาไว้',
       'แสดงเฉพาะรอบที่ยังไม่ถึง') +
     '<span class="pq-stat" title="' + escapeHtml(channels.map(channelLabel).join(' · ')) + '">ใช้ ' +
       channels.length + ' ช่องทาง</span>';
@@ -3828,9 +3834,11 @@ function renderPublishQueue() {
   savePoolState();
   var list = document.getElementById('publish-queue');
   if (!list) return;
+  // Nearest slot first; data-index keeps pointing at publishQueue, not this view.
+  const plan = publishQueuePlan();
   const summary = document.getElementById('publish-queue-summary');
   if (summary) {
-    summary.innerHTML = publishQueue.length ? publishQueueSummaryHtml() : '';
+    summary.innerHTML = plan.length ? publishQueueSummaryHtml(plan) : '';
     if (summary.dataset.bound !== '1') {
       summary.dataset.bound = '1';
       summary.addEventListener('click', function(event) {
@@ -3839,29 +3847,24 @@ function renderPublishQueue() {
       });
     }
   }
-  if (!publishQueue.length) {
+  if (!plan.length) {
     publishQueueFilter = null;
-    list.innerHTML = '<li class="publish-empty">' + publishQueueEmptyHtml() + '</li>';
-    return;
-  }
-  // Nearest slot first; data-index keeps pointing at publishQueue, not this view.
-  const ordered = publishQueue
-    .map(function(item, index) { return { item: item, index: index }; })
-    .filter(function(entry) { return matchesPublishQueueFilter(entry.item); })
-    .sort(function(a, b) { return publishSortTime(a.item) - publishSortTime(b.item); });
-
-  if (!ordered.length) {
-    list.innerHTML = '<li class="publish-empty">' +
-      '<p><b>ไม่มีรายการในมุมมองนี้</b></p>' +
-      '<p class="muted small">คลิกชิปที่กำลังกรองอีกครั้งเพื่อกลับไปดูทั้งคิว</p>' +
-    '</li>';
+    list.innerHTML = publishEmptyItemHtml('ยังไม่มีรายการใน Publish Queue',
+      'เลือกช่องทาง + เวลาด้านบน แล้วกด “ยืนยันแล้วส่งเข้า Publish Queue” — ACE ไม่โพสต์อัตโนมัติ');
     return;
   }
 
-  list.innerHTML = ordered.map(function(entry, i) {
+  const rows = plan.filter(matchesPublishQueueFilter);
+  if (!rows.length) {
+    list.innerHTML = publishEmptyItemHtml('ไม่มีรายการในมุมมองนี้',
+      'คลิกชิปที่กำลังกรองอีกครั้งเพื่อกลับไปดูทั้งคิว');
+    return;
+  }
+
+  list.innerHTML = rows.map(function(entry, i) {
     const item = entry.item;
-    const record = item.publishRecord || {};
-    const overdue = publishIsOverdue(item);
+    const record = entry.record;
+    const overdue = entry.late;
     const key = publishKey(item);
     return '<li class="queue-item' + (overdue ? ' is-overdue' : '') + '">' +
       '<input type="checkbox" class="pq-check" data-key="' + escapeHtml(key) + '"' +
