@@ -521,6 +521,47 @@ function activeProfile() {
   return workspaceProfiles.find(function(p) { return p.id === activeProfileId; }) || workspaceProfiles[0] || null;
 }
 
+// ----- Publish channels: the account handle per channel, editable in Settings -----
+// Settings stay shared across profiles, like the AI keys.
+
+const CHANNEL_STORAGE_KEY = 'ace.channels.v1';
+const CHANNEL_HANDLES_DEFAULT = {
+  shopee_video: 'bombindyboy1985',
+  tiktok: 'bombindyboy',
+  x: 'x.com/bombindyboy1985',
+  facebook: 'นกรร ธนนีย์',
+  youtube: '',
+};
+let channelHandles = {};
+
+function loadChannelHandles() {
+  channelHandles = Object.assign({}, CHANNEL_HANDLES_DEFAULT);
+  try {
+    const raw = localStorage.getItem(CHANNEL_STORAGE_KEY);
+    const saved = raw ? JSON.parse(raw) : null;
+    if (saved && typeof saved === 'object') {
+      Object.keys(CHANNEL_HANDLES_DEFAULT).forEach(function(id) {
+        if (typeof saved[id] === 'string') channelHandles[id] = saved[id];
+      });
+    }
+  } catch (error) {
+    channelHandles = Object.assign({}, CHANNEL_HANDLES_DEFAULT);
+  }
+}
+
+function saveChannelHandles(next) {
+  channelHandles = Object.assign({}, channelHandles, next);
+  try {
+    localStorage.setItem(CHANNEL_STORAGE_KEY, JSON.stringify(channelHandles));
+  } catch (error) {
+    showToast('บันทึกช่องทางไม่สำเร็จ (พื้นที่เต็ม?)', 'warning');
+  }
+}
+
+function channelHandle(id) {
+  return channelHandles[id] || '';
+}
+
 function writePoolStateNow() {
   try {
     localStorage.setItem(poolKeyFor(activeProfileId), JSON.stringify({
@@ -1413,7 +1454,31 @@ function openSettingsPanel() {
   const overlay = document.getElementById('settings-overlay');
   if (!overlay) return;
   overlay.classList.remove('hidden');
+  renderSettingsChannels();
   refreshSettingsPanel();
+}
+
+/* One text field per publish channel; the handle is what the Publish step shows
+   next to the account so the operator knows where the post goes. */
+function renderSettingsChannels() {
+  const host = document.getElementById('settings-channels');
+  if (!host) return;
+  host.innerHTML = PUBLISH_CHANNELS.map(function(ch) {
+    return '<label><span>' + escapeHtml(ch.label) + (ch.note ? ' · ' + escapeHtml(ch.note) : '') + '</span>' +
+      '<input type="text" data-channel="' + ch.id + '" autocomplete="off" spellcheck="false"' +
+      ' placeholder="ยังไม่ได้ผูกบัญชี" value="' + escapeHtml(channelHandle(ch.id)) + '"></label>';
+  }).join('');
+}
+
+function saveSettingsChannels() {
+  const next = {};
+  document.querySelectorAll('#settings-channels [data-channel]').forEach(function(input) {
+    next[input.dataset.channel] = input.value.trim();
+  });
+  saveChannelHandles(next);
+  renderSettingsChannels();
+  renderPublishConfirm();
+  showToast('บันทึกช่องทางแล้ว — ใช้ในขั้น Publish ทันที', 'success');
 }
 
 function closeSettingsPanel() {
@@ -1546,6 +1611,8 @@ function bindSettingsPanel() {
   if (ping) ping.addEventListener('click', pingAiConnection);
   const reset = document.getElementById('settings-reset');
   if (reset) reset.addEventListener('click', resetAiSettings);
+  const saveChannels = document.getElementById('settings-channels-save');
+  if (saveChannels) saveChannels.addEventListener('click', saveSettingsChannels);
 }
 
 /**
@@ -2744,7 +2811,7 @@ function publishChannelCardsHtml(chosen, sub2) {
         (chosen.indexOf(ch.id) !== -1 ? ' checked' : '') + '>' +
       '<span class="publish-channel-body">' +
         '<b>' + escapeHtml(ch.label) + (ch.note ? ' · ' + escapeHtml(ch.note) : '') + '</b>' +
-        '<span>' + (ch.handle ? 'บัญชี: ' + escapeHtml(ch.handle) : 'ยังไม่ได้ผูกบัญชี') + '</span>' +
+        '<span>' + (channelHandle(ch.id) ? 'บัญชี: ' + escapeHtml(channelHandle(ch.id)) : 'ยังไม่ได้ผูกบัญชี') + '</span>' +
         '<span>Sub_id: ?sub_id1=' + ch.id + '&amp;sub_id2=' + escapeHtml(sub2) + '</span>' +
       '</span>' +
     '</label>';
@@ -4928,13 +4995,14 @@ let importedOffers = [];
 let poolFilter = '';
 let poolVisibleCount = 20;
 
-/* channels ตามที่ผูกไว้ใน Shopee Affiliate ของบัญชีนี้ (handle ใช้แสดงในขั้น Publish) */
+/* ช่องทางที่ผูกกับ Shopee Affiliate — label คงที่, ส่วนชื่อบัญชี/handle
+   อยู่ใน Settings (localStorage ace.channels.v1) ผ่าน channelHandle(id) */
 const PUBLISH_CHANNELS = [
-  { id: 'shopee_video', label: 'Shopee Video', note: 'ช่องทางหลัก', handle: 'bombindyboy1985' },
-  { id: 'tiktok', label: 'TikTok (Organic)', handle: 'bombindyboy' },
-  { id: 'x', label: 'X (Twitter) (Organic)', handle: 'x.com/bombindyboy1985' },
-  { id: 'facebook', label: 'Facebook (Organic)', handle: 'นกรร ธนนีย์' },
-  { id: 'youtube', label: 'YouTube', handle: '' },
+  { id: 'shopee_video', label: 'Shopee Video', note: 'ช่องทางหลัก' },
+  { id: 'tiktok', label: 'TikTok (Organic)' },
+  { id: 'x', label: 'X (Twitter) (Organic)' },
+  { id: 'facebook', label: 'Facebook (Organic)' },
+  { id: 'youtube', label: 'YouTube' },
 ];
 
 function setOffersStatus(message, kind) {
@@ -6593,6 +6661,7 @@ function boot() {
   initDomElements();
   attachEventListeners();
   loadProfileState();
+  loadChannelHandles();
   applyModeUi(true);
   bindProfileSwitcher();
   bindQcOverlay();
