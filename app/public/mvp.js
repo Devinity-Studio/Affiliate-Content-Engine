@@ -3779,8 +3779,25 @@ function publishIsOverdue(item) {
   return time !== Infinity && time < Date.now();
 }
 
+/* View filter driven by the summary chips; null = the whole queue. */
+let publishQueueFilter = null;
+
+function matchesPublishQueueFilter(item) {
+  if (publishQueueFilter === 'late') return publishIsOverdue(item);
+  if (publishQueueFilter === 'upcoming') {
+    return !publishIsOverdue(item) && publishSortTime(item) !== Infinity;
+  }
+  return true;
+}
+
+function togglePublishQueueFilter(next) {
+  publishQueueFilter = publishQueueFilter === next || !next ? null : next;
+  renderPublishQueue();
+}
+
 /* One-line picture of the queue before planning: how many sit in it, how many
-   slots already passed, when the next one lands, and how many channels are used. */
+   slots already passed, when the next one lands, and how many channels are used.
+   The first three chips are buttons: click to filter, click again for all. */
 function publishQueueSummaryHtml() {
   const overdue = publishQueue.filter(publishIsOverdue).length;
   const next = publishQueue
@@ -3791,11 +3808,18 @@ function publishQueueSummaryHtml() {
     const ids = (item.publishRecord && item.publishRecord.channels) || item.channels || [];
     ids.forEach(function(id) { if (channels.indexOf(id) === -1) channels.push(id); });
   });
-  return '<span class="pq-stat">' + publishQueue.length + ' รายการในคิว</span>' +
-    '<span class="pq-stat' + (overdue ? ' is-late' : '') + '">เลยกำหนด ' + overdue + '</span>' +
-    '<span class="pq-stat">' +
-      (next ? 'ถัดไป ' + escapeHtml(publishWhenLabel(next.publishRecord)) : 'ไม่มีรอบถัดไปที่ตั้งเวลาไว้') +
-    '</span>' +
+  const chip = function(filter, classes, label, title) {
+    // The total chip reads as active while no filter is applied.
+    const active = filter ? publishQueueFilter === filter : publishQueueFilter === null;
+    return '<button type="button" class="pq-stat' + (classes || '') + (active ? ' is-active' : '') + '"' +
+      ' data-filter="' + (filter || '') + '" aria-pressed="' + (active ? 'true' : 'false') + '"' +
+      (title ? ' title="' + escapeHtml(title) + '"' : '') + '>' + label + '</button>';
+  };
+  return chip('', '', publishQueue.length + ' รายการในคิว', 'แสดงทั้งคิว') +
+    chip('late', overdue ? ' is-late' : '', 'เลยกำหนด ' + overdue, 'แสดงเฉพาะรอบที่เลยกำหนด') +
+    chip('upcoming', '',
+      (next ? 'ถัดไป ' + escapeHtml(publishWhenLabel(next.publishRecord)) : 'ไม่มีรอบถัดไปที่ตั้งเวลาไว้'),
+      'แสดงเฉพาะรอบที่ยังไม่ถึง') +
     '<span class="pq-stat" title="' + escapeHtml(channels.map(channelLabel).join(' · ')) + '">ใช้ ' +
       channels.length + ' ช่องทาง</span>';
 }
@@ -3805,15 +3829,34 @@ function renderPublishQueue() {
   var list = document.getElementById('publish-queue');
   if (!list) return;
   const summary = document.getElementById('publish-queue-summary');
-  if (summary) summary.innerHTML = publishQueue.length ? publishQueueSummaryHtml() : '';
+  if (summary) {
+    summary.innerHTML = publishQueue.length ? publishQueueSummaryHtml() : '';
+    if (summary.dataset.bound !== '1') {
+      summary.dataset.bound = '1';
+      summary.addEventListener('click', function(event) {
+        const chip = event.target.closest('[data-filter]');
+        if (chip) togglePublishQueueFilter(chip.dataset.filter);
+      });
+    }
+  }
   if (!publishQueue.length) {
+    publishQueueFilter = null;
     list.innerHTML = '<li class="publish-empty">' + publishQueueEmptyHtml() + '</li>';
     return;
   }
   // Nearest slot first; data-index keeps pointing at publishQueue, not this view.
   const ordered = publishQueue
     .map(function(item, index) { return { item: item, index: index }; })
+    .filter(function(entry) { return matchesPublishQueueFilter(entry.item); })
     .sort(function(a, b) { return publishSortTime(a.item) - publishSortTime(b.item); });
+
+  if (!ordered.length) {
+    list.innerHTML = '<li class="publish-empty">' +
+      '<p><b>ไม่มีรายการในมุมมองนี้</b></p>' +
+      '<p class="muted small">คลิกชิปที่กำลังกรองอีกครั้งเพื่อกลับไปดูทั้งคิว</p>' +
+    '</li>';
+    return;
+  }
 
   list.innerHTML = ordered.map(function(entry, i) {
     const item = entry.item;

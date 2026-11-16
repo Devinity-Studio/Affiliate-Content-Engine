@@ -355,6 +355,24 @@ function runPublishQueueAcceptance() {
     && /ถัดไป 5 ม\.ค\. 2573/.test(summary) && summary.includes('ใช้ 3 ช่องทาง'),
     summary.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 120));
 
+  // --- summary chips as filters ------------------------------------------
+  const chipMarkup = (filter) => {
+    const html = run("document.getElementById('publish-queue-summary').innerHTML");
+    const match = html.match(new RegExp('<button[^>]*data-filter="' + filter + '"[^>]*>'));
+    return match ? match[0] : '';
+  };
+  const queueRowCount = () => run("(document.getElementById('publish-queue').innerHTML.match(/<b>/g) || []).length");
+
+  run('togglePublishQueueFilter("late");');
+  check('the late chip filters the queue down to overdue rows',
+    queueRowCount() === 1 && chipMarkup('late').includes('is-active') && chipMarkup('late').includes('aria-pressed="true"'),
+    `${queueRowCount()} row(s), chip ${chipMarkup('late').slice(0, 60)}`);
+
+  run('togglePublishQueueFilter("late");');
+  check('clicking the same chip again restores the whole queue',
+    queueRowCount() === 4 && chipMarkup('').includes('is-active'),
+    `${queueRowCount()} row(s), total chip ${chipMarkup('').slice(0, 50)}`);
+
   run('selectAllPublishQueue();');
   const allSelected = JSON.parse(run(`JSON.stringify({
     selection: publishQueueSelection.slice(),

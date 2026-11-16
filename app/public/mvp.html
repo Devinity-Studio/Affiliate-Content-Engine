@@ -9200,14 +9200,38 @@ textarea::placeholder {
       border: 1px solid var(--v2-line);
       background: var(--v2-surface-2);
       color: var(--v2-ink-3);
+      font: inherit;
       font-size: 11px;
       line-height: 1.6;
+    }
+
+    button.pq-stat { cursor: pointer; }
+    button.pq-stat:hover { border-color: var(--v2-accent-line); color: var(--v2-ink-2); }
+
+    .pq-stat.is-active {
+      border-color: var(--v2-accent-line);
+      background: var(--v2-accent-soft);
+      color: var(--v2-accent);
+      font-weight: 650;
     }
 
     .pq-stat.is-late {
       color: #ff8f8f;
       border-color: rgba(255, 99, 99, 0.35);
       background: rgba(255, 99, 99, 0.12);
+    }
+
+    /* Filtering by late keeps the red meaning instead of turning accent. */
+    .pq-stat.is-late.is-active {
+      border-color: rgba(255, 99, 99, 0.5);
+      background: rgba(255, 99, 99, 0.2);
+      color: #ffb3b3;
+    }
+
+    [data-theme="light"] .pq-stat.is-late.is-active {
+      color: #7d1717;
+      border-color: rgba(198, 40, 40, 0.45);
+      background: rgba(198, 40, 40, 0.16);
     }
 
     [data-theme="light"] .pq-stat.is-late {
