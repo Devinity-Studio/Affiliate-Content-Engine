@@ -1,0 +1,74 @@
+# Independent Review Report
+
+## 1. Independent verdict
+
+**INDEPENDENT REVIEW: PASS WITH FINDINGS**
+
+The supplied conversation contains the complete latest **TECHNICAL REVIEW 1.1 — ROLLBACK BASELINE CAPTURE PLAN v1.0**. The final F-1 and A-5 corrections are incorporated, and the document is internally consistent on authority and status boundaries. One evidence limitation remains: repository-dependent factual claims cannot be independently verified under the required restrictions.
+
+## 2. Findings
+
+### IR-001
+
+- Severity: Informational
+- Exact quoted passage:
+
+> “VERIFIED: both Gate 3 scripts are untracked and have no Git recovery path.”
+
+and:
+
+> “ls: cannot access 'app/mvp/ai': No such file or directory.”
+
+- Explanation and impact: These are repository-derived assertions. The document appropriately records limitations elsewhere, but this independent review cannot verify them because repository and filesystem inspection are prohibited. They must therefore remain **UNVERIFIED / OUT OF SCOPE for this review**. This does not identify a wording defect in Technical Review 1.1.
+- Recommended wording or correction: Proposal only: retain an explicit qualifier in the final review record stating that these facts are accepted as document-reported evidence and were not independently rechecked.
+
+No Critical, High, or Medium findings were identified.
+
+## 3. Review criteria
+
+| Criterion | Result | Explanation |
+|---|---|---|
+| Previously requested corrections, including final F-1 | PASS | F-1 removes the repository-wide copy overclaim and states that other locations were not independently established. |
+| A-5 final correction | PASS | A-5 separately preserves complete raw Phase A and Phase C output, original flags, per-capture hashes, counts/flag sets, branch, HEAD, and comparison. |
+| Internal consistency | PASS | Findings, amendments, consistency table, change log, summaries, and closing status align. |
+| Five-path allowlist and provider-file exclusion | PASS | The document states the five-path scope is exact and provider files remain excluded from capture and restore. |
+| Absent paths and untracked files | PASS | Absence is recorded rather than fabricated; untracked Gate 3 scripts are identified as lacking Git recovery paths. |
+| `app/mvp/ai/` handling | PASS | Directory absence is recorded separately, and cleanup is conditioned on authorized Option B creation. |
+| Git recovery limitations | PASS | The document distinguishes tracked modified files from untracked files with no Git recovery path. |
+| A-3 and AC-11 | PASS | Post-rollback SHA-256 verification is required, while explicitly stating that this does not imply rollback occurred. |
+| R-1 status | PASS | R-1 is explicitly a separate proposal for Rev. 3.1 §10, not an approved amendment. |
+| Authority boundaries and status statements | PASS | REVIEW ONLY, no authorization, no capture, no implementation, and unchanged governance statuses are preserved. |
+| Repository-derived factual claims | UNRESOLVED | They are documented, but cannot be independently verified within this review. |
+
+## 4. Evidence limitations
+
+### Established from the supplied document text
+
+- Technical Review 1.1 is labeled **REVIEW ONLY**.
+- Capture Plan v1.0 is not approved.
+- Baseline Capture and implementation are not authorized.
+- F-1 contains the corrected recovery-path wording.
+- A-5 contains the corrected raw-output preservation and comparison requirements.
+- A-3 and AC-11 define post-rollback verification without asserting that rollback occurred.
+- R-1 remains a separate, unaccepted proposal.
+- Gate 3, A2, Gate C, Remove, and Preservation boundaries are stated as unchanged.
+
+### Unverified / OUT OF SCOPE
+
+- Actual repository status of the five paths.
+- Actual existence or absence of `app/mvp/ai/`.
+- Actual presence or absence of other copies of the Gate 3 scripts.
+- Actual hashes, branch, HEAD, file sizes, mtimes, and status output.
+- Preservation Package coverage.
+
+No repository or filesystem inspection, hash calculation, capture, recovery copy, command, script, test, rollback, or document modification was performed.
+
+## 5. Authority and status confirmation
+
+This review does not:
+
+- approve Technical Review 1.1 or Capture Plan v1.0;
+- authorize Baseline Capture;
+- authorize implementation, testing, rollback, or repository changes;
+- amend Rev. 3.1 or any governance record;
+- change Gate 3, A2, Gate C, Remove, or Preservation status.

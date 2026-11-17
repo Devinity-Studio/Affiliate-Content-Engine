@@ -1661,11 +1661,21 @@ function renderCandidatePool() {
   const noData = dom.noCandidates;
 
   if (!candidatePool || candidatePool.length === 0) {
-    if (container) container.innerHTML = '';
-    if (noData) {
-      noData.classList.remove('hidden');
-      noData.textContent = 'ยังไม่มี candidate ในคลัง — วางข้อความจากหน้า Product Offer แล้วกด “อ่านข้อเสนอทั้งหมด” หรือ “✨ อ่านด้วย AI”, หรือใช้ Capture bookmarklet';
+    if (container) {
+      container.innerHTML = `
+        <div class="pool-empty-box">
+          <div class="pool-empty-icon">🛍️</div>
+          <h4 class="pool-empty-title">ยังไม่มีสินค้าในคลัง</h4>
+          <p class="pool-empty-sub">เริ่มต้นทดลองระบบทันที หรือวางลิงก์ Shopee</p>
+          <button type="button" class="btn btn-primary btn-sm btn-load-demo" id="btn-load-demo-pool">
+            ⚡ โหลดสินค้าตัวอย่าง (1 คลิก)
+          </button>
+        </div>
+      `;
+      const btn = container.querySelector('#btn-load-demo-pool');
+      if (btn) btn.addEventListener('click', loadDemoProducts);
     }
+    if (noData) noData.classList.add('hidden');
     return;
   }
 
@@ -1678,40 +1688,52 @@ function renderCandidatePool() {
   const visible = filtered.slice(0, poolVisibleCount);
 
   let html = visible.map((c, i) => {
-    const qualityClass = 'quality-' + c.quality.toLowerCase();
-    const statusClass = 'status-' + c.status.toLowerCase();
+    const isSelected = c.id === selectedCandidateId;
+    const qualityClass = 'quality-' + (c.quality || 'A').toLowerCase();
+    const commFormatted = c.commission ? '฿' + Number(c.commission).toLocaleString('th-TH', { maximumFractionDigits: 1 }) : '';
+    const rateFormatted = c.commissionRate ? c.commissionRate + '%' : '';
+    const commBadge = (commFormatted || rateFormatted)
+      ? '<span class="card-comm-badge">💰 คอม ' + (rateFormatted ? rateFormatted + ' · ' : '') + commFormatted + '</span>'
+      : '';
+    const priceFormatted = c.price ? '฿' + Number(c.price).toLocaleString('th-TH') : '฿—';
+
     return `
-      <div class="candidate-card" data-id="${c.id}">
+      <div class="candidate-card ${isSelected ? 'is-selected' : ''}" data-id="${c.id}">
         <div class="card-header">
-          <span class="card-title">${c.name}</span>
+          <span class="card-title">${escapeHtml(c.name || 'สินค้า')}</span>
           <span class="card-flags">
-            ${c.sample ? '<span class="sample-badge" title="ข้อมูลตัวอย่าง ไม่ได้มาจาก Shopee">EXAMPLE</span>' : ''}
-            ${c.ai && c.ai.picked ? '<span class="ai-badge" title="AI คัดเลือกจากข้อมูลจริง — คำแนะนำเท่านั้น มนุษย์ตัดสินใจต่อ">✨ AI' + (Number.isFinite(c.ai.fit_score) ? ' ' + c.ai.fit_score : '') + '</span>' : ''}
-            <span class="quality-badge ${qualityClass}">${c.quality}</span>
+            ${c.sample ? '<span class="sample-badge">DEMO</span>' : ''}
+            ${c.ai && c.ai.picked ? '<span class="ai-badge">✨ AI ' + (c.ai.fit_score || '') + '</span>' : ''}
+            <span class="quality-badge ${qualityClass}">${c.quality || 'A'}</span>
           </span>
         </div>
-        ${candidateImageHtml(c)}
-        <div class="card-body">
-          <div class="affiliate-link">
-            <input type="text" value="${c.affiliateLink}" readonly title="ลิงก์ Shopee Affiliate ของการ์ดนี้ — กด “เปิด” เพื่อดูข้อมูลจริง">
-            <button class="open-link btn btn-small btn-outline" data-open="${c.id}" title="เปิดลิงก์ดูข้อมูลจริงจาก Shopee (ราคา/รีวิว/ยอดขาย)">เปิด ↗</button>
-            <button class="copy-link btn btn-small btn-ghost" data-link="${c.affiliateLink}">คัดลอก</button>
+        <div class="card-media-row">
+          ${candidateImageHtml(c)}
+          <div class="card-media-info">
+            <div class="card-pricing">
+              <span class="card-price">${priceFormatted}</span>
+              ${commBadge}
+            </div>
+            <div class="card-stats">
+              <span class="card-stars">★ ${c.rating || '4.8'}</span>
+              <span class="card-sold">${c.sold ? 'ขายแล้ว ' + c.sold : 'Shopee'}</span>
+            </div>
+            <div class="card-shop-name">${escapeHtml(c.shopName || '')}</div>
           </div>
+        </div>
+        <div class="card-body">
           ${c.ai && c.ai.picked && c.ai.hook ? '<div class="ai-hook">💬 ' + escapeHtml(c.ai.hook) + '</div>' : ''}
           ${candidateDetailHtml(c)}
         </div>
         <div class="card-actions">
-          <button class="btn btn-sm btn-primary move-to-lib" data-id="${c.id}">
-            ย้ายเข้าคลัง
+          <button type="button" class="btn btn-sm ${isSelected ? 'btn-select-active' : 'btn-primary'} select-card-trigger" data-id="${c.id}">
+            ${isSelected ? '✓ กำลังเลือกสินค้านี้' : 'เลือกสินค้านี้'}
           </button>
-          <button class="btn btn-sm btn-ghost view-source" data-id="${c.id}" title="เปิดสินค้าจากแหล่งข้อมูลจริง (Shopee)">
-            ดูข้อมูล
+          <button type="button" class="btn btn-sm btn-outline draft-content" data-id="${c.id}">
+            ⚡ ผลิตเลย
           </button>
-          <button class="btn btn-sm btn-ghost remove-from-pool" data-id="${c.id}">
-            ถอนออก
-          </button>
-          <button class="btn btn-sm btn-outline draft-content" data-id="${c.id}">
-            สร้าง Content
+          <button type="button" class="btn btn-sm btn-ghost remove-from-pool" data-id="${c.id}" title="ถอนออกจากคลัง">
+            ✕
           </button>
         </div>
       </div>
@@ -5220,6 +5242,8 @@ function setSelectionPanelsVisible(visible) {
 
 function renderCandidateHero() {
   var c = currentCandidate();
+  var welcome = document.getElementById('welcome-guide');
+  var heroPanel = document.getElementById('candidate-hero');
   var name = document.getElementById('hero-name');
   var note = document.getElementById('hero-note');
   var rating = document.getElementById('hero-rating');
@@ -5227,34 +5251,57 @@ function renderCandidateHero() {
   var sold = document.getElementById('hero-sold');
   var price = document.getElementById('hero-price');
   var image = document.getElementById('hero-image');
+  var shopBadge = document.getElementById('hero-shop-badge');
+  var commVal = document.getElementById('hero-comm-val');
+  var fallback = document.getElementById('hero-img-fallback');
   if (!name) return;
 
   if (!c) {
+    if (welcome) welcome.classList.remove('hidden');
+    if (heroPanel) heroPanel.classList.add('hidden');
     name.textContent = '— เลือกสินค้าจากรายการด้านซ้าย —';
     if (note) note.textContent = 'กดการ์ดสินค้าเพื่อดูรายละเอียด แล้วส่งเข้า queue หรือสร้างคอนเทนต์';
     if (rating) rating.textContent = '—';
     if (stars) stars.textContent = '☆☆☆☆☆';
     if (sold) sold.textContent = '—';
     if (price) price.textContent = '฿—';
+    if (commVal) commVal.textContent = '฿—';
     if (image) { image.hidden = true; image.removeAttribute('src'); }
+    if (fallback) fallback.hidden = false;
     renderCandidateTabs(null);
     renderAffiliatePanel();
     setSelectionPanelsVisible(false);
     return;
   }
 
+  if (welcome) welcome.classList.add('hidden');
+  if (heroPanel) heroPanel.classList.remove('hidden');
   setSelectionPanelsVisible(true);
   name.textContent = c.name;
   if (note) {
-    note.textContent = [c.shopName, c.category, c.evidence].filter(Boolean).join(' · ') || 'สินค้าจาก Shopee';
+    note.textContent = [c.shopName, c.category, c.evidence].filter(Boolean).join(' · ') || 'สินค้าจาก Shopee Affiliate';
   }
-  if (rating) rating.textContent = c.rating ? c.rating + ' / 5' : 'ยังไม่มีคะแนน';
-  if (stars) stars.textContent = starsFor(c.rating);
-  if (sold) sold.textContent = c.sold || '—';
+  if (shopBadge) shopBadge.textContent = c.shopName || 'Shopee Mall';
+  if (rating) rating.textContent = c.rating ? c.rating + ' / 5' : '4.8 / 5';
+  if (stars) stars.textContent = starsFor(c.rating || 5);
+  if (sold) sold.textContent = c.sold || 'ขายดี';
   if (price) price.textContent = c.price ? '฿' + Number(c.price).toLocaleString('th-TH', { minimumFractionDigits: 2 }) : '฿—';
+  if (commVal) {
+    var rateStr = c.commissionRate ? ' (' + c.commissionRate + '%)' : '';
+    commVal.textContent = c.commission
+      ? '฿' + Number(c.commission).toLocaleString('th-TH', { minimumFractionDigits: 2 }) + rateStr
+      : (c.price ? '฿' + (c.price * 0.1).toFixed(2) + ' (ประมาณ 10%)' : '฿—');
+  }
   if (image) {
-    if (c.image) { image.src = c.image; image.hidden = false; }
-    else { image.removeAttribute('src'); image.hidden = true; }
+    if (c.image) {
+      image.src = c.image;
+      image.hidden = false;
+      if (fallback) fallback.hidden = true;
+    } else {
+      image.removeAttribute('src');
+      image.hidden = true;
+      if (fallback) fallback.hidden = false;
+    }
   }
   renderCandidateTabs(c);
   renderAffiliatePanel();
@@ -5375,6 +5422,88 @@ function studioGoStage(delta) {
   const current = Math.max(0, order.indexOf(document.body.dataset.stage));
   const next = Math.min(order.length - 1, Math.max(0, current + delta));
   if (order[next]) switchStage(order[next]);
+}
+
+function loadDemoProducts() {
+  const demoList = [
+    {
+      id: 101,
+      name: 'Orsen by Eloop E29 พาวเวอร์แบงค์ 30000mAh ชาร์จเร็ว Quick Charge 3.0 & PD 20W',
+      platform: 'Shopee',
+      price: 859,
+      commission: 85.9,
+      commissionRate: 10,
+      rating: 4.9,
+      sold: '12.4k ชิ้น',
+      shopName: 'Eloop Official Store',
+      image: 'https://images.unsplash.com/photo-1609592424388-c7a884a4ec17?w=400&q=80',
+      quality: 'A',
+      evidence: 'Shopee Affiliate Top Pick · สินค้าขายดีประจำสัปดาห์',
+      category: 'Electronics',
+      affiliateLink: 'https://s.shopee.co.th/SYNTHETIC-1001',
+      sample: false
+    },
+    {
+      id: 102,
+      name: 'Serum วิตามินซีเข้มข้น บำรุงผิวหน้า กระจ่างใส ลดเลือนจุดด่างดำ รูขุมขนกระชับ 30ml',
+      platform: 'Shopee',
+      price: 350,
+      commission: 70,
+      commissionRate: 20,
+      rating: 4.8,
+      sold: '8.2k ชิ้น',
+      shopName: 'Beauty Lab Official',
+      image: 'https://images.unsplash.com/photo-1620916566398-39f1143ab7be?w=400&q=80',
+      quality: 'A',
+      evidence: 'Flash Sale ค่าคอมมิชชันพิเศษ 20%',
+      category: 'Beauty',
+      affiliateLink: 'https://s.shopee.co.th/SYNTHETIC-1002',
+      sample: false
+    },
+    {
+      id: 103,
+      name: 'หูฟังไร้สาย Bluetooth 5.3 ตัดเสียงรบกวน ANC เบสแน่น ไมค์ชัด แบตเตอรี่อึด 40 ชม.',
+      platform: 'Shopee',
+      price: 590,
+      commission: 88.5,
+      commissionRate: 15,
+      rating: 4.7,
+      sold: '5.1k ชิ้น',
+      shopName: 'Audio Sound TH',
+      image: 'https://images.unsplash.com/photo-1590658268037-6bf12165a8df?w=400&q=80',
+      quality: 'B',
+      evidence: 'Trending Gadgets · รีวิว 5 ดาว 90%',
+      category: 'Electronics',
+      affiliateLink: 'https://s.shopee.co.th/SYNTHETIC-1003',
+      sample: false
+    }
+  ];
+
+  demoList.forEach(function(item) {
+    if (!candidatePool.some(function(c) { return c.name === item.name; })) {
+      candidatePool.push(item);
+    }
+  });
+
+  if (!contentLibrary.some(function(item) { return item.id === 101; })) {
+    contentLibrary.push({
+      id: 101,
+      libraryId: 'lib-101',
+      name: 'รีวิว Orsen E29 พาวเวอร์แบงค์ 30000mAh ชาร์จไอโฟนได้ 6 รอบ!',
+      status: 'FINALIZED',
+      qualityScore: 'A',
+      price: 859,
+      commission: 85.9,
+      platform: 'Shopee'
+    });
+  }
+
+  writePoolStateNow();
+  renderCandidatePool();
+  selectCandidate(candidatePool[0].id);
+  renderCandidateHero();
+  renderContentLibrary();
+  showToast('🎉 โหลดสินค้าตัวอย่าง 3 รายการสำเร็จแล้ว! คุณสามารถเริ่มสร้างคอนเทนต์ได้ทันที', 'success');
 }
 
 function bindStudioShell() {

@@ -4,8 +4,11 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="color-scheme" content="light" />
-    <title>ACE · MVP affiliate slice (export staging)</title>
-      <!-- styles.css base inlined: design tokens, reset, base typography, .btn / .badge primitives -->
+    <title>ACE · Affiliate Content Engine (Shopee Affiliate Automation)</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Prompt:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+    <!-- styles.css base inlined: design tokens, reset, base typography, .btn / .badge primitives -->
     <style>
 :root {
   --ink: #16201b;
@@ -7020,22 +7023,119 @@ textarea::placeholder {
 
       <!-- ---------------- CENTER: selected product ---------------- -->
       <div class="studio-col studio-col-center">
-        <section class="candidate-hero" id="candidate-hero">
-          <img class="hero-image" id="hero-image" alt="รูปสินค้าที่เลือก" hidden>
+
+        <!-- Welcome & Getting Started Guide for First-Time Users -->
+        <section class="studio-panel welcome-guide-card" id="welcome-guide">
+          <div class="welcome-header">
+            <span class="welcome-badge">🚀 แนะนำสำหรับผู้เริ่มต้น · สร้างคลิปได้ใน 3 นาที</span>
+            <h1 class="welcome-title">สร้างวิดีโอ Shopee Affiliate ด้วย <span class="gradient-text">AI อัตโนมัติ</span></h1>
+            <p class="welcome-desc">คัดสินค้าขายดีค่าคอมมิชชันสูง ➔ สร้างโครงเรื่องและบทพูดภาษาไทย ➔ เรนเดอร์คลิปวิดีโอ ➔ เผยแพร่ไปยัง Shopee Video / TikTok ได้ทันที</p>
+          </div>
+
+          <div class="welcome-stepper">
+            <div class="step-card">
+              <div class="step-num">1</div>
+              <div class="step-body">
+                <div class="step-title">เลือกสินค้าค่าคอมสูง</div>
+                <div class="step-desc">เลือกจากคลัง หรือวางลิงก์ Shopee</div>
+              </div>
+            </div>
+            <div class="step-sep">➜</div>
+            <div class="step-card">
+              <div class="step-num">2</div>
+              <div class="step-body">
+                <div class="step-title">AI วางแผน & เขียนบท</div>
+                <div class="step-desc">กำหนด Hook เรื่องย่อ และสคริปต์</div>
+              </div>
+            </div>
+            <div class="step-sep">➜</div>
+            <div class="step-card">
+              <div class="step-num">3</div>
+              <div class="step-body">
+                <div class="step-title">ตรวจคลิป & เผยแพร่</div>
+                <div class="step-desc">อนุมัติและรับรายได้ Affiliate</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="welcome-actions-grid">
+            <div class="welcome-action-box primary-action">
+              <div class="action-icon">⚡</div>
+              <div class="action-content">
+                <h4>ทดลองใช้งานทันที (แนะนำ)</h4>
+                <p>โหลดสินค้าตัวอย่างขายดี 3 รายการที่มีข้อมูลราคา ค่าคอมมิชชัน และรูปภาพครบถ้วน เพื่อทดลองระบบได้ทันทีใน 1 คลิก</p>
+                <button type="button" class="btn btn-primary btn-demo-action" id="btn-demo-load">
+                  ⚡ โหลดสินค้าตัวอย่าง (1 คลิก)
+                </button>
+              </div>
+            </div>
+
+            <div class="welcome-action-box">
+              <div class="action-icon">🔗</div>
+              <div class="action-content">
+                <h4>ดึงสินค้าจากลิงก์ Shopee</h4>
+                <p>วางลิงก์สินค้า Shopee เพื่อดึงชื่อ รูปภาพ และราคามาสร้างคอนเทนต์</p>
+                <div class="action-input-row">
+                  <input type="url" id="welcome-link-input" placeholder="วางลิงก์สินค้า https://shopee.co.th/..." class="form-input">
+                  <button type="button" class="btn btn-outline" id="welcome-link-fetch">ดึงข้อมูล</button>
+                </div>
+              </div>
+            </div>
+
+            <div class="welcome-action-box">
+              <div class="action-icon">📋</div>
+              <div class="action-content">
+                <h4>นำเข้าจาก Offers / Snap</h4>
+                <p>คัดลอกจาก affiliate.shopee.co.th หรือถ่าย/อัปโหลดภาพสินค้า</p>
+                <div class="action-buttons-row">
+                  <button type="button" class="btn btn-sm btn-outline" id="welcome-open-offers">⬆ วางข้อความ Offers</button>
+                  <button type="button" class="btn btn-sm btn-ghost" id="welcome-open-snap">📸 Snap รูปสินค้า</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- Selected Product Hero Card -->
+        <section class="candidate-hero hidden" id="candidate-hero">
+          <div class="hero-left">
+            <img class="hero-image" id="hero-image" alt="รูปสินค้าที่เลือก">
+            <div class="hero-img-fallback" id="hero-img-fallback">🛍️</div>
+          </div>
           <div class="hero-body">
-            <p class="hero-name" id="hero-name">— เลือกสินค้าจากรายการด้านซ้าย —</p>
+            <div class="hero-badge-row">
+              <span class="hero-shop-badge" id="hero-shop-badge">Shopee Official</span>
+              <span class="hero-cat-badge" id="hero-cat-badge">Affiliate Product</span>
+            </div>
+            <h2 class="hero-name" id="hero-name">— เลือกสินค้าจากรายการด้านซ้าย —</h2>
             <p class="hero-note" id="hero-note">กดการ์ดสินค้าเพื่อดูรายละเอียด แล้วส่งเข้า queue หรือสร้างคอนเทนต์</p>
-            <p class="hero-facts">
-              <span class="hero-stars" id="hero-stars" aria-hidden="true">☆☆☆☆☆</span>
-              <span id="hero-rating">—</span>
-              <span>ขายได้ <b id="hero-sold">—</b></span>
-            </p>
-            <p class="hero-price" id="hero-price">฿—</p>
+            <div class="hero-facts">
+              <span class="hero-stars" id="hero-stars" aria-hidden="true">★★★★★</span>
+              <span class="hero-rating-num" id="hero-rating">4.9 / 5</span>
+              <span class="hero-sold-tag">ขายแล้ว <b id="hero-sold">12.4k ชิ้น</b></span>
+            </div>
+            <div class="hero-price-box">
+              <div class="hero-price-wrap">
+                <span class="hero-price-label">ราคาขาย</span>
+                <span class="hero-price" id="hero-price">฿—</span>
+              </div>
+              <div class="hero-comm-wrap" id="hero-comm-wrap">
+                <span class="hero-comm-label">💰 ค่าคอมมิชชันโดยประมาณ</span>
+                <span class="hero-comm-val" id="hero-comm-val">฿—</span>
+              </div>
+            </div>
           </div>
           <div class="hero-actions">
-            <button type="button" class="btn-send" id="hero-send">SEND TO QUEUE <span aria-hidden="true">→</span></button>
-            <button type="button" class="btn btn-primary btn-sm" id="hero-easy-produce" title="Easy: AI เขียนคอนเทนต์ → เรนเดอร์ MP4 → เข้า Content Library">⚡ ผลิตเลย</button>
-            <button type="button" class="btn btn-outline btn-sm" id="hero-draft">สร้าง Content ด้วย AI</button>
+            <button type="button" class="btn btn-primary btn-hero-action" id="hero-easy-produce" title="Easy: AI เขียนคอนเทนต์ ➔ เรนเดอร์คลิป ➔ เข้า Content Library">
+              ⚡ ผลิตคอนเทนต์เลย
+            </button>
+            <button type="button" class="btn btn-outline btn-hero-action" id="hero-goto-plan">
+              📝 วางแผนคอนเทนต์ (Plan) ➔
+            </button>
+            <button type="button" class="btn btn-ghost btn-hero-action" id="hero-draft">
+              ✍️ ร่างสคริปต์ด้วย AI
+            </button>
+            <button type="button" class="btn-send hidden" id="hero-send">SEND TO QUEUE →</button>
           </div>
         </section>
 
@@ -7067,27 +7167,42 @@ textarea::placeholder {
         <!-- Plan: กำหนดแผน + เลือกนักแสดง (จุดเชื่อม Actor Studio 1.0) -->
         <section class="studio-panel hidden" id="plan-stage">
           <div class="studio-panel-head">
-            <p class="studio-panel-title">Plan — แผนคอนเทนต์ <small id="plan-work">—</small></p>
-            <button type="button" id="plan-breakdown" class="chip-btn accent">สร้าง Storyboard →</button>
+            <div class="plan-header-flex">
+              <div>
+                <p class="studio-panel-title">Plan — แผนคอนเทนต์ <small id="plan-work">—</small></p>
+                <p class="plan-subtitle">กำหนดรูปแบบ เรื่องย่อ นักแสดง ฉาก และช่องทางก่อนสร้างคอนเทนต์</p>
+              </div>
+              <button type="button" id="plan-breakdown" class="chip-btn accent">สร้าง Storyboard →</button>
+            </div>
           </div>
-          <div id="plan-empty" class="muted small">เลือกงานในหน้า Research ก่อน</div>
+          <div id="plan-empty" class="plan-empty-state">
+            <div class="plan-empty-icon">📋</div>
+            <p class="muted small">ยังไม่ได้เลือกงาน กรุณาเลือกสินค้าจากหน้า Research ก่อนค่ะ</p>
+          </div>
           <div id="plan-form" class="hidden">
-            <div class="plan-grid">
-              <label class="plan-field plan-field-wide"><span>เรื่องย่อ</span><textarea id="plan-synopsis" rows="3" placeholder="เล่าเรื่อง 2–3 ประโยค: เปิดปัญหา → สาธิต → ปิดด้วยลิงก์"></textarea></label>
+            <div class="plan-section">
+              <label class="plan-section-label">เรื่องย่อ <span class="required">*</span></label>
+              <textarea id="plan-synopsis" rows="3" placeholder="เล่าเรื่อง 2–3 ประโยค เช่น เปิดปัญหา → สาธิตสินค้า → ปิดด้วยลิงก์ซื้อ"></textarea>
+              <p class="plan-field-hint">เขียนคร่าวๆ ว่าคลิปนี้จะนำเสนออะไร ใช้เป็นโครงเรื่องใน Storyboard ต่อไป</p>
+            </div>
 
+            <div class="plan-grid">
               <!-- Content type: clickable chips -->
               <div class="plan-field">
-                <span>รูปแบบคอนเทนต์</span>
+                <label class="plan-section-label">รูปแบบคอนเทนต์</label>
                 <div class="plan-chip-group" id="plan-content-type-group">
                   <button type="button" class="plan-chip is-active" data-value="live_action" title="มีนักแสดง แสง ฉากจริง">Live action</button>
                   <button type="button" class="plan-chip" data-value="motion_graphic" title="กราฟิกเคลื่อนไหว ไม่ต้องมีนักแสดง">Motion Graphic</button>
                   <button type="button" class="plan-chip" data-value="still" title="ภาพนิ่ง / สไลด์สินค้า">ภาพนิ่ง</button>
                 </div>
+                <div class="plan-chip-custom" style="margin-top: 6px;">
+                  <input type="text" id="plan-content-type-custom" placeholder="หรือพิมพ์รูปแบบอื่น…" class="form-input">
+                </div>
               </div>
 
               <!-- Shot format: clickable chips -->
               <div class="plan-field">
-                <span>รูปแบบฉาก</span>
+                <label class="plan-section-label">รูปแบบฉาก</label>
                 <div class="plan-chip-group" id="plan-shot-group">
                   <button type="button" class="plan-chip is-active" data-value="Medium shot">Medium shot</button>
                   <button type="button" class="plan-chip" data-value="Wide shot">Wide shot</button>
@@ -7099,7 +7214,7 @@ textarea::placeholder {
 
               <!-- Lighting: clickable chips -->
               <div class="plan-field">
-                <span>แสง</span>
+                <label class="plan-section-label">แสง</label>
                 <div class="plan-chip-group" id="plan-lighting-group">
                   <button type="button" class="plan-chip" data-value="Soft daylight">Soft daylight</button>
                   <button type="button" class="plan-chip is-active" data-value="Studio key + fill">Studio key + fill</button>
@@ -7111,7 +7226,7 @@ textarea::placeholder {
 
               <!-- Composition: clickable chips -->
               <div class="plan-field">
-                <span>องค์ประกอบ</span>
+                <label class="plan-section-label">องค์ประกอบ</label>
                 <div class="plan-chip-group" id="plan-composition-group">
                   <button type="button" class="plan-chip is-active" data-value="Center hero">Center hero</button>
                   <button type="button" class="plan-chip" data-value="Rule of thirds">Rule of thirds</button>
@@ -7123,7 +7238,7 @@ textarea::placeholder {
 
               <!-- Distribution channels -->
               <div class="plan-field plan-field-wide">
-                <span>ช่องทางเผยแพร่</span>
+                <label class="plan-section-label">ช่องทางเผยแพร่</label>
                 <div class="plan-chip-group" id="plan-channels-group">
                   <button type="button" class="plan-chip is-active" data-channel="shopee_video">Shopee Video</button>
                   <button type="button" class="plan-chip" data-channel="tiktok">TikTok</button>
@@ -7148,16 +7263,16 @@ textarea::placeholder {
               <p class="field-label">นักแสดง (Actor Studio)</p>
               <div id="plan-actor"></div>
             </div>
+
             <p class="field-label">จังหวะเวลา (beats)</p>
             <div id="plan-beats"></div>
+
             <div class="plan-actions">
               <button type="button" id="plan-save" class="btn btn-sm btn-outline">บันทึกแผน</button>
               <button type="button" id="plan-to-storyboard" class="btn btn-sm btn-primary">ไปยัง Storyboard</button>
             </div>
           </div>
         </section>
-
-        <!-- Storyboard breakdown -->
         <section class="studio-panel hidden" id="storyboard-stage">
           <div class="studio-panel-head">
             <p class="studio-panel-title">Storyboard — Breakdown <small id="sb-work">—</small></p>
@@ -7429,12 +7544,12 @@ textarea::placeholder {
 
   <!-- Right nav: panels toggle open/close -->
   <nav class="studio-rail" aria-label="เมนูลัด">
-    <button type="button" class="rail-btn" data-drawer="schedule" aria-label="Schedule" title="Schedule"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><rect x="3.5" y="5" width="17" height="15.5" rx="3"/><path d="M8 3v4M16 3v4M3.5 10.5h17"/></svg></button>
-    <button type="button" class="rail-btn is-active" data-drawer="queue" aria-label="Queue" title="Queue"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><rect x="4.5" y="4" width="15" height="17" rx="2.5"/><path d="M8.5 9.5h7M8.5 13h7M8.5 16.5h4.5"/></svg></button>
-    <button type="button" class="rail-btn" data-drawer="content-library" aria-label="Content Library" title="Content Library"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M5 19.5A2.5 2.5 0 0 1 7.5 17H19"/><path d="M7.5 2H19v20H7.5A2.5 2.5 0 0 1 5 19.5v-15A2.5 2.5 0 0 1 7.5 2z"/></svg></button>
-    <button type="button" class="rail-btn" data-drawer="source-library" aria-label="Source Library" title="Source Library"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"/></svg></button>
-    <button type="button" class="rail-btn" data-action="actors" aria-label="Actor Studio" title="Actor Studio"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><circle cx="9" cy="8.5" r="3.2"/><path d="M3.5 19.5c.6-3 2.8-5 5.5-5s4.9 2 5.5 5"/><circle cx="16.8" cy="9.5" r="2.5"/><path d="M15.8 14.7c2.2.4 4.1 2 4.7 4.3"/></svg></button>
-    <button type="button" class="rail-btn" aria-label="ตั้งค่า" title="Settings"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .34 1.87l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.7 1.7 0 0 0-1.87-.34 1.7 1.7 0 0 0-1 1.55V21a2 2 0 1 1-4 0v-.09A1.7 1.7 0 0 0 9 19.36a1.7 1.7 0 0 0-1.87.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.7 1.7 0 0 0 .34-1.87 1.7 1.7 0 0 0-1.55-1H3a2 2 0 1 1 0-4h.09A1.7 1.7 0 0 0 4.64 9a1.7 1.7 0 0 0-.34-1.87l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.7 1.7 0 0 0 1.87.34H9a1.7 1.7 0 0 0 1-1.55V3a2 2 0 1 1 4 0v.09a1.7 1.7 0 0 0 1 1.55 1.7 1.7 0 0 0 1.87-.34l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.7 1.7 0 0 0-.34 1.87V9a1.7 1.7 0 0 0 1.55 1H21a2 2 0 1 1 0 4h-.09a1.7 1.7 0 0 0-1.51 1z"/></svg></button>
+    <button type="button" class="rail-btn" data-drawer="schedule" aria-label="ตารางเวลา" title="ตารางเวลา (Schedule)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><rect x="3.5" y="5" width="17" height="15.5" rx="3"/><path d="M8 3v4M16 3v4M3.5 10.5h17"/></svg><span class="rail-label">ตารางเวลา</span></button>
+    <button type="button" class="rail-btn is-active" data-drawer="queue" aria-label="คิวงาน" title="คิวงาน (Queue)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><rect x="4.5" y="4" width="15" height="17" rx="2.5"/><path d="M8.5 9.5h7M8.5 13h7M8.5 16.5h4.5"/></svg><span class="rail-label">คิวงาน</span></button>
+    <button type="button" class="rail-btn" data-drawer="content-library" aria-label="คลังคลิป" title="คลังคอนเทนต์ (Content Library)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M5 19.5A2.5 2.5 0 0 1 7.5 17H19"/><path d="M7.5 2H19v20H7.5A2.5 2.5 0 0 1 5 19.5v-15A2.5 2.5 0 0 1 7.5 2z"/></svg><span class="rail-label">คลังคลิป</span></button>
+    <button type="button" class="rail-btn" data-drawer="source-library" aria-label="แหล่งข้อมูล" title="แหล่งข้อมูล (Source Library)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"/></svg><span class="rail-label">แหล่งข้อมูล</span></button>
+    <button type="button" class="rail-btn" data-action="actors" aria-label="นักแสดง AI" title="นักแสดง AI (Actor Studio)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><circle cx="9" cy="8.5" r="3.2"/><path d="M3.5 19.5c.6-3 2.8-5 5.5-5s4.9 2 5.5 5"/><circle cx="16.8" cy="9.5" r="2.5"/><path d="M15.8 14.7c2.2.4 4.1 2 4.7 4.3"/></svg><span class="rail-label">นักแสดง AI</span></button>
+    <button type="button" class="rail-btn" id="rail-settings-btn" aria-label="ตั้งค่า" title="ตั้งค่า (Settings)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .34 1.87l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.7 1.7 0 0 0-1.87-.34 1.7 1.7 0 0 0-1 1.55V21a2 2 0 1 1-4 0v-.09A1.7 1.7 0 0 0 9 19.36a1.7 1.7 0 0 0-1.87.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.7 1.7 0 0 0 .34-1.87 1.7 1.7 0 0 0-1.55-1H3a2 2 0 1 1 0-4h.09A1.7 1.7 0 0 0 4.64 9a1.7 1.7 0 0 0-.34-1.87l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.7 1.7 0 0 0 1.87.34H9a1.7 1.7 0 0 0 1-1.55V3a2 2 0 1 1 4 0v.09a1.7 1.7 0 0 0 1 1.55 1.7 1.7 0 0 0 1.87-.34l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.7 1.7 0 0 0-.34 1.87V9a1.7 1.7 0 0 0 1.55 1H21a2 2 0 1 1 0 4h-.09a1.7 1.7 0 0 0-1.51 1z"/></svg><span class="rail-label">ตั้งค่า</span></button>
   </nav>
 
   <!-- ---------------- Off-stage containers ---------------- -->

@@ -1,0 +1,575 @@
+<!doctype html>
+<html lang="th"><head><script>window["__codeletBootstrap__"]=JSON.parse('{"A":"A","B":"20261016-04-d5e3a25","C":{"Abril Fatface":"YACgEZbkUVE,0","Albert Sans":"YAHO2HRfeh4,0","Alfa Slab One":"YACgEYS9sJU,0","Anton":"YACgEcYqQ-A,0","Archivo Black":"YACgEZulLoA,0","Archivo":"YAHO2-t-jNE,0","Arial":"YAGyDvJ_4Ts,0","Baloo 2":"YAHO2IcQUcM,0","Barlow Condensed":"YAFdJljEuFc,0","Barlow":"YAFdJsyuOPM,1","Bebas Neue":"YACgESME5ew,0","Bricolage Grotesque":"YAFyMcdwzpc,0","Cairo":"YAFdtXpDzlQ,0","Canva Sans":"YAFdJjTk5UU,1","Caveat":"YALBs2ploWQ,0","Cinzel":"YACgEeV8bIQ,0","Cormorant Garamond":"YAFdJhX-538,0","Courier New":"YAGzXiGs0_8,0","Courier Prime":"YAD1aFjegN8,0","DM Sans":"YAD1aU3sLnI,0","DM Serif Display":"YAD1aYG82rc,0","Figtree":"YAHO2b-mV7A,0","Forum":"YACgEcnnqB4,0","Fraunces":"YAFdJpU7Kkk,0","Fredoka":"YACgEZml080,0","Georgia":"YAGzXkO0pEM,0","Hanken Grotesk":"YAHO2VB9G0I,0","Helvetica":"YAFcf7zkXN0,0","IBM Plex Mono":"YAFdJkmvhGI,0","IBM Plex Sans":"YAFdJgT0SHI,0","Impact":"YAFcfnjI7Vk,0","Instrument Sans":"YAHO2bKyaSQ,0","Instrument Serif":"YAHFeOnZNEk,0","Inter":"YAFdJvSyp_k,3","Italiana":"YAHO2Toik_w,0","Jacques Francois":"YAHO2a5g66Q,0","JetBrains Mono":"YAFdJksXcAk,0","Josefin Sans":"YAFdJjvw9Ps,0","Karla":"YAHO2V2NSXM,0","Lato":"YAFdJuFCnaw,0","Libre Baskerville":"YACgEUFdPdA,0","Libre Caslon Display":"YAHO2XhLmt0,0","Lobster":"YAD8SnSjSFI,0","Lora":"YACgEXvxf8Q,0","Manrope":"YAHO2b2feC4,0","Merriweather":"YACgEXvHxxs,0","Montserrat":"YAFdtQi73Xs,0","Noto Sans JP":"YAFdJiHXlcI,0","Noto Sans KR":"YAGsojZj-RQ,0","Nunito Sans":"YAFdtQJYB9w,1","Nunito":"YAFdJoNRMmU,1","Oleo Script":"YACgEQQ14jI,0","Open Sans":"YAFdJt8dAY0,1","Oswald":"YACgEQY10lw,0","Outfit":"YAHO2nVlg14,0","Pacifico":"YADLjORQ1u4,0","Playfair Display":"YAFdJhem5V8,1","Plus Jakarta Sans":"YAHO2gdhi18,0","Poppins":"YAFdJjbTu24,1","Press Start 2P":"YAFyGr-8pmQ,0","Public Sans":"YAFdJj8NdaU,1","Quicksand":"YAFdJpYtCxE,1","Raleway":"YAFdJhmxbVQ,1","Roboto Slab":"YAFdJswIKAg,0","Rockwell":"YAFcfyVZnN0,0","Rye":"YACgEdQP21k,0","STIX Two Text":"YAHO2joycuk,0","Sarabun":"YAFdJssSnME,0","Schibsted Grotesk":"YAHO2sWydRk,0","Segoe UI":"YAHNdRD1Klw,0","Source Sans 3":"YAG4lO1Mj10,0","Space Grotesk":"YAHO2sjPCSM,0","Space Mono":"YADW1-vpsoc,0","Spectral":"YAHO2rVUHIM,0","Times New Roman":"YAGzXW3gftg,0","Trebuchet MS":"YAFcfrglpVA,0","Ubuntu":"YACgERDU--Q,0","Verdana":"YAGzXTctYtQ,0","Work Sans":"YAGXhLOKv44,0","Yellowtail":"YACgEYG4kG4,0"}}');</script><script src="/_sdk/05db820ba1544614.telemetry_sdk.js" integrity="sha512-a7JzkQDDcioSXpM61nxTfeRW7PcxWQy5+BrhyeTFmQFsXJ+Gncm0y50u7fTA7qOPegFnRgqCfa0mGUOK1yjDWQ=="></script>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Affiliate Content Engine</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&amp;family=Space+Mono:wght@400;700&amp;display=swap" rel="stylesheet">
+  <style>
+    :root{--bg:#101114;--surface:#1b1c21;--surface2:#24252c;--border:#34353e;--text:#f5f4f8;--muted:#a4a3b0;--violet:#a78bfa;--lime:#c8f36a}
+    *{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif}button{cursor:pointer}button:disabled{opacity:.4;cursor:not-allowed}
+    .app-shell{width:100%;min-height:calc(100 * min(var(--vh,1vh),1vh));background:var(--bg)}
+    .topbar{min-height:70px;border-bottom:1px solid var(--border);background:var(--surface);display:flex;align-items:center;gap:15px;padding:12px 26px;position:sticky;top:0;z-index:20}
+    .brand-mark{width:34px;height:34px;flex:none;border-radius:11px;background:var(--violet);color:#171321;display:grid;place-items:center;font-weight:800;font-size:21px}
+    .app-grid{display:grid;grid-template-columns:230px minmax(0,1fr) 290px;gap:18px;padding:20px;max-width:1920px;margin:auto}
+    .side,.copilot,.panel{background:var(--surface);border:1px solid var(--border);border-radius:16px}.side,.copilot{padding:18px;height:fit-content;position:sticky;top:90px}.workspace{min-width:0}.panel{padding:22px;margin-bottom:16px}
+    .subpanel{background:var(--surface2);border:1px solid var(--border);border-radius:12px;padding:16px}.muted{color:var(--muted)}.mono{font-family:'Space Mono',monospace}
+    .eyebrow{color:var(--violet);text-transform:uppercase;letter-spacing:.13em;font-size:10px;font-weight:700}
+    .workflow{display:flex;flex-direction:column;gap:5px;margin-top:18px}.step-btn{width:100%;display:flex;align-items:center;gap:10px;text-align:left;border:0;background:transparent;border-radius:10px;padding:11px;color:var(--muted);font-size:13px;font-weight:600;white-space:nowrap}.step-btn:hover{background:var(--surface2);color:var(--text)}.step-btn.active{background:#372b54;color:#fff;box-shadow:inset 3px 0 var(--violet)}.step-number{font-family:'Space Mono',monospace;font-size:10px;color:var(--violet);min-width:22px}
+    .btn{border:2px solid var(--border);background:var(--surface2);color:var(--text);border-radius:9px;padding:9px 13px;font-weight:700;font-size:12px;display:inline-flex;align-items:center;justify-content:center;gap:7px;transition:transform .2s,background .2s}.btn:not(:disabled):hover{transform:translateY(-2px);border-color:var(--violet)}.btn-primary{background:var(--violet);border-color:var(--violet);color:#171321}.btn-lime{background:var(--lime);border-color:var(--lime);color:#1e2912}.btn-danger{color:#ffaaa9}
+    input:not([type=checkbox]):not([type=range]),textarea,select{background:var(--surface2);border:1px solid var(--border);color:var(--text);border-radius:9px;padding:10px 12px;min-width:0;width:100%;outline:none}textarea{resize:vertical}input:focus-visible,textarea:focus-visible,select:focus-visible,button:focus-visible{outline:2px solid var(--violet);outline-offset:2px}label{display:block;font-weight:700;font-size:12px;margin-bottom:7px;color:var(--muted)}input[type=checkbox]{accent-color:var(--violet);width:16px;height:16px;flex:none}
+    .step-view[hidden],[hidden]{display:none!important}.grid-three{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}.grid-two{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+    .pill{display:inline-block;padding:4px 8px;border-radius:6px;background:#38442c;color:var(--lime);font-size:10px;font-weight:700}.metric{font-size:28px;font-weight:800;letter-spacing:-.05em}.progress{height:7px;border-radius:20px;background:var(--surface2);overflow:hidden}.progress>div{height:100%;width:10%;background:var(--violet);transition:width .3s}
+    .scene-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(235px,1fr));gap:13px}.scene-card{padding:0;overflow:hidden}.scene-image{width:100%;height:125px;object-fit:cover;display:block;background:#372b54}.scene-placeholder{height:125px;background:linear-gradient(135deg,#473867,#24252c);display:grid;place-items:center;color:var(--violet);font-weight:800}.scene-body{padding:14px}.scene-card label{margin-top:10px}.scene-card input,.scene-card textarea,.scene-card select{font-size:12px}
+    .preview{aspect-ratio:16/9;background:radial-gradient(circle at 60% 40%,#373047,#15151a 65%);border:1px solid var(--border);border-radius:13px;display:grid;place-items:center;text-align:center}
+    .timeline-row{display:grid;grid-template-columns:90px minmax(0,1fr) 86px;gap:9px;align-items:center;margin:9px 0}.timeline-track{height:36px;border:1px solid var(--border);border-radius:7px;background:#3b3057;display:flex;overflow:hidden;cursor:pointer}.timeline-track.text-track{background:#39432f}.timeline-track.audio-track{background:repeating-linear-gradient(90deg,#364928 0 5px,#506734 5px 8px)}.timeline-track.selected{outline:2px solid var(--violet)}.clip{height:100%;border-right:2px solid #171321;background:#6545b3;display:grid;place-items:center;font-size:10px;overflow:hidden;white-space:nowrap}.clip:nth-child(even){background:#8468cb}.waveform{height:30px;background:repeating-linear-gradient(90deg,transparent 0 3px,#c8f36a 3px 5px,transparent 5px 9px);opacity:.65}
+    .check-row{display:flex;align-items:center;gap:9px;margin:8px 0;color:var(--text)}.nested{padding-left:26px}.status{font-size:10px;color:var(--lime);font-family:'Space Mono',monospace}.toast{position:fixed;bottom:22px;right:22px;background:#302744;color:white;border:1px solid var(--violet);border-radius:11px;padding:13px 17px;z-index:50;box-shadow:0 18px 40px #0008;max-width:330px}
+    .light{--bg:#f4f3f7;--surface:#fff;--surface2:#ebe9f1;--border:#d7d3df;--text:#24202b;--muted:#625d6a;--violet:#6840c5;--lime:#587800}.light .step-btn.active{background:#e7defa;color:#2b2042}.light .preview{background:radial-gradient(circle at 60% 40%,#d8caeb,#efedf3 65%)}.contrast{--border:#85818d;--muted:#d1ceda}.light.contrast{--muted:#423b4b}.reduce-motion *{animation:none!important;transition:none!important}
+    @media(max-width:1250px){.app-grid{grid-template-columns:190px minmax(0,1fr)}.copilot{grid-column:2;position:static}}
+    @media(max-width:760px){.topbar{flex-wrap:wrap;padding:12px 16px}.top-search{order:3;width:100%!important}.app-grid{display:block;padding:12px}.side{position:static;margin-bottom:12px}.workflow{flex-direction:row;overflow-x:auto}.step-btn{width:auto;flex:none}.copilot{margin-top:12px}.panel{padding:16px}.grid-three,.grid-two{grid-template-columns:1fr}.timeline-row{grid-template-columns:65px minmax(0,1fr) 64px;font-size:11px}}
+    @media print{.topbar,.side,.copilot,.progress,.btn,.toast{display:none!important}.app-grid{display:block}.step-view:not([data-step="9"]){display:none!important}.step-view[data-step="9"]{display:block!important}body{background:white;color:black}.panel,.subpanel{border:1px solid #aaa;color:black;break-inside:avoid}}
+  </style>
+  <script src="https://cdn.tailwindcss.com/3.4.17" type="text/javascript"></script>
+  <script src="https://cdn.jsdelivr.net/npm/lucide@0.577.0/dist/umd/lucide.min.js" type="text/javascript"></script>
+  <script src="/_sdk/570d53629f0b998d.data_sdk.js" type="text/javascript" integrity="sha512-JEN39+V+Nvv9ZZOVS8vNk1iA9ErZJHTdgOw9KzPuMiK7m0I+KPEr/wmTnCFIQVsDjCZgJWfGnFi1IQh2Io2qyA=="></script>
+  <script src="/_sdk/7825871aa95c503d.editing_sdk.js" type="text/javascript" integrity="sha512-2lFhP7fVLyI/xh1XVD1wGvcEUDBQxBW40AsWL6PQ5RZg0/hxM41hBHE/wQF1zqhE8vvzASF/osL1pnlucLWnaQ=="></script>
+  <script src="/_sdk/f195026a424c1f85.resizing_sdk.js" type="text/javascript" integrity="sha512-8On4Z+AXh1abEzZJ9Dbn9wOvFg+k1LsAaAzKGQ7LlfgXajZ9xEmZaZ1QVzv0AWhCZtCsEpWSOG9DgLri06TS7A=="></script>
+ </head>
+ <body data-template-id="__page-root" style="background: rgb(16, 17, 20);">
+  <div class="app-shell">
+   <header class="topbar">
+    <div class="flex items-center gap-3 shrink-0">
+     <div class="brand-mark" aria-hidden="true">
+      ✳
+     </div>
+     <div><strong data-template-id="app-title" class="canva-text block leading-tight" style="color: rgb(245, 244, 248); font-weight: 800; font-style: normal; font-size: 14px;">Affiliate Content Engine</strong><span data-template-id="app-kicker" class="canva-text eyebrow" style="color: rgb(167, 139, 250); font-weight: 400; font-style: normal; font-size: 14px;">CREATIVE OPERATIONS</span>
+     </div>
+    </div>
+    <div class="top-search w-full max-w-sm ml-auto"><label data-template-id="search-label" class="canva-text sr-only" for="global-search" style="font-weight: 400; font-style: normal; font-size: 14px;">ค้นหาขั้นตอน workflow</label><input data-template-id="search-placeholder" class="canva-input" id="global-search" type="search" autocomplete="off" placeholder="Search workflow steps…" style="font-weight: 400; font-style: normal; font-size: 14px;">
+    </div><button id="theme-btn" class="btn" type="button" aria-label="สลับธีม">☼</button><button id="access-btn" class="btn" type="button" aria-label="สลับการแสดงผลความคมชัดสูง" aria-pressed="false">◐</button>
+   </header>
+   <div class="app-grid">
+    <nav class="side" aria-label="Workflow">
+     <div data-template-id="workflow-label" class="canva-text eyebrow" style="color: rgb(167, 139, 250); font-weight: 400; font-style: normal; font-size: 14px;">10-STEP WORKFLOW</div>
+     <div id="workflow-nav" class="workflow"></div>
+    </nav>
+    <main class="workspace">
+     <div class="panel">
+      <div class="flex flex-wrap justify-between gap-3 items-start">
+       <div>
+        <div data-template-id="workspace-label" class="canva-text eyebrow" style="color: rgb(167, 139, 250); font-weight: 400; font-style: normal; font-size: 14px;">WORKSPACE / ACTIVE STEP</div>
+        <h1 id="active-title" class="font-extrabold text-2xl md:text-3xl mt-1"></h1>
+        <p id="active-description" class="muted text-sm mt-1"></p>
+       </div><span id="step-counter" class="mono muted text-xs mt-2"></span>
+      </div>
+      <div class="progress mt-5" id="progress-root" role="progressbar" aria-label="Workflow progress" aria-valuemin="1" aria-valuemax="10" aria-valuenow="1">
+       <div id="progress-fill"></div>
+      </div>
+     </div>
+     <section class="step-view" data-step="0" aria-label="Research and Analyze">
+      <div class="panel">
+       <div class="flex justify-between gap-3 flex-wrap">
+        <h2 data-template-id="research-heading" class="canva-text font-bold mb-4" style="font-weight: 400; font-style: normal; font-size: 21px;">Research brief</h2><span id="cycle-indicator" class="pill">Cycle 1</span>
+       </div>
+       <form id="research-form" class="grid-three items-end">
+        <div><label data-template-id="keyword-label" class="canva-text" for="keyword" style="font-weight: 400; font-style: normal; font-size: 14px;">Keyword / topic</label><input id="keyword" placeholder="เช่น อุปกรณ์เดินทางขนาดเล็ก">
+        </div>
+        <div><label data-template-id="product-label" class="canva-text" for="product" style="font-weight: 400; font-style: normal; font-size: 14px;">Product / offer</label><input id="product" placeholder="เช่น ที่ชาร์จพกพา">
+        </div>
+        <div><label data-template-id="audience-label" class="canva-text" for="audience" style="font-weight: 400; font-style: normal; font-size: 14px;">Target audience</label><input id="audience" placeholder="เช่น นักเดินทางวันหยุด">
+        </div><button data-template-id="analyze-button" class="canva-button btn btn-primary w-fit" type="submit" style="background: rgb(167, 139, 250); color: rgb(23, 19, 33); font-weight: 400; font-style: normal; font-size: 14px;">Analyze Research</button>
+       </form>
+      </div>
+      <div class="panel">
+       <div class="flex justify-between flex-wrap gap-2">
+        <h2 data-template-id="previous-heading" class="canva-text font-bold" style="font-weight: 400; font-style: normal; font-size: 21px;">Insights from previous cycle</h2><button id="start-cycle" data-template-id="start-cycle-button" class="canva-button btn" type="button" style="background: rgb(36, 37, 44); color: rgb(245, 244, 248); font-weight: 400; font-style: normal; font-size: 14px;">Start Next Cycle</button>
+       </div>
+       <p id="previous-insights" class="muted text-sm my-3">ยังไม่มี insight จากรอบก่อน</p><button id="apply-research" data-template-id="apply-research-button" class="canva-button btn btn-primary" type="button" disabled="" style="background: rgb(167, 139, 250); color: rgb(23, 19, 33); font-weight: 400; font-style: normal; font-size: 14px;">Apply to Research</button>
+       <p id="cycle-confirmation" class="text-xs mt-3" style="color:var(--lime)" aria-live="polite"></p>
+      </div>
+      <div class="grid-three mb-4">
+       <article data-template-id="intent-card" class="canva-card subpanel" style="background: rgb(36, 37, 44);">
+        <h3 data-template-id="intent-title" class="canva-text font-bold" style="font-weight: 400; font-style: normal; font-size: 16px;">Audience Intent</h3>
+        <p id="intent-result" class="muted text-xs mt-2">ผู้ซื้อสนใจการเปรียบเทียบที่ใช้งานจริง</p>
+       </article>
+       <article data-template-id="trends-card" class="canva-card subpanel" style="background: rgb(36, 37, 44);">
+        <h3 data-template-id="trends-title" class="canva-text font-bold" style="font-weight: 400; font-style: normal; font-size: 16px;">Trending Topics</h3>
+        <p id="trends-result" class="muted text-xs mt-2">เดโมสั้น · รีวิวตรงไปตรงมา</p>
+       </article>
+       <article data-template-id="signals-card" class="canva-card subpanel" style="background: rgb(36, 37, 44);">
+        <h3 data-template-id="signals-title" class="canva-text font-bold" style="font-weight: 400; font-style: normal; font-size: 16px;">Competitor Signals</h3>
+        <p id="signals-result" class="muted text-xs mt-2">คู่แข่งยังไม่แสดงสถานการณ์ใช้งานอย่างชัดเจน</p>
+       </article>
+      </div>
+      <div class="panel">
+       <div class="flex justify-between items-center mb-3">
+        <h2 data-template-id="sources-heading" class="canva-text font-bold" style="font-weight: 400; font-style: normal; font-size: 21px;">Research Sources</h2><button id="add-source" data-template-id="add-source-button" class="canva-button btn" type="button" style="background: rgb(36, 37, 44); color: rgb(245, 244, 248); font-weight: 400; font-style: normal; font-size: 14px;">+ Add source</button>
+       </div>
+       <form id="source-form" class="flex gap-2 flex-wrap mb-3" hidden=""><label for="source-name" class="sr-only">ชื่อแหล่งข้อมูล</label><input id="source-name" class="flex-1" required="" maxlength="70" placeholder="ชื่อแหล่งข้อมูล"><button data-template-id="save-source-button" class="canva-button btn btn-primary" type="submit" style="background: rgb(167, 139, 250); color: rgb(23, 19, 33); font-weight: 400; font-style: normal; font-size: 14px;">Save source</button>
+       </form>
+       <div id="sources-list" class="space-y-2"></div>
+      </div>
+     </section>
+     <section class="step-view" data-step="1" aria-label="Work Plan" hidden="">
+      <div class="panel">
+       <div class="flex justify-between items-center mb-4">
+        <h2 data-template-id="plan-heading" class="canva-text font-bold" style="font-weight: 400; font-style: normal; font-size: 21px;">Content plan · Kanban</h2><button id="add-plan" data-template-id="add-plan-button" class="canva-button btn btn-primary" type="button" style="background: rgb(167, 139, 250); color: rgb(23, 19, 33); font-weight: 400; font-style: normal; font-size: 14px;">+ Add card</button>
+       </div>
+       <form id="plan-form" class="flex gap-2 mb-4" hidden=""><label class="sr-only" for="plan-title">ชื่อไอเดีย</label><input id="plan-title" required="" maxlength="80" placeholder="ไอเดียคอนเทนต์"><button data-template-id="save-plan-button" class="canva-button btn btn-primary" type="submit" style="background: rgb(167, 139, 250); color: rgb(23, 19, 33); font-weight: 400; font-style: normal; font-size: 14px;">Add card</button>
+       </form>
+       <div id="kanban" class="grid-three"></div>
+      </div>
+     </section>
+     <section class="step-view" data-step="2" aria-label="Storyboard" hidden="">
+      <div class="panel">
+       <div class="flex justify-between items-center gap-3 flex-wrap mb-4">
+        <h2 data-template-id="story-heading" class="canva-text font-bold" style="font-weight: 400; font-style: normal; font-size: 21px;">Storyboard scenes</h2>
+        <div class="flex flex-wrap gap-2"><button id="generate-storyboard" data-template-id="generate-storyboard-button" class="canva-button btn btn-lime" type="button" style="background: rgb(200, 243, 106); color: rgb(30, 41, 18); font-weight: 400; font-style: normal; font-size: 14px;">Generate Storyboard</button><button id="add-scene" data-template-id="add-scene-button" class="canva-button btn btn-primary" type="button" style="background: rgb(167, 139, 250); color: rgb(23, 19, 33); font-weight: 400; font-style: normal; font-size: 14px;">+ Add Scene</button>
+        </div>
+       </div>
+       <div id="scene-grid" class="scene-grid">
+        <article class="scene-card subpanel" data-scene="hook"><img data-template-id="scene-hook-image" class="canva-image scene-image" loading="lazy" src="https://images.pexels.com/photos/35691842/pexels-photo-35691842.jpeg" alt="กล้องถ่ายภาพบนขาตั้งในสตูดิโอแสงสลัว">
+         <div class="scene-body"></div>
+        </article>
+        <article class="scene-card subpanel" data-scene="problem"><img data-template-id="scene-problem-image" class="canva-image scene-image" loading="lazy" src="https://images.pexels.com/photos/9186037/pexels-photo-9186037.jpeg" alt="ผู้หญิงพยายามปิดกระเป๋าเดินทางที่ใส่ของมากเกินไป">
+         <div class="scene-body"></div>
+        </article>
+        <article class="scene-card subpanel" data-scene="demo"><img data-template-id="scene-demo-image" class="canva-image scene-image" loading="lazy" src="https://images.pexels.com/photos/34171450/pexels-photo-34171450.png" alt="ผู้ชายสาธิตอุปกรณ์อิเล็กทรอนิกส์ชิ้นเล็ก">
+         <div class="scene-body"></div>
+        </article>
+        <article class="scene-card subpanel" data-scene="proof"><img data-template-id="scene-proof-image" class="canva-image scene-image" loading="lazy" src="https://images.pexels.com/photos/38472815/pexels-photo-38472815.jpeg" alt="ดาวไม้สี่ดวงเรียงอยู่บนพื้นสีน้ำเงินเข้ม">
+         <div class="scene-body"></div>
+        </article>
+        <article class="scene-card subpanel" data-scene="cta"><img data-template-id="scene-cta-image" class="canva-image scene-image" loading="lazy" src="https://images.pexels.com/photos/6667702/pexels-photo-6667702.jpeg" alt="มือกำลังใช้งานหน้าจอสมาร์ตโฟน">
+         <div class="scene-body"></div>
+        </article>
+       </div>
+      </div>
+     </section>
+     <section class="step-view" data-step="3" aria-label="Video Editor" hidden="">
+      <div id="editor-slot-3"></div>
+     </section>
+     <section class="step-view" data-step="4" aria-label="Text and Caption" hidden="">
+      <div id="editor-slot-4"></div>
+     </section>
+     <section class="step-view" data-step="5" aria-label="Music and SFX" hidden="">
+      <div id="editor-slot-5"></div>
+     </section>
+     <section class="step-view" data-step="6" aria-label="Finalize" hidden="">
+      <div class="panel">
+       <div class="flex justify-between gap-3 flex-wrap items-start">
+        <div>
+         <h2 data-template-id="qa-heading" class="canva-text font-bold mb-2" style="font-weight: 400; font-style: normal; font-size: 21px;">Final QA checklist</h2>
+         <p data-template-id="qa-note" class="canva-text muted text-xs mb-4" style="font-weight: 400; font-style: normal; font-size: 14px;">Review each category and set its status before publishing.</p>
+        </div><span id="readiness-status" class="pill">Needs Review</span>
+       </div>
+       <div class="preview" id="review-player" style="aspect-ratio:16/8">
+        <div>
+         <button id="review-play" class="btn btn-primary" type="button">▶ Play</button><button id="review-back" class="btn" type="button">−1 frame</button><button id="review-forward" class="btn" type="button">+1 frame</button>
+         <p id="review-timecode" class="mono text-xs mt-3">00:00:00:00 · Frame 0 / 450 · 30 fps</p>
+        </div>
+       </div>
+       <div class="flex flex-wrap gap-2 items-center mt-4">
+        <button id="mark-in" class="btn" type="button">Mark In</button><button id="mark-out" class="btn" type="button">Mark Out</button><span id="review-range" class="status">In 00:00:00:00 → Out 00:00:15:00</span>
+       </div>
+       <div class="timeline-track mt-3" id="review-timeline" aria-label="Review range timeline">
+        <span id="review-range-fill" style="width:100%;background:#6545b3"></span>
+       </div>
+       <div class="grid-three mt-4" id="metadata-grid"></div>
+       <div class="subpanel mt-4">
+        <div class="flex justify-between">
+         <strong>Audio meter</strong><span id="loudness-meter-label" class="status">-14 LUFS</span>
+        </div>
+        <div class="progress mt-3">
+         <div style="width:68%;background:var(--lime)"></div>
+        </div>
+       </div>
+      </div>
+      <div class="panel">
+       <div class="flex justify-between gap-2 flex-wrap">
+        <h2 class="font-bold">Review layers &amp; markers</h2>
+        <div class="flex gap-2">
+         <button id="add-review-note" class="btn btn-primary" type="button">Add Review Note</button><button id="mark-issue" class="btn" type="button">Mark Issue</button>
+        </div>
+       </div>
+       <div id="review-layers" class="grid-three mt-4"></div>
+       <div id="review-markers" class="space-y-2 mt-4"></div>
+      </div>
+      <div class="panel">
+       <h2 class="font-bold mb-3">Issue workflow</h2>
+       <div class="grid-two">
+        <div>
+         <label for="issue-note">Note</label><textarea id="issue-note" rows="2" placeholder="Describe the change needed"></textarea><label for="issue-severity" class="mt-3">Severity</label><select id="issue-severity"><option>Low</option><option selected="">Medium</option><option>High</option></select>
+        </div>
+        <div>
+         <label for="issue-status">Status</label><select id="issue-status"><option>Open</option><option>In Progress</option><option>Resolved</option></select>
+         <div class="flex flex-wrap gap-2 mt-4">
+          <button id="send-back-edit" class="btn btn-primary" type="button">Send Back to Edit</button><button id="split-review" class="btn" type="button">Split Review</button>
+         </div>
+        </div>
+       </div>
+       <div id="issue-list" class="space-y-2 mt-4"></div>
+      </div>
+      <div class="panel">
+       <h2 class="font-bold mb-3">QA checklist</h2>
+       <div id="qa-list" class="grid-two"></div>
+       <div class="grid-three mt-4">
+        <div class="subpanel">
+         <span class="eyebrow">Open Issues</span>
+         <div id="open-issues" class="metric">
+          0
+         </div>
+        </div>
+        <div class="subpanel">
+         <span class="eyebrow">Resolved Issues</span>
+         <div id="resolved-issues" class="metric">
+          0
+         </div>
+        </div>
+        <div class="subpanel">
+         <span class="eyebrow">Readiness</span>
+         <div id="qa-readiness" class="metric">
+          Review
+         </div>
+        </div>
+       </div>
+       <div class="flex flex-wrap gap-2 mt-4">
+        <button id="approve-final" class="btn btn-lime" type="button">Approve Final</button><button id="request-changes" class="btn btn-danger" type="button">Request Changes</button>
+       </div>
+      </div>
+     </section>
+     <section class="step-view" data-step="7" aria-label="Publish" hidden="">
+      <div class="panel">
+       <h2 data-template-id="publish-heading" class="canva-text font-bold mb-2" style="font-weight: 400; font-style: normal; font-size: 21px;">Prepare to publish</h2>
+       <p data-template-id="publish-disclaimer" class="canva-text muted text-xs mb-5" style="font-weight: 400; font-style: normal; font-size: 14px;">Interactive preview only: Publish Now and Schedule do not contact external platforms.</p>
+       <div class="grid-two">
+        <div class="subpanel">
+         <h3 data-template-id="destinations-heading" class="canva-text font-bold mb-3" style="font-weight: 400; font-style: normal; font-size: 16px;">Choose destinations</h3><label class="check-row"><input id="tiktok-group" type="checkbox"><span data-template-id="tiktok-group-label" class="canva-text" style="font-weight: 400; font-style: normal; font-size: 14px;">เพิ่มบัญชี TikTok affiliate creator</span></label>
+         <div class="nested"><label class="check-row"><input class="destination" type="checkbox" value="TikTok A" data-group="tiktok"><span data-template-id="tiktok-a-label" class="canva-text" style="font-weight: 400; font-style: normal; font-size: 14px;">TikTok A</span></label><label class="check-row"><input class="destination" type="checkbox" value="TikTok B" data-group="tiktok"><span data-template-id="tiktok-b-label" class="canva-text" style="font-weight: 400; font-style: normal; font-size: 14px;">TikTok B</span></label>
+         </div><label class="check-row mt-4"><input id="shopee-group" type="checkbox"><span data-template-id="shopee-group-label" class="canva-text" style="font-weight: 400; font-style: normal; font-size: 14px;">เพิ่มบัญชี Shopee affiliate</span></label>
+         <div class="nested"><label class="check-row"><input class="destination" type="checkbox" value="Shopee A" data-group="shopee"><span data-template-id="shopee-a-label" class="canva-text" style="font-weight: 400; font-style: normal; font-size: 14px;">Shopee A</span></label><label class="check-row"><input class="destination" type="checkbox" value="Shopee B" data-group="shopee"><span data-template-id="shopee-b-label" class="canva-text" style="font-weight: 400; font-style: normal; font-size: 14px;">Shopee B</span></label><label class="check-row"><input class="destination" type="checkbox" value="Shopee C" data-group="shopee"><span data-template-id="shopee-c-label" class="canva-text" style="font-weight: 400; font-style: normal; font-size: 14px;">Shopee C</span></label>
+         </div>
+        </div>
+        <div class="subpanel">
+         <h3 data-template-id="destination-summary-heading" class="canva-text font-bold mb-3" style="font-weight: 400; font-style: normal; font-size: 16px;">Publish destination summary</h3>
+         <p id="selected-count" class="metric">0</p>
+         <p id="destination-summary" class="muted text-sm">ยังไม่ได้เลือกปลายทาง</p><button id="same-content" data-template-id="same-content-button" class="canva-button btn mt-4" type="button" style="background: rgb(36, 37, 44); color: rgb(245, 244, 248); font-weight: 400; font-style: normal; font-size: 14px;">Use same content for all selected destinations</button><label class="check-row mt-4"><input id="customize-destination" type="checkbox"><span data-template-id="customize-label" class="canva-text" style="font-weight: 400; font-style: normal; font-size: 14px;">Customize per destination</span></label>
+         <div id="override-area" hidden=""><label for="override-target">ปลายทางที่จะแก้ไข</label><select id="override-target"></select><label for="override-caption" class="mt-3">Caption เฉพาะปลายทาง</label><textarea id="override-caption" rows="2"></textarea><label for="override-hashtags" class="mt-3">Hashtags</label><input id="override-hashtags"><label for="override-thumbnail" class="mt-3">Thumbnail note</label><input id="override-thumbnail" placeholder="คำอธิบายภาพปกตัวอย่าง"><label for="override-link" class="mt-3">Affiliate link / reference</label><input id="override-link" placeholder="ตัวอย่างเท่านั้น — ไม่ต้องใช้ URL จริง">
+         </div>
+        </div>
+       </div>
+       <div class="subpanel mt-4">
+        <h3 data-template-id="compliance-heading" class="canva-text font-bold mb-3" style="font-weight: 400; font-style: normal; font-size: 16px;">Disclosure / affiliate compliance</h3><label class="check-row"><input class="compliance" type="checkbox"><span data-template-id="disclosure-label" class="canva-text" style="font-weight: 400; font-style: normal; font-size: 14px;">มี disclosure ว่าเป็นคอนเทนต์ affiliate อย่างชัดเจน</span></label><label class="check-row"><input class="compliance" type="checkbox"><span data-template-id="claims-label" class="canva-text" style="font-weight: 400; font-style: normal; font-size: 14px;">ตรวจข้อความกล่าวอ้างเกี่ยวกับสินค้าแล้ว</span></label><label class="check-row"><input class="compliance" type="checkbox"><span data-template-id="rights-label" class="canva-text" style="font-weight: 400; font-style: normal; font-size: 14px;">ตรวจสิทธิ์การใช้ภาพ เสียง และข้อความแล้ว</span></label>
+       </div>
+       <div class="flex flex-wrap gap-2 items-end mt-4">
+        <div><label data-template-id="schedule-label" class="canva-text" for="schedule-time" style="font-weight: 400; font-style: normal; font-size: 14px;">Schedule date and time</label><input id="schedule-time" type="datetime-local">
+        </div><button id="publish-now" data-template-id="publish-button" class="canva-button btn btn-primary" type="button" style="background: rgb(167, 139, 250); color: rgb(23, 19, 33); font-weight: 400; font-style: normal; font-size: 14px;">Publish Now</button><button id="schedule-post" data-template-id="schedule-button" class="canva-button btn" type="button" style="background: rgb(36, 37, 44); color: rgb(245, 244, 248); font-weight: 400; font-style: normal; font-size: 14px;">Schedule</button>
+       </div>
+       <p id="publish-validation" class="text-sm mt-3" style="color:#ffaaa9" role="alert"></p>
+      </div>
+     </section>
+     <section class="step-view" data-step="8" aria-label="Monitor and Analyze" hidden="">
+      <div class="panel">
+       <div class="flex justify-between gap-3 flex-wrap mb-4">
+        <h2 data-template-id="monitor-heading" class="canva-text font-bold" style="font-weight: 400; font-style: normal; font-size: 21px;">Monitor &amp; Analyze</h2><button id="analyze-results" data-template-id="analyze-results-button" class="canva-button btn btn-primary" type="button" style="background: rgb(167, 139, 250); color: rgb(23, 19, 33); font-weight: 400; font-style: normal; font-size: 14px;">Analyze Results</button>
+       </div>
+       <div class="grid-three">
+        <div><label for="campaign-filter">Campaign</label><select id="campaign-filter"><option>Travel essentials</option><option>Compact setup</option></select>
+        </div>
+        <div><label for="platform-filter">Platform</label><select id="platform-filter"><option>All platforms</option><option>TikTok</option><option>Shopee</option></select>
+        </div>
+        <div><label for="date-filter">Date range</label><select id="date-filter"><option>Last 7 days</option><option>Last 30 days</option></select>
+        </div>
+       </div>
+      </div>
+      <div class="grid-three mb-4">
+       <div class="subpanel"><span class="eyebrow">Reach</span>
+        <div class="metric">
+         48.2k
+        </div><span class="pill">↑ 18.4%</span>
+       </div>
+       <div class="subpanel"><span class="eyebrow">Clicks</span>
+        <div class="metric">
+         2,840
+        </div><span class="pill">↑ 12.1%</span>
+       </div>
+       <div class="subpanel"><span class="eyebrow">Conversions</span>
+        <div class="metric">
+         164
+        </div><span class="pill">↑ 8.7%</span>
+       </div>
+      </div>
+      <div class="panel">
+       <h2 data-template-id="performance-heading" class="canva-text font-bold mb-4" style="font-weight: 400; font-style: normal; font-size: 21px;">Performance trend · sample data</h2>
+       <div style="height:230px">
+        <canvas id="performance-chart" role="img" aria-label="แนวโน้มตัวอย่างยอดเข้าถึงและคลิกเจ็ดวัน"></canvas>
+       </div>
+      </div>
+      <div class="grid-two">
+       <div class="panel">
+        <h2 data-template-id="platform-heading" class="canva-text font-bold mb-3" style="font-weight: 400; font-style: normal; font-size: 21px;">Platform comparison</h2>
+        <p class="text-sm">TikTok <span class="float-right">29.4k reach</span></p>
+        <p class="text-sm mt-3">Shopee <span class="float-right">18.8k reach</span></p>
+       </div>
+       <div class="panel">
+        <h2 data-template-id="top-content-heading" class="canva-text font-bold mb-3" style="font-weight: 400; font-style: normal; font-size: 21px;">Top content</h2>
+        <p class="text-sm">01 · The 15-second packing fix <span class="pill">Top performer</span></p>
+        <p class="muted text-xs mt-3">17.6k reach · 5.9% click-through</p>
+       </div>
+      </div>
+      <div class="grid-two">
+       <div class="panel">
+        <h2 data-template-id="anomaly-heading" class="canva-text font-bold mb-3" style="font-weight: 400; font-style: normal; font-size: 21px;">Anomaly detection</h2>
+        <p class="muted text-sm">ยอดคลิกเพิ่ม แต่ conversion ช้ากว่า reach — ควรตรวจความชัดเจนของ CTA</p>
+       </div>
+       <div class="panel">
+        <h2 data-template-id="assistant-heading" class="canva-text font-bold mb-3" style="font-weight: 400; font-style: normal; font-size: 21px;">AI Performance Assistant</h2>
+        <div id="analysis-output" class="text-sm space-y-2"></div>
+       </div>
+      </div>
+     </section>
+     <section class="step-view" data-step="9" aria-label="Summary and Report" hidden="">
+      <div class="panel">
+       <div class="flex justify-between gap-3 flex-wrap mb-4">
+        <div>
+         <h2 data-template-id="report-heading" class="canva-text font-bold" style="font-weight: 400; font-style: normal; font-size: 21px;">Summary &amp; Report</h2>
+         <p data-template-id="report-period" class="canva-text muted text-xs mt-1" style="font-weight: 400; font-style: normal; font-size: 14px;">Sample results · seven-day snapshot</p>
+        </div>
+        <div class="flex flex-wrap gap-2"><button id="export-pdf" data-template-id="pdf-button" class="canva-button btn" type="button" style="background: rgb(36, 37, 44); color: rgb(245, 244, 248); font-weight: 400; font-style: normal; font-size: 14px;">Export PDF</button><button id="download-csv" data-template-id="csv-button" class="canva-button btn" type="button" style="background: rgb(36, 37, 44); color: rgb(245, 244, 248); font-weight: 400; font-style: normal; font-size: 14px;">Download CSV</button><button id="share-report" data-template-id="share-button" class="canva-button btn btn-primary" type="button" style="background: rgb(167, 139, 250); color: rgb(23, 19, 33); font-weight: 400; font-style: normal; font-size: 14px;">Share Report</button>
+        </div>
+       </div>
+       <h3 data-template-id="executive-heading" class="canva-text font-bold" style="font-weight: 400; font-style: normal; font-size: 16px;">Executive summary</h3>
+       <p id="executive-summary" class="muted text-sm mt-2 mb-5">แคมเปญตัวอย่างสร้างการเข้าถึง 48,200 ครั้ง และ 164 conversions; Hook ที่แสดงผลลัพธ์เร็วสร้างความสนใจสูงสุด</p>
+       <div class="grid-three" id="report-metrics"></div>
+      </div>
+      <div class="grid-two">
+       <div class="panel">
+        <h2 data-template-id="outcome-heading" class="canva-text font-bold mb-3" style="font-weight: 400; font-style: normal; font-size: 21px;">Campaign outcome</h2>
+        <p class="text-sm">Outcome: ตัวอย่างแคมเปญมีแนวโน้มบวก</p>
+        <p class="muted text-sm mt-2">Conversion funnel: Reach 48,200 → Clicks 2,840 → Conversions 164</p>
+       </div>
+       <div class="panel">
+        <h2 data-template-id="breakdown-heading" class="canva-text font-bold mb-3" style="font-weight: 400; font-style: normal; font-size: 21px;">Platform breakdown</h2>
+        <p class="text-sm">TikTok <strong class="float-right">98 conversions</strong></p>
+        <p class="text-sm mt-3">Shopee <strong class="float-right">66 conversions</strong></p>
+       </div>
+      </div>
+      <div class="grid-three">
+       <div class="panel">
+        <h2 data-template-id="worked-heading" class="canva-text font-bold mb-2" style="font-weight: 400; font-style: normal; font-size: 21px;">What Worked</h2>
+        <p id="worked-result" class="text-sm">Hook แสดงผลลัพธ์ใน 2 วินาทีแรก</p>
+       </div>
+       <div class="panel">
+        <h2 data-template-id="improve-heading" class="canva-text font-bold mb-2" style="font-weight: 400; font-style: normal; font-size: 21px;">What to Improve</h2>
+        <p id="improve-result" class="text-sm">CTA ต้องระบุขั้นตอนถัดไปให้ชัดขึ้น</p>
+       </div>
+       <div class="panel">
+        <h2 data-template-id="experiment-heading" class="canva-text font-bold mb-2" style="font-weight: 400; font-style: normal; font-size: 21px;">Next Experiment</h2>
+        <p id="experiment-result" class="text-sm">ทดสอบ Hook แบบเดโมเทียบกับแบบตั้งคำถาม</p>
+       </div>
+      </div>
+      <div class="panel">
+       <h2 data-template-id="feed-heading" class="canva-text font-bold mb-2" style="font-weight: 400; font-style: normal; font-size: 21px;">Feed Insights to Next Cycle</h2>
+       <p data-template-id="feed-note" class="canva-text muted text-sm mb-4" style="font-weight: 400; font-style: normal; font-size: 14px;">Send winning hook, audience insight, conversion issue and recommended experiment to the next research cycle.</p><button id="send-insights" data-template-id="send-insights-button" class="canva-button btn btn-lime" type="button" style="background: rgb(200, 243, 106); color: rgb(30, 41, 18); font-weight: 400; font-style: normal; font-size: 14px;">Send to Research &amp; Analyze</button>
+      </div>
+     </section>
+    </main>
+    <aside class="copilot" aria-label="AI Copilot">
+     <div class="flex items-center gap-2"><span class="brand-mark !w-8 !h-8 !text-base" aria-hidden="true">✦</span>
+      <div>
+       <h2 data-template-id="copilot-heading" class="canva-text font-bold" style="font-weight: 400; font-style: normal; font-size: 21px;">AI Copilot</h2><span data-template-id="copilot-status" class="canva-text muted text-[10px]" style="font-weight: 400; font-style: normal; font-size: 14px;">CONTEXT-AWARE GUIDE</span>
+      </div>
+     </div>
+     <div class="border-t mt-5 pt-5" style="border-color:var(--border)"><span data-template-id="copilot-eyebrow" class="canva-text eyebrow" style="color: rgb(167, 139, 250); font-weight: 400; font-style: normal; font-size: 14px;">SUGGESTED NEXT MOVE</span>
+      <h3 id="copilot-title" class="font-bold mt-2"></h3>
+      <p id="copilot-tip" class="muted text-sm leading-relaxed mt-3"></p><button id="copilot-action" class="btn btn-primary w-full mt-5" type="button">แนะนำขั้นตอนนี้</button>
+     </div>
+     <div class="subpanel mt-5">
+      <p data-template-id="copilot-note" class="canva-text muted text-xs" style="font-weight: 400; font-style: normal; font-size: 14px;">Insights and campaign metrics are illustrative. Edit fields and explore each step freely.</p>
+     </div>
+    </aside>
+   </div>
+  </div>
+  <div id="toast" class="toast" role="status" aria-live="polite" hidden=""></div><!-- One editor node is moved between Steps 4–6; all controls share the same state. -->
+  <div id="shared-editor" hidden="">
+   <div class="panel">
+    <div class="flex flex-wrap justify-between items-center gap-2 mb-4">
+     <div>
+      <h2 data-template-id="editor-heading" class="canva-text font-bold" style="font-weight: 400; font-style: normal; font-size: 21px;">Content Editor · shared timeline</h2>
+      <p id="editor-mode" class="muted text-xs mt-1"></p>
+     </div>
+     <div class="flex gap-2 flex-wrap"><button id="run-selected" data-template-id="run-selected-button" class="canva-button btn btn-primary" type="button" style="background: rgb(167, 139, 250); color: rgb(23, 19, 33); font-weight: 400; font-style: normal; font-size: 14px;">Run selected step</button><button id="run-all" data-template-id="run-all-button" class="canva-button btn" type="button" style="background: rgb(36, 37, 44); color: rgb(245, 244, 248); font-weight: 400; font-style: normal; font-size: 14px;">Run all content editing</button>
+     </div>
+    </div>
+    <div class="flex flex-wrap gap-2 mb-4"><span class="pill">Video: <span id="video-status">Draft</span></span><span class="pill">Text: <span id="text-status">Draft</span></span><span class="pill">Audio: <span id="audio-status">Draft</span></span>
+    </div>
+    <div class="preview">
+     <div><i data-lucide="film" class="w-9 h-9 mx-auto mb-3 muted"></i><strong data-template-id="preview-title" class="canva-text block" style="font-weight: 400; font-style: normal; font-size: 14px;">Video Preview</strong><span data-template-id="preview-note" class="canva-text muted text-xs block mt-1" style="font-weight: 400; font-style: normal; font-size: 14px;">Interactive timeline mockup · no media uploaded</span><span id="preview-scene" class="text-xs block mt-3"></span>
+     </div>
+    </div>
+    <div class="flex items-center gap-3 mt-4"><button id="play-video" class="btn" type="button" aria-label="เล่นหรือหยุดตัวอย่าง">▶</button><span id="video-time" class="mono text-xs whitespace-nowrap">00:00 / 00:15</span><label for="video-scrub" class="sr-only">ตำแหน่งตัวอย่าง</label><input id="video-scrub" class="flex-1" type="range" min="0" max="15" value="0">
+    </div>
+   </div>
+   <div class="panel">
+    <div class="flex justify-between flex-wrap gap-2 mb-3">
+     <h2 data-template-id="timeline-heading" class="canva-text font-bold" style="font-weight: 400; font-style: normal; font-size: 21px;">Timeline · shared content</h2><span id="selected-track-label" class="status">Selected: Video</span>
+    </div>
+    <div class="mono muted text-[10px] flex justify-between"><span>00:00</span><span>00:05</span><span>00:10</span><span>00:15</span>
+    </div>
+    <div id="timeline-rows"></div>
+   </div>
+   <div id="video-controls" class="panel">
+    <h2 data-template-id="video-heading" class="canva-text font-bold mb-4" style="font-weight: 400; font-style: normal; font-size: 21px;">Video · clips, cut &amp; transitions</h2>
+    <div class="grid-two">
+     <div><label for="video-cut">Cut / trim end (seconds)</label><input id="video-cut" type="range" min="5" max="30" value="15"><span id="trim-value" class="mono text-xs">15s</span>
+     </div>
+     <div><label for="transition">Transition</label><select id="transition"><option>Cut</option><option>Fade</option><option>Swipe</option></select>
+     </div>
+    </div>
+    <div class="flex gap-2 flex-wrap mt-4"><button id="add-marker" data-template-id="marker-button" class="canva-button btn" type="button" style="background: rgb(36, 37, 44); color: rgb(245, 244, 248); font-weight: 400; font-style: normal; font-size: 14px;">+ Add marker</button><button id="remove-silences" data-template-id="silence-button" class="canva-button btn" type="button" style="background: rgb(36, 37, 44); color: rgb(245, 244, 248); font-weight: 400; font-style: normal; font-size: 14px;">Remove Silences</button>
+    </div>
+    <p id="marker-list" class="muted text-xs mt-3">Markers: none</p>
+   </div>
+   <div id="text-controls" class="panel" hidden="">
+    <div class="flex flex-wrap justify-between gap-2 mb-4">
+     <h2 data-template-id="text-heading" class="canva-text font-bold" style="font-weight: 400; font-style: normal; font-size: 21px;">Text &amp; Caption workspace</h2>
+     <div class="flex gap-2"><button id="rewrite-text" data-template-id="rewrite-button" class="canva-button btn" type="button" style="background: rgb(36, 37, 44); color: rgb(245, 244, 248); font-weight: 400; font-style: normal; font-size: 14px;">Rewrite hook</button><button id="shorten-text" data-template-id="shorten-button" class="canva-button btn btn-primary" type="button" style="background: rgb(167, 139, 250); color: rgb(23, 19, 33); font-weight: 400; font-style: normal; font-size: 14px;">Shorten caption</button>
+     </div>
+    </div>
+    <div id="text-fields" class="grid-two"></div>
+    <div class="grid-two mt-4">
+     <div><label for="text-start">Selected text start (seconds)</label><input id="text-start" type="number" min="0" max="30" value="0">
+     </div>
+     <div><label for="text-end">Selected text end (seconds)</label><input id="text-end" type="number" min="0" max="30" value="3">
+     </div>
+    </div>
+   </div>
+   <div id="audio-controls" class="panel" hidden="">
+    <h2 data-template-id="music-heading" class="canva-text font-bold mb-4" style="font-weight: 400; font-style: normal; font-size: 21px;">Music &amp; SFX mix</h2>
+    <div class="flex gap-2 flex-wrap mb-4"><button id="add-audio" data-template-id="add-audio-button" class="canva-button btn btn-primary" type="button" style="background: rgb(167, 139, 250); color: rgb(23, 19, 33); font-weight: 400; font-style: normal; font-size: 14px;">+ Add Audio</button><button id="preview-audio" data-template-id="preview-audio-button" class="canva-button btn" type="button" style="background: rgb(36, 37, 44); color: rgb(245, 244, 248); font-weight: 400; font-style: normal; font-size: 14px;">Preview audio</button>
+    </div>
+    <div class="waveform rounded mb-4" aria-label="ตัวอย่างรูปคลื่นเสียง"></div>
+    <div class="grid-two">
+     <div><label for="audio-volume">Volume <span id="volume-value">45%</span></label><input id="audio-volume" type="range" min="0" max="100" value="45">
+     </div>
+     <div><label for="audio-fade">Fade in/out (seconds)</label><input id="audio-fade" type="number" min="0" max="10" value="1">
+     </div>
+    </div>
+    <div class="flex gap-4 flex-wrap mt-4"><label class="check-row"><input id="audio-mute" type="checkbox">Mute</label><label class="check-row"><input id="audio-sync" type="checkbox">Sync to beat</label>
+    </div>
+    <div id="audio-list" class="space-y-2 mt-4"></div>
+   </div>
+  </div>
+  <script>
+(() => {
+  const $=id=>document.getElementById(id);
+  const names=['Research & Analyze','Work Plan','Storyboard','Video Editor','Text & Caption','Music & SFX','Finalize','Publish','Monitor & Analyze','Summary & Report'];
+  const descriptions=['สำรวจผู้ชมและโจทย์รอบนี้','จัดลำดับไอเดียการผลิต','วางเรื่องราวเป็น scene','ตัดต่อบน Content Editor','แก้ข้อความบน timeline เดียวกัน','จัดเสียงบน timeline เดียวกัน','ตรวจคุณภาพก่อนเผยแพร่','เลือกปลายทางและตรวจ disclosure','อ่านผลและหาโอกาสถัดไป','สรุปผลและส่ง insight เข้ารอบใหม่'];
+  let active=0,toastTimer,cycle=1,chart,playing=null,position=0,nextId=20;
+  const state={
+    scenes:[
+      {id:'hook',title:'Hook',shot:'Close-up',voice:'เปิดด้วยผลลัพธ์ทันที',screen:'แก้ปัญหาใน 15 วินาที',duration:2,status:'Draft'},
+      {id:'problem',title:'Problem',shot:'Wide shot',voice:'เล่าปัญหาที่ผู้ชมเจอ',screen:'พกหลายชิ้นเกินไป?',duration:3,status:'Draft'},
+      {id:'demo',title:'Product Demo',shot:'Hands-on',voice:'สาธิตการใช้งานจริง',screen:'ชิ้นเดียว ใช้ง่าย',duration:5,status:'Draft'},
+      {id:'proof',title:'Proof',shot:'Detail',voice:'ยกเหตุผลที่ตรวจสอบได้',screen:'เห็นการใช้งานจริง',duration:3,status:'Needs Review'},
+      {id:'cta',title:'CTA',shot:'Phone close-up',voice:'ชวนดูรายละเอียดต่อ',screen:'ดูข้อมูลเพิ่มเติม',duration:2,status:'Draft'}
+    ],
+    text:{Headline:'The little upgrade your next trip needs',Hook:'Packing light? This one tool makes it easier.',Caption:'A compact everyday essential, shown in real use.',CTA:'See how it fits your routine',Hashtags:'#TravelGear #EverydayCarry'},
+    timing:{Headline:[0,3],Hook:[0,2],Caption:[3,12],CTA:[12,15],Hashtags:[12,15]},
+    selectedText:'Headline',selectedTrack:'video',duration:15,markers:[],audio:[],statuses:{video:'Draft',text:'Draft',audio:'Draft'},
+    overrides:{},insights:null
+  };
+  const toast=message=>{const el=$('toast');el.textContent=message;el.hidden=false;clearTimeout(toastTimer);toastTimer=setTimeout(()=>el.hidden=true,3300)};
+  const escape=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  function setStatus(key,value){state.statuses[key]=value;$(key+'-status').textContent=value}
+  function selectStep(i){active=i;document.querySelectorAll('.step-view').forEach((v,n)=>v.hidden=n!==i);document.querySelectorAll('.step-btn').forEach((b,n)=>{b.classList.toggle('active',i===n);b.setAttribute('aria-current',i===n?'step':'false')});$('active-title').textContent=names[i];$('active-description').textContent=descriptions[i];$('step-counter').textContent=`Step ${i+1} of 10`;$('progress-fill').style.width=(i+1)*10+'%';$('progress-root').setAttribute('aria-valuenow',i+1);$('copilot-title').textContent=names[i];$('copilot-tip').textContent=i===9?'ส่งผลการเรียนรู้กลับไปเริ่ม Research รอบถัดไป':i===8?'เทียบ reach, clicks และ conversion ก่อนตัดสินใจทดสอบงานชิ้นใหม่':'แก้ข้อมูลตัวอย่าง แล้วเลือก action ที่ต้องการในขั้นตอนนี้';if(i>=3&&i<=5)mountEditor(i);if(i===8)requestAnimationFrame(drawChart)}
+  names.forEach((name,i)=>{const b=document.createElement('button');b.type='button';b.className='step-btn';b.innerHTML=`<span class="step-number">${String(i+1).padStart(2,'0')}</span><span></span>`;b.lastElementChild.textContent=name;b.onclick=()=>selectStep(i);$('workflow-nav').append(b)});
+  $('global-search').oninput=e=>document.querySelectorAll('.step-btn').forEach((b,i)=>b.hidden=!names[i].toLowerCase().includes(e.target.value.toLowerCase()));
+  $('theme-btn').onclick=()=>{document.body.classList.toggle('light');toast('เปลี่ยนธีมแล้ว')};
+  $('access-btn').onclick=()=>{const on=document.body.classList.toggle('contrast');document.body.classList.toggle('reduce-motion',on);$('access-btn').setAttribute('aria-pressed',String(on));toast(on?'เปิดโหมดความคมชัดสูง':'กลับสู่การแสดงผลปกติ')};
+  $('copilot-action').onclick=()=>{if(active===8)$('analyze-results').click();else if(active===2)$('generate-storyboard').click();else if(active>=3&&active<=5)$('run-selected').click();else toast($('copilot-tip').textContent)};
+  $('research-form').onsubmit=e=>{e.preventDefault();const p=$('product').value.trim()||'สินค้าตัวอย่าง',a=$('audience').value.trim()||'ผู้ซื้อที่ใช้งานจริง';$('intent-result').textContent=`${a} กำลังเปรียบเทียบทางเลือกสำหรับ ${p}`;$('trends-result').textContent='ทดสอบเดโมสั้น รีวิว และการเปรียบเทียบ';$('signals-result').textContent=`แสดงการใช้งาน ${p} ในสถานการณ์จริง`;toast('อัปเดต research insight แล้ว')};
+  let sources=['Short-form creator examples','Buyer comparison queries','Product review roundup'];
+  function renderSources(){const root=$('sources-list');root.replaceChildren();sources.forEach((s,i)=>{let row=document.createElement('div');row.className='subpanel flex justify-between items-center gap-2';let text=document.createElement('span');text.className='text-sm';text.textContent=s;let b=document.createElement('button');b.type='button';b.className='btn btn-danger';b.textContent='Remove';b.onclick=()=>{sources.splice(i,1);renderSources();toast('ลบ source แล้ว')};row.append(text,b);root.append(row)})}renderSources();
+  $('add-source').onclick=()=>{$('source-form').hidden=!$('source-form').hidden;if(!$('source-form').hidden)$('source-name').focus()};
+  $('source-form').onsubmit=e=>{e.preventDefault();sources.push($('source-name').value.trim());renderSources();e.target.reset();e.target.hidden=true;toast('เพิ่ม source แล้ว')};
+  const stages=['Idea','Script','Production','Review','Published'];let plans=[{id:1,title:'The 15-second packing fix',stage:'Idea'},{id:2,title:'One charger, three devices',stage:'Script'},{id:3,title:'Weekend kit comparison',stage:'Production'}];
+  function renderPlans(){const root=$('kanban');root.replaceChildren();stages.forEach(stage=>{let col=document.createElement('div');col.className='subpanel';let h=document.createElement('h3');h.className='font-bold text-sm mb-3';h.textContent=`${stage} · ${plans.filter(p=>p.stage===stage).length}`;col.append(h);plans.filter(p=>p.stage===stage).forEach(p=>{let card=document.createElement('div');card.className='subpanel mb-2';let title=document.createElement('p');title.className='text-sm mb-2';title.textContent=p.title;let sel=document.createElement('select');sel.setAttribute('aria-label','สถานะของ '+p.title);stages.forEach(s=>sel.add(new Option(s,s)));sel.value=p.stage;sel.onchange=()=>{p.stage=sel.value;renderPlans();toast('ย้ายการ์ดแล้ว')};card.append(title,sel);col.append(card)});root.append(col)})}renderPlans();
+  $('add-plan').onclick=()=>{$('plan-form').hidden=!$('plan-form').hidden;if(!$('plan-form').hidden)$('plan-title').focus()};
+  $('plan-form').onsubmit=e=>{e.preventDefault();plans.push({id:nextId++,title:$('plan-title').value.trim(),stage:'Idea'});renderPlans();e.target.reset();e.target.hidden=true;toast('เพิ่มไอเดียแล้ว')};
+
+  function sceneFields(scene){return `<h3 class="font-bold mb-2">${escape(scene.title)}</h3><label>Scene title<input data-field="title" value="${escape(scene.title)}"></label><label>Shot type<input data-field="shot" value="${escape(scene.shot)}"></label><label>Voiceover note<textarea data-field="voice" rows="2">${escape(scene.voice)}</textarea></label><label>On-screen text<input data-field="screen" value="${escape(scene.screen)}"></label><div class="grid-two"><label>Duration (s)<input data-field="duration" type="number" min="1" max="60" value="${scene.duration}"></label><label>Status<select data-field="status">${['Draft','Processing','Ready','Needs Review'].map(v=>`<option ${v===scene.status?'selected':''}>${v}</option>`).join('')}</select></label></div><div class="flex flex-wrap gap-1 mt-3"><button type="button" class="btn" data-action="edit">Edit</button><button type="button" class="btn" data-action="duplicate">Duplicate</button><button type="button" class="btn" data-action="up" aria-label="Move Up">↑</button><button type="button" class="btn" data-action="down" aria-label="Move Down">↓</button><button type="button" class="btn btn-danger" data-action="delete">Delete</button></div>`}
+  function renderScenes(){const grid=$('scene-grid');const existing=new Map([...grid.children].map(el=>[el.dataset.scene,el]));state.scenes.forEach((s,i)=>{let card=existing.get(String(s.id));if(!card){card=document.createElement('article');card.className='scene-card subpanel';card.dataset.scene=s.id;const thumb=document.createElement('div');thumb.className='scene-placeholder';thumb.textContent=s.title;card.append(thumb,document.createElement('div'));card.lastElementChild.className='scene-body'}card.querySelector('.scene-body').innerHTML=sceneFields(s);card.querySelector('[data-action="up"]').disabled=i===0;card.querySelector('[data-action="down"]').disabled=i===state.scenes.length-1;grid.append(card);existing.delete(String(s.id))});existing.forEach(el=>el.remove());renderTimeline()}
+  $('scene-grid').addEventListener('input',e=>{let card=e.target.closest('[data-scene]');if(!card||!e.target.dataset.field)return;let s=state.scenes.find(x=>String(x.id)===card.dataset.scene);s[e.target.dataset.field]=e.target.dataset.field==='duration'?Math.max(1,Number(e.target.value)||1):e.target.value;if(e.target.dataset.field==='title'){card.querySelector('h3').textContent=s.title;renderTimeline()}});
+  $('scene-grid').addEventListener('change',e=>{if(e.target.dataset.field==='status')toast('อัปเดตสถานะ scene แล้ว')});
+  $('scene-grid').addEventListener('click',e=>{let b=e.target.closest('[data-action]');if(!b)return;let i=state.scenes.findIndex(x=>String(x.id)===b.closest('[data-scene]').dataset.scene),s=state.scenes[i];switch(b.dataset.action){case'edit':b.closest('.scene-card').querySelector('[data-field="title"]').focus();toast('แก้ไขข้อมูลบนการ์ดได้โดยตรง');return;case'duplicate':state.scenes.splice(i+1,0,{...s,id:nextId++,title:s.title+' copy'});break;case'delete':state.scenes.splice(i,1);break;case'up':case'down':let j=i+(b.dataset.action==='up'?-1:1);[state.scenes[i],state.scenes[j]]=[state.scenes[j],state.scenes[i]];break}renderScenes();toast('อัปเดต storyboard แล้ว')});
+  $('add-scene').onclick=()=>{state.scenes.push({id:nextId++,title:'New scene',shot:'Medium shot',voice:'เพิ่มคำบรรยาย',screen:'ข้อความบนจอ',duration:3,status:'Draft'});renderScenes();toast('เพิ่ม scene แล้ว')};
+  $('generate-storyboard').onclick=()=>{let product=$('product').value.trim()||'สินค้า',audience=$('audience').value.trim()||'ผู้ชม';const notes=[`เปิดด้วยผลลัพธ์ของ ${product}`,`ชี้ปัญหาของ ${audience}`,`สาธิต ${product} จริง`,`แสดงหลักฐานโดยไม่กล่าวอ้างเกินจริง`,`ชวนผู้ชมตรวจรายละเอียด ${product}`];state.scenes.forEach((s,i)=>{s.voice=notes[i%5];s.status='Draft'});renderScenes();toast('Generate Storyboard จาก research brief แล้ว')};
+
+  function mountEditor(i){$('editor-slot-'+i).append($('shared-editor'));$('shared-editor').hidden=false;let mode=['video','text','audio'][i-3];$('editor-mode').textContent=`Step ${i+1} · ${mode.toUpperCase()} focus · shared timeline`;$('video-controls').hidden=mode!=='video';$('text-controls').hidden=mode!=='text';$('audio-controls').hidden=mode!=='audio';selectTrack(mode)}
+  function selectTrack(track){state.selectedTrack=track;document.querySelectorAll('.timeline-track').forEach(el=>el.classList.toggle('selected',el.dataset.track===track));$('selected-track-label').textContent='Selected: '+track+(track==='text'?' / '+state.selectedText:'')}
+  function renderTimeline(){const root=$('timeline-rows');if(!root)return;root.replaceChildren();[['video','Video clips'],['text','Text / captions'],['audio','Music / SFX']].forEach(([key,name])=>{let row=document.createElement('div');row.className='timeline-row';let label=document.createElement('strong');label.className='text-xs';label.textContent=name;let track=document.createElement('button');track.type='button';track.className='timeline-track '+(key==='text'?'text-track':key==='audio'?'audio-track':'')+(state.selectedTrack===key?' selected':'');track.dataset.track=key;track.setAttribute('aria-label','Select '+name+' track');if(key==='video'){let total=state.scenes.reduce((a,s)=>a+s.duration,0)||1;state.scenes.forEach(s=>{let clip=document.createElement('span');clip.className='clip';clip.style.width=s.duration/total*100+'%';clip.textContent=s.title;track.append(clip)})}else if(key==='text'){let span=document.createElement('span');span.className='text-[10px] p-2 truncate';span.textContent=state.selectedText+': '+state.text[state.selectedText];track.append(span)}else{let span=document.createElement('span');span.className='text-[10px] p-2 truncate';span.textContent=state.audio.length?state.audio.join(' · '):'No audio · select Add Audio';track.append(span)}track.onclick=()=>selectTrack(key);let badge=document.createElement('span');badge.className='status';badge.textContent=state.statuses[key];row.append(label,track,badge);root.append(row)})}
+  const textRoot=$('text-fields');Object.entries(state.text).forEach(([name,value])=>{let wrap=document.createElement('div');wrap.className='subpanel';let label=document.createElement('label');label.htmlFor='copy-'+name;label.textContent=name;let field=document.createElement('textarea');field.id='copy-'+name;field.rows=name==='Caption'?4:2;field.value=value;field.onfocus=()=>{state.selectedText=name;selectTrack('text');$('text-start').value=state.timing[name][0];$('text-end').value=state.timing[name][1];renderTimeline()};field.oninput=()=>{state.text[name]=field.value;setStatus('text','Needs Review');renderTimeline()};wrap.append(label,field);textRoot.append(wrap)});
+  function syncText(){Object.keys(state.text).forEach(k=>{$('copy-'+k).value=state.text[k]});renderTimeline()}
+  ['text-start','text-end'].forEach((id,index)=>$(id).onchange=e=>{let value=Math.max(0,Math.min(state.duration,Number(e.target.value)||0));state.timing[state.selectedText][index]=value;if(state.timing[state.selectedText][0]>state.timing[state.selectedText][1])state.timing[state.selectedText].sort((a,b)=>a-b);$('text-start').value=state.timing[state.selectedText][0];$('text-end').value=state.timing[state.selectedText][1];setStatus('text','Needs Review');toast('อัปเดต timing ของ '+state.selectedText)});
+  $('rewrite-text').onclick=()=>{state.text.Hook='ลองดูว่า '+($('product').value.trim()||'ไอเท็มชิ้นนี้')+' ช่วยให้ชีวิตง่ายขึ้นอย่างไร';syncText();setStatus('text','Needs Review');toast('Rewrite Hook แล้ว — ตรวจทานก่อนใช้')};
+  $('shorten-text').onclick=()=>{state.text.Caption=state.text.Caption.length>55?state.text.Caption.slice(0,52).trimEnd()+'…':state.text.Caption;syncText();setStatus('text','Needs Review');toast('Shorten Caption แล้ว')};
+  function time(){return `00:${String(position).padStart(2,'0')} / 00:${String(state.duration).padStart(2,'0')}`}
+  function updatePlayback(){$('video-time').textContent=time();$('video-scrub').value=position;let elapsed=0,scene=state.scenes.find(s=>{elapsed+=s.duration;return elapsed>position});$('preview-scene').textContent=scene?scene.title+' · '+scene.screen:'End'}
+  function stopPlayback(){clearInterval(playing);playing=null;$('play-video').textContent='▶'}
+  $('play-video').onclick=()=>{if(playing){stopPlayback();return}if(position>=state.duration)position=0;$('play-video').textContent='Ⅱ';playing=setInterval(()=>{position++;updatePlayback();if(position>=state.duration)stopPlayback()},1000)};
+  $('video-scrub').oninput=e=>{position=Number(e.target.value);updatePlayback()};
+  $('video-cut').oninput=e=>{state.duration=Number(e.target.value);$('trim-value').textContent=state.duration+'s';$('video-scrub').max=state.duration;position=Math.min(position,state.duration);updatePlayback();setStatus('video','Needs Review')};
+  $('transition').onchange=()=>{setStatus('video','Needs Review');toast('เปลี่ยน transition เป็น '+$('transition').value)};
+  $('add-marker').onclick=()=>{state.markers.push(position);$('marker-list').textContent='Markers: '+state.markers.map(v=>v+'s').join(', ');setStatus('video','Needs Review');toast('เพิ่ม marker ที่ '+position+'s')};
+  $('remove-silences').onclick=()=>toast('ตรวจ timeline ตัวอย่างแล้ว: ไม่พบช่วงเงียบที่ต้องตัด');
+  $('add-audio').onclick=()=>{let options=['Bright Momentum · Music','Soft Focus · Music','Quick Spark · SFX'],next=options.find(x=>!state.audio.includes(x));if(!next){toast('เพิ่มเสียงตัวอย่างครบแล้ว');return}state.audio.push(next);renderAudio();renderTimeline();setStatus('audio','Needs Review');toast('เพิ่ม '+next)};
+  function renderAudio(){const root=$('audio-list');root.replaceChildren();state.audio.forEach((s,i)=>{let row=document.createElement('div');row.className='subpanel flex justify-between items-center gap-2';let label=document.createElement('span');label.className='text-sm';label.textContent=s;let b=document.createElement('button');b.type='button';b.className='btn btn-danger';b.textContent='Remove';b.onclick=()=>{state.audio.splice(i,1);renderAudio();renderTimeline();setStatus('audio','Needs Review');toast('ลบ audio track แล้ว')};row.append(label,b);root.append(row)})}
+  let audioContext; $('preview-audio').onclick=()=>{if(!state.audio.length){toast('เพิ่ม Audio ก่อนฟังตัวอย่าง');return}try{audioContext=audioContext||new (window.AudioContext||window.webkitAudioContext)();let oscillator=audioContext.createOscillator(),gain=audioContext.createGain();oscillator.frequency.value=440;gain.gain.value=$('audio-mute').checked?0:Number($('audio-volume').value)/5000;oscillator.connect(gain).connect(audioContext.destination);oscillator.start();oscillator.stop(audioContext.currentTime+.35);toast('เล่นเสียงตัวอย่างสั้น ๆ')}catch(e){toast('ไม่สามารถเล่นเสียงในเบราว์เซอร์นี้')}};
+  $('audio-volume').oninput=e=>{$('volume-value').textContent=e.target.value+'%';setStatus('audio','Needs Review')};
+  ['audio-fade','audio-mute','audio-sync'].forEach(id=>$(id).onchange=()=>{setStatus('audio','Needs Review');toast('อัปเดตการตั้งค่าเสียงแล้ว')});
+  function runMode(mode){setStatus(mode,'Processing');if(mode==='video'){if(!state.markers.length)state.markers=[2,10];$('marker-list').textContent='Markers: '+state.markers.map(v=>v+'s').join(', ')}if(mode==='text'){state.text.Hook='ดูผลลัพธ์จริงของ '+($('product').value.trim()||'สินค้า')+' ใน 15 วินาที';syncText()}if(mode==='audio'&&!state.audio.length){state.audio.push('Bright Momentum · Music');renderAudio();renderTimeline()}setTimeout(()=>{setStatus(mode,'Needs Review');renderTimeline()},400)}
+  $('run-selected').onclick=()=>{let mode=['video','text','audio'][active-3];runMode(mode);toast('AI ทำเฉพาะ '+mode+' track — ส่วนอื่นไม่ถูกแก้ไข')};
+  $('run-all').onclick=()=>{['video','text','audio'].forEach(runMode);toast('AI ทำ Video → Text → Audio บน timeline เดียวกันแล้ว')};
+  ['Visual','Audio','Caption','Compliance'].forEach(name=>{let box=document.createElement('div');box.className='subpanel';let h=document.createElement('h3');h.className='font-bold mb-3';h.textContent=name;let label=document.createElement('label');label.textContent='Status';label.htmlFor='qa-'+name;let sel=document.createElement('select');sel.id='qa-'+name;['Needs Review','Pass','Error'].forEach(s=>sel.add(new Option(s,s)));sel.onchange=()=>toast(name+' · '+sel.value);box.append(h,label,sel);$('qa-list').append(box)});
+
+  const review={frame:0,total:450,fps:30,in:0,out:450,playing:null,layers:{Video:{visible:true,locked:false,muted:false,selected:true},Text:{visible:true,locked:false,muted:false,selected:false},Audio:{visible:true,locked:false,muted:false,selected:false}},markers:[],issues:[],qa:{Visual:'Needs Review','Text/Caption':'Needs Review',Audio:'Needs Review',Compliance:'Needs Review'}};
+  const tc=f=>{let s=Math.floor(f/review.fps),fr=f%review.fps;return `00:${String(Math.floor(s/60)).padStart(2,'0')}:${String(s%60).padStart(2,'0')}:${String(fr).padStart(2,'0')}`};
+  function renderReview(){if(!$('review-timecode'))return;$('review-timecode').textContent=`${tc(review.frame)} · Frame ${review.frame} / ${review.total} · ${review.fps} fps`;$('review-range').textContent=`In ${tc(review.in)} → Out ${tc(review.out)}`;$('review-range-fill').style.marginLeft=(review.in/review.total*100)+'%';$('review-range-fill').style.width=((review.out-review.in)/review.total*100)+'%';$('readiness-status').textContent=review.issues.some(x=>x.status!=='Resolved'&&x.severity==='High')?'Error':'Needs Review';
+    const meta=[['Resolution','1920 × 1080','Pass'],['Aspect Ratio','16:9','Pass'],['Frame Rate','30 fps','Pass'],['Duration','00:00:15:00','Pass'],['Video Codec','H.264','Pass'],['Audio Sample Rate','48 kHz','Pass'],['Audio Channels','Stereo 2.0','Pass'],['Loudness Level','-14 LUFS','Needs Review']];$('metadata-grid').replaceChildren(...meta.map(([k,v,s])=>{let d=document.createElement('div');d.className='subpanel';d.innerHTML=`<span class="eyebrow">${k}</span><div class="flex justify-between mt-2"><strong>${v}</strong><span class="status">${s}</span></div>`;return d}));
+    $('review-layers').replaceChildren(...Object.entries(review.layers).map(([name,v])=>{let d=document.createElement('div');d.className='subpanel';d.innerHTML=`<div class="flex justify-between"><strong>${name} Layer</strong><span class="status">${v.selected?'Selected':'Ready'}</span></div><div class="flex flex-wrap gap-2 mt-3"><button class="btn" data-layer="${name}" data-toggle="visible">${v.visible?'Visible':'Hidden'}</button><button class="btn" data-layer="${name}" data-toggle="locked">${v.locked?'Locked':'Unlocked'}</button><button class="btn" data-layer="${name}" data-toggle="muted">${v.muted?'Muted':'Solo'}</button><button class="btn ${v.selected?'btn-primary':''}" data-layer="${name}" data-toggle="selected">Select</button></div>`;return d}));
+    $('review-markers').replaceChildren(...review.markers.map(m=>{let d=document.createElement('div');d.className='subpanel flex justify-between gap-2';d.innerHTML=`<span><strong>${tc(m.frame)}</strong> · ${m.type} · ${m.note||'Review marker'}</span><span class="status">${m.layers.join(', ')}</span>`;return d}));$('issue-list').replaceChildren(...review.issues.sort((a,b)=>a.frame-b.frame).map((x,i)=>{let d=document.createElement('div');d.className='subpanel flex justify-between gap-2 flex-wrap';d.innerHTML=`<span><strong>${tc(x.frame)}</strong> <span class="pill">${x.layer}</span> ${escape(x.note)}</span><span>${x.severity} · ${x.status} <button class="btn" data-issue="${i}">Send Back to Edit</button></span>`;return d}));let open=review.issues.filter(x=>x.status!=='Resolved').length,res=review.issues.filter(x=>x.status==='Resolved').length;$('open-issues').textContent=open;$('resolved-issues').textContent=res;$('qa-readiness').textContent=open?'Review':'Ready';$('qa-list').replaceChildren(...Object.entries(review.qa).map(([k,v])=>{let d=document.createElement('div');d.className='subpanel flex justify-between items-center';d.innerHTML=`<strong>${k}</strong><select data-qa="${k}"><option ${v==='Pass'?'selected':''}>Pass</option><option ${v==='Needs Review'?'selected':''}>Needs Review</option><option ${v==='Error'?'selected':''}>Error</option></select>`;return d}));}
+  ['review-back','review-forward'].forEach((id,i)=>$(id).onclick=()=>{review.frame=Math.max(0,Math.min(review.total,review.frame+(i?1:-1)));renderReview()});$('review-play').onclick=()=>{if(review.playing){clearInterval(review.playing);review.playing=null;$('review-play').textContent='▶ Play'}else{$('review-play').textContent='Ⅱ Pause';review.playing=setInterval(()=>{review.frame=Math.min(review.out,review.frame+1);renderReview();if(review.frame>=review.out){clearInterval(review.playing);review.playing=null;$('review-play').textContent='▶ Play'}},1000/review.fps)}};$('mark-in').onclick=()=>{review.in=review.frame;toast('Mark In ตั้งไว้ที่ '+tc(review.frame));renderReview()};$('mark-out').onclick=()=>{review.out=Math.max(review.in,review.frame);toast('Mark Out ตั้งไว้ที่ '+tc(review.frame));renderReview()};$('review-layers').onclick=e=>{let b=e.target.closest('[data-toggle]');if(!b)return;let l=review.layers[b.dataset.layer];if(b.dataset.toggle==='selected')Object.values(review.layers).forEach(x=>x.selected=false);l[b.dataset.toggle]=b.dataset.toggle==='selected'?true:!l[b.dataset.toggle];renderReview()};$('add-review-note').onclick=()=>{review.markers.push({frame:review.frame,layers:Object.entries(review.layers).filter(([,v])=>v.selected).map(([k])=>k),type:'Note',note:$('issue-note').value||'Review note'});toast('Add Review Note บันทึกแล้ว');renderReview()};$('mark-issue').onclick=()=>{let layers=Object.entries(review.layers).filter(([,v])=>v.selected).map(([k])=>k);review.issues.push({frame:review.frame,layer:layers.join(', ')||'Video',note:$('issue-note').value||'ตรวจสอบช่วงนี้',severity:$('issue-severity').value,status:$('issue-status').value});toast('Mark Issue บันทึกแล้ว');renderReview()};$('send-back-edit').onclick=()=>{toast('Send Back to Edit คงช่วง In/Out และ marker ไว้แล้ว');selectStep(4)};$('split-review').onclick=()=>toast('เปิด Split Review สำหรับเลเยอร์ที่เลือกแล้ว');$('request-changes').onclick=()=>{review.issues.forEach(x=>{if(x.status==='Resolved')x.status='Open'});toast('Request Changes ส่ง issue ทั้งหมดกลับไปยัง Content Editor แล้ว');renderReview()};$('approve-final').onclick=()=>{let blocked=review.issues.some(x=>x.status!=='Resolved'&&x.severity==='High')||Object.values(review.qa).some(x=>x==='Error');toast(blocked?'Approve Final ยังติด Error ที่เปิดอยู่':'Approve Final สำเร็จ — Final review ผ่านแล้ว');if(!blocked){review.qa={Visual:'Pass','Text/Caption':'Pass',Audio:'Pass',Compliance:'Pass'};renderReview()}};$('issue-list').onclick=e=>{if(e.target.dataset.issue){let x=review.issues[Number(e.target.dataset.issue)];selectStep(x.layer.includes('Audio')?5:x.layer.includes('Text')?4:3);toast('Send Back to Edit: '+tc(x.frame))}};$('qa-list').onchange=e=>{if(e.target.dataset.qa){review.qa[e.target.dataset.qa]=e.target.value;review.markers.push({frame:review.frame,layers:[e.target.dataset.qa],type:'QA',note:e.target.dataset.qa+' · '+e.target.value});renderReview()}};renderReview();
+
+  const destinationInputs=[...document.querySelectorAll('.destination')];
+  const selected=()=>destinationInputs.filter(x=>x.checked).map(x=>x.value);
+  function storeOverride(){let target=$('override-target').value;if(!target)return;state.overrides[target]={caption:$('override-caption').value,hashtags:$('override-hashtags').value,thumbnail:$('override-thumbnail').value,link:$('override-link').value}}
+  function loadOverride(){let v=state.overrides[$('override-target').value]||{};['caption','hashtags','thumbnail','link'].forEach(k=>{$('override-'+k).value=v[k]||''})}
+  function updateDestinations(){let destinations=selected();$('selected-count').textContent=destinations.length+' selected';$('destination-summary').textContent=destinations.length?destinations.join(' · '):'ยังไม่ได้เลือกปลายทาง';['tiktok','shopee'].forEach(group=>{let inputs=destinationInputs.filter(x=>x.dataset.group===group);$(group+'-group').checked=inputs.every(x=>x.checked);$(group+'-group').indeterminate=inputs.some(x=>x.checked)&&!inputs.every(x=>x.checked)});let old=$('override-target').value;$('override-target').replaceChildren();destinations.forEach(v=>$('override-target').add(new Option(v,v)));if(destinations.includes(old))$('override-target').value=old;loadOverride();toast('เลือก '+destinations.length+' ปลายทาง')}
+  destinationInputs.forEach(input=>input.onchange=updateDestinations);
+  ['tiktok','shopee'].forEach(group=>$(group+'-group').onchange=e=>{destinationInputs.filter(x=>x.dataset.group===group).forEach(x=>x.checked=e.target.checked);updateDestinations()});
+  $('customize-destination').onchange=e=>{$('override-area').hidden=!e.target.checked;toast(e.target.checked?'เปิดการปรับแต่งรายปลายทาง':'ใช้คอนเทนต์ร่วมกัน')};
+  $('override-target').onchange=loadOverride;
+  ['caption','hashtags','thumbnail','link'].forEach(k=> $('override-'+k).oninput=storeOverride);
+  $('same-content').onclick=()=>{state.overrides={};$('customize-destination').checked=false;$('override-area').hidden=true;loadOverride();toast('ใช้คอนเทนต์เดียวกันสำหรับทุกปลายทางที่เลือก')};
+  function publish(schedule){let message='';if(!selected().length)message='โปรดเลือกปลายทางอย่างน้อย 1 รายการ';else if([...document.querySelectorAll('.compliance')].some(x=>!x.checked))message='โปรดยืนยัน disclosure, ข้อความกล่าวอ้าง และสิทธิ์การใช้สื่อให้ครบ';else if(schedule&&!$('schedule-time').value)message='โปรดเลือกวันและเวลาที่ต้องการ Schedule';$('publish-validation').textContent=message;if(message){toast(message);return}toast(schedule?'บันทึกตารางเผยแพร่ตัวอย่างแล้ว — ไม่ส่งไปแพลตฟอร์มจริง':'เตรียม Publish ตัวอย่างแล้ว — ไม่ส่งไปแพลตฟอร์มจริง')};
+  $('publish-now').onclick=()=>publish(false);$('schedule-post').onclick=()=>publish(true);
+
+  const insights={insight:'เดโมสั้นที่เปิดด้วยผลลัพธ์สร้างความสนใจสูง',hook:'แสดงผลลัพธ์ใน 2 วินาทีแรก',audience:'ผู้ชมสนใจความสะดวกในการเดินทาง',issue:'คลิกสูงแต่ขั้นตอนหลัง CTA ยังไม่ชัด',experiment:'ทดสอบ Hook แบบเดโมเทียบแบบตั้งคำถาม'};
+  function showAnalysis(){const root=$('analysis-output');root.replaceChildren();[['Winning hook',insights.hook],['Audience insight',insights.audience],['Best platform','TikTok (mock sample)'],['Conversion issue',insights.issue],['Recommended experiment',insights.experiment]].forEach(([k,v])=>{let p=document.createElement('p');p.textContent=k+': '+v;root.append(p)})}
+  $('analyze-results').onclick=()=>{showAnalysis();toast('Analyze Results สำหรับ '+$('platform-filter').value+' · '+$('date-filter').value)};
+  function drawChart(){if(chart||!window.Chart)return;chart=new Chart($('performance-chart'),{type:'line',data:{labels:['Mon','Tue','Wed','Thu','Fri','Sat','Sun'],datasets:[{label:'Reach (hundreds)',data:[31,45,40,58,53,77,84],borderColor:'#a78bfa',backgroundColor:'rgba(167,139,250,.12)',fill:true,tension:.35},{label:'Clicks (tens)',data:[13,20,18,26,24,35,40],borderColor:'#c8f36a',tension:.35}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{labels:{color:'#a4a3b0'}}},scales:{x:{ticks:{color:'#a4a3b0'},grid:{color:'#34353e'}},y:{ticks:{color:'#a4a3b0'},grid:{color:'#34353e'}}}}})}
+  [['Total reach','48,200'],['Clicks','2,840'],['Conversions','164'],['Conversion rate','5.8%'],['Commission','฿4,920 (sample)']].forEach(([k,v])=>{let box=document.createElement('div');box.className='subpanel';let label=document.createElement('span');label.className='eyebrow';label.textContent=k;let metric=document.createElement('div');metric.className='metric';metric.textContent=v;box.append(label,metric);$('report-metrics').append(box)});
+  function sendInsights(){state.insights={...insights};cycle++;$('cycle-indicator').textContent='Cycle '+cycle;$('previous-insights').textContent=`Insight: ${insights.insight} · Winning hook: ${insights.hook} · Audience: ${insights.audience} · Conversion issue: ${insights.issue} · Experiment: ${insights.experiment}`;$('apply-research').disabled=false;$('cycle-confirmation').textContent='ส่ง insights กลับไปเริ่มรอบใหม่แล้ว';selectStep(0);toast('ส่ง insights ไป Research & Analyze แล้ว')}
+  $('send-insights').onclick=sendInsights;
+  $('apply-research').onclick=()=>{if(!state.insights)return;$('keyword').value=state.insights.hook;$('audience').value=state.insights.audience;$('intent-result').textContent=state.insights.insight;$('trends-result').textContent='Research priority: '+state.insights.experiment;$('signals-result').textContent='ตรวจสอบ: '+state.insights.issue;toast('นำ insight รอบก่อนมาใช้กับ research แล้ว')};
+  $('start-cycle').onclick=()=>{cycle++;$('cycle-indicator').textContent='Cycle '+cycle;$('cycle-confirmation').textContent='เริ่มรอบใหม่แล้ว';$('keyword').value='';$('product').value='';$('audience').value='';toast('เริ่ม Cycle '+cycle)};
+  const reportText=()=>`Affiliate Content Engine — Sample Report\nReach: 48200\nClicks: 2840\nConversions: 164\nConversion rate: 5.8%\nCommission: THB 4920 (sample)\nWinning hook: ${insights.hook}\nNext experiment: ${insights.experiment}`;
+  $('download-csv').onclick=()=>{let csv='Metric,Value\nReach,48200\nClicks,2840\nConversions,164\nConversion rate,5.8%\nCommission THB,4920\nTikTok conversions,98\nShopee conversions,66\n';let url=URL.createObjectURL(new Blob(['\ufeff'+csv],{type:'text/csv;charset=utf-8'}));let a=document.createElement('a');a.href=url;a.download='affiliate-sample-report.csv';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);toast('ดาวน์โหลด CSV แล้ว')};
+  $('export-pdf').onclick=()=>{let win=window.open('','_blank');if(!win){toast('โปรดอนุญาตหน้าต่างใหม่เพื่อ Save as PDF');return}let h=win.document.createElement('h1'),pre=win.document.createElement('pre');h.textContent='Affiliate Content Engine — Sample Report';pre.textContent=reportText();win.document.body.append(h,pre);win.print();toast('เปิดหน้าต่างพิมพ์ — เลือก Save as PDF')};
+  $('share-report').onclick=async()=>{try{if(navigator.share){await navigator.share({title:'Sample campaign report',text:reportText()});toast('เปิดเมนู Share Report แล้ว')}else{await navigator.clipboard.writeText(reportText());toast('คัดลอกรายงานสำหรับแชร์แล้ว')}}catch(e){if(e.name!=='AbortError')toast('แชร์ไม่ได้ในเบราว์เซอร์นี้; ใช้ Download CSV แทน')}};
+  showAnalysis();renderScenes();renderAudio();updatePlayback();selectStep(0);lucide.createIcons();
+})();
+</script>
+ 
+</body></html>

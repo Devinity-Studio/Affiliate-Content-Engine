@@ -1,0 +1,81 @@
+### สมัครไว้ก่อน
+
+1. **OpenRouter — ใช้เป็น AI Gateway หลัก**
+
+เหมาะสำหรับ Research, วิเคราะห์สินค้า, เขียน Script และจัดการ Agent เพราะเรียกหลายโมเดลผ่าน API เดียว และมี Free plan สำหรับทดลอง ปัจจุบันมีโมเดลฟรีหลายตัว แต่จำกัดประมาณ 50 requests/วัน และ 20 requests/นาที จึงเพียงพอสำหรับการพัฒนาและทดสอบระยะแรก ([OpenRouter Pricing](https://openrouter.ai/pricing), [Free Models](https://openrouter.ai/collections/free-models))
+
+เมื่อถึงขั้นเริ่มเชื่อม ACE ให้ทำดังนี้:
+
+1. กด **New Key**
+2. ตั้งชื่อ เช่น `ACE-MVP`
+3. สร้างและคัดลอก Key ทันที
+4. เก็บไว้ใน `.env` หรือระบบ Secret เท่านั้น ห้ามใส่ในโค้ดหรือส่งในแชต
+5. ทดสอบด้วย Research/Script สั้น ๆ ก่อน ยังไม่ต้องเติมเงิน
+
+ตอนนี้ยังไม่จำเป็นต้องสร้าง Key จนกว่าเราจะเริ่มเชื่อม OpenRouter เข้ากับระบบจริงครับ
+
+2. **Google Cloud Text-to-Speech — ใช้ทดสอบเสียงภาษาไทย**
+
+Google มีเสียงภาษาไทย `th-TH` หลายแบบ รวมถึงเสียงคุณภาพสูง เหมาะกับการทดลอง Voice Agent และสร้างไฟล์เสียงให้ Remotion นำไปประกอบ ([Google Cloud Thai Voices](https://cloud.google.com/text-to-speech/docs/voices?authuser=0))
+
+3. **Azure Speech — เป็นตัวสำรองด้านเสียงไทย**
+
+Azure รองรับเสียงไทยทั้งชายและหญิง เช่น `th-TH-NiwatNeural` และ `th-TH-PremwadeeNeural` รวมถึงเสียง Neural HD รุ่นใหม่ เหมาะสำหรับเปรียบเทียบคุณภาพกับ Google ([Azure Speech Language Support](https://learn.microsoft.com/en-us/azure/ai-services/speech-service/language-support))
+
+### ยังไม่ต้องสมัครตอนนี้
+
+- Hugging Face: เก็บไว้สำหรับทดลองโมเดลหรือเครื่องมือเฉพาะทางภายหลัง
+- ElevenLabs: รองรับภาษาไทยในบางรุ่น แต่ควรทดสอบเสียงจริงก่อน เพราะรุ่นที่รองรับภาษาและคุณภาพเสียงแตกต่างกัน ([ElevenLabs Language Support](https://elevenlabs.io/docs/help-center/other/what-languages-do-you-support))
+- Remotion: ยังไม่ต้องสมัครบริการ Cloud เพราะเราจะ Render ในเครื่อง
+- Harness: ยังไม่จำเป็นสำหรับ ACE ระยะ MVP
+
+### ลำดับที่ผมแนะนำ
+
+```text
+OpenRouter Free
+    ↓
+Research / Script / Agent Orchestration
+    ↓
+Google TTS หรือ Azure Speech
+    ↓
+Remotion Local Render
+    ↓
+Finalize ตรวจภาษาไทย
+```
+
+สรุปคือ ถ้าจะสมัครเตรียมไว้ตอนนี้ ผมแนะนำเริ่มจาก **OpenRouter Free** ก่อน ส่วน **Google Cloud TTS หรือ Azure Speech** ให้เลือกสมัครเพียงตัวเดียวเพื่อทดสอบเสียงภาษาไทยก่อน ยังไม่ต้องเปิดแพ็กเกจเสียเงินหรือสมัครทั้งสองบริการพร้อมกันครับ.
+
+
+
+---
+How to start
+
+
+Please find below instructions of How to use Lazada Affiliate Platform Open API.
+
+Check this link for main Open API guideline: https://open.lazada.com/apps/doc/doc?docId=108067&nodeId=10449
+
+Download SDK
+
+1.     SDK can be found in Open API SDK.zip
+
+SDK support below languages
+
+SDK download link
+
+Java: http://lazada-open-platform-public.oss-ap-southeast-1.aliyuncs.com/sdk/lazop-sdk-java-20180508-1525772228231Guc5.zip?spm=a2o9m.11193494.0.0.1168266bm1SzSd&file=lazop-sdk-java-20180508-1525772228231Guc5.zip
+
+dot net: http://lazada-open-platform-public.oss-ap-southeast-1.aliyuncs.com/sdk/lazop-sdk-net-20180508-1525772249562cbvf.zip?spm=a2o9m.11193494.0.0.1168266bm1SzSd&file=lazop-sdk-net-20180508-1525772249562cbvf.zip
+
+PHP: http://lazada-open-platform-public.oss-ap-southeast-1.aliyuncs.com/sdk/lazop-sdk-php-20180422-15248246488288vtI.zip?spm=a2o9m.11193494.0.0.1168266bm1SzSd&file=lazop-sdk-php-20180422-15248246488288vtI.zip
+
+Python: http://lazada-open-platform-public.oss-ap-southeast-1.aliyuncs.com/sdk/lazop-sdk-python-20180424-1524824674460DNYX.zip?spm=a2o9m.11193494.0.0.1168266bm1SzSd&file=lazop-sdk-python-20180424-1524824674460DNYX.zip
+
+Ruby: http://lazada-open-platform-public.oss-ap-southeast-1.aliyuncs.com/sdk/lazop-sdk-ruby-20180426-1524824701007jVwl.zip?spm=a2o9m.11193494.0.0.1168266bm1SzSd&file=lazop-sdk-ruby-20180426-1524824701007jVwl.zip
+ 
+
+Note: for other languages, please use Resful Request method
+
+Acquire User Token
+
+ Your API access will approve within 5 working days

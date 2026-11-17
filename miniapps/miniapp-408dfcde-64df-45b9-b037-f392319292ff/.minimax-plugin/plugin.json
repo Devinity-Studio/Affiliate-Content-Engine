@@ -1,0 +1,18 @@
+{
+  "schemaVersion": 1,
+  "name": "miniapp-408dfcde-64df-45b9-b037-f392319292ff",
+  "displayName": "ACE Status Board",
+  "version": "1.0.0",
+  "description": "สถานะระบบ Shopee Affiliate Engine แบบเรียลไทม์: pipeline, ผู้สมัครสินค้า, คลังคอนเทนต์ และบันทึก Mission 1",
+  "author": "User",
+  "icon": "icon.png",
+  "category": "Business",
+  "exampleQueries": [
+    "เปิดสถานะระบบ Shopee Affiliate Engine",
+    "ดูว่าตอนนี้ pipeline ของ ACE อยู่ขั้นตอนไหนแล้ว",
+    "แสดงผู้สมัครสินค้าที่คัดกรองแล้วและคอนเทนต์ที่พร้อมเผยแพร่"
+  ],
+  "apps": [],
+  "mcpServers": [],
+  "skills": []
+}

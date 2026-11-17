@@ -1,0 +1,620 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<title>Affiliate Content Engine</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans+Thai:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+/* Layout: Daily Brief + three-column workflow shell (steps | workspace | gates and history); stacks on phones */
+:root{
+  --bg:#eef2f3; --surface:#fbfcfc; --ink:#13232c; --muted:#566872;
+  --line:#cfd9dd; --line-soft:#e1e8eb;
+  --accent:#0a6f8f; --accent-ink:#ffffff; --accent-soft:#d9eef4;
+  --good:#1d7a4b; --good-soft:#dcf1e5;
+  --warn:#9a5b06; --warn-soft:#fbecd2;
+  --crit:#b3261e; --crit-soft:#fbe0dd;
+  --font:'IBM Plex Sans Thai',system-ui,-apple-system,'Segoe UI',sans-serif;
+  --mono:'IBM Plex Mono',ui-monospace,Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --bg:#0d1519; --surface:#141d22; --ink:#e4ecf0; --muted:#92a4ae;
+    --line:#27363e; --line-soft:#1d2a31;
+    --accent:#52c3e3; --accent-ink:#06222c; --accent-soft:#12303b;
+    --good:#5ccf93; --good-soft:#12301f;
+    --warn:#e8b25a; --warn-soft:#352610;
+    --crit:#f2877f; --crit-soft:#391a18;
+    color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0d1519; --surface:#141d22; --ink:#e4ecf0; --muted:#92a4ae;
+  --line:#27363e; --line-soft:#1d2a31;
+  --accent:#52c3e3; --accent-ink:#06222c; --accent-soft:#12303b;
+  --good:#5ccf93; --good-soft:#12301f;
+  --warn:#e8b25a; --warn-soft:#352610;
+  --crit:#f2877f; --crit-soft:#391a18;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:var(--font);font-size:14px;line-height:1.6}
+.app{max-width:1280px;margin:0 auto;padding-block:16px 40px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+h1,h2,h3,p,ul{margin:0}
+h1{font-size:18px;font-weight:600;letter-spacing:.01em}
+h2{font-size:20px;font-weight:600;text-wrap:balance}
+h3{font-size:12px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+button,input,select,textarea{font:inherit;color:inherit}
+button{cursor:pointer}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.mono{font-family:var(--mono);font-variant-numeric:tabular-nums}
+
+/* top bar */
+.top{display:flex;flex-wrap:wrap;align-items:center;gap:12px 20px;padding-bottom:14px;border-bottom:1px solid var(--line)}
+.brand{min-width:0;flex:1 1 240px}
+.brand p{color:var(--muted);font-size:12px}
+.tabs{display:flex;gap:4px;background:var(--line-soft);padding:3px;border-radius:8px}
+.tab{border:0;background:transparent;padding:6px 14px;border-radius:6px;font-weight:500;color:var(--muted)}
+.tab[aria-selected="true"]{background:var(--surface);color:var(--ink);box-shadow:0 0 0 1px var(--line)}
+.tools{display:flex;gap:8px;flex-wrap:wrap}
+.btn{border:1px solid var(--line);background:var(--surface);padding:6px 12px;border-radius:6px}
+.btn:hover{border-color:var(--accent)}
+.btn.ghost{background:transparent}
+.btn.warn{border-color:var(--warn);color:var(--warn)}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+.notice{margin-top:12px;padding:8px 12px;background:var(--warn-soft);color:var(--ink);border-left:3px solid var(--warn);font-size:13px}
+
+/* shell */
+.shell{display:grid;grid-template-columns:224px minmax(0,1fr) 270px;gap:20px;margin-top:16px;align-items:start}
+.steps{display:flex;flex-direction:column;gap:2px;min-width:0}
+.steps .prog{font-size:12px;color:var(--muted);padding:0 10px 8px}
+.step{display:grid;grid-template-columns:24px minmax(0,1fr);gap:2px 8px;text-align:left;border:0;background:transparent;padding:8px 10px;border-radius:6px;border-left:3px solid transparent}
+.step:disabled{opacity:.5;cursor:not-allowed}
+.step[aria-current="step"]{background:var(--surface);border-left-color:var(--accent);box-shadow:0 0 0 1px var(--line)}
+.step .n{font-family:var(--mono);color:var(--muted);font-size:12px;padding-top:2px}
+.step .nm{font-weight:500}
+.step .st{grid-column:2;display:flex;flex-wrap:wrap;gap:4px;align-items:center}
+.chip{display:inline-block;font-size:11px;line-height:1.5;padding:0 7px;border-radius:99px;border:1px solid var(--line);color:var(--muted);white-space:nowrap}
+.chip.DONE,.chip.ok{background:var(--good-soft);border-color:transparent;color:var(--good)}
+.chip.IN_PROGRESS{background:var(--accent-soft);border-color:transparent;color:var(--accent)}
+.chip.STALE,.chip.warn{background:var(--warn-soft);border-color:transparent;color:var(--warn)}
+.chip.HALT,.chip.crit{background:var(--crit-soft);border-color:transparent;color:var(--crit)}
+.loopnote{margin:12px 10px 0;font-size:12px;color:var(--muted)}
+
+.main{min-width:0;display:flex;flex-direction:column}
+.work{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:20px;min-width:0}
+fieldset{border:0;margin:0;padding:0;min-width:0;display:flex;flex-direction:column;gap:16px}
+fieldset:disabled{opacity:.7}
+.lead{color:var(--muted);max-width:68ch}
+.banner{margin-bottom:12px;padding:8px 12px;border-radius:6px;font-size:13px;border-left:3px solid var(--accent);background:var(--accent-soft)}
+.banner.stale{border-left-color:var(--warn);background:var(--warn-soft)}
+.banner.done{border-left-color:var(--good);background:var(--good-soft)}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px}
+.fld{display:flex;flex-direction:column;gap:4px;min-width:0}
+.fld>span{font-size:12px;color:var(--muted)}
+.fld.grow{flex:1 1 180px}
+input[type=text],input[type=number],input[type=url],select,textarea{width:100%;min-width:0;border:1px solid var(--line);background:var(--bg);border-radius:6px;padding:7px 9px}
+textarea{resize:vertical}
+input:disabled,select:disabled,textarea:disabled{cursor:not-allowed}
+.chk{display:flex;gap:8px;align-items:flex-start}
+.chk input{margin-top:5px}
+.rows{display:flex;flex-direction:column;gap:10px}
+.crow{display:flex;flex-wrap:wrap;gap:8px 12px;align-items:flex-end;padding-bottom:10px;border-bottom:1px solid var(--line-soft)}
+.crow>input[type=radio]{margin:0 0 12px;flex:none}
+.crow .fld.sm{flex:0 0 120px}
+.crow .fld.md{flex:0 0 150px}
+.icon{border:1px solid var(--line);background:transparent;border-radius:6px;padding:6px 10px;color:var(--muted)}
+.hint{font-size:12px;color:var(--muted)}
+.calc{display:flex;flex-wrap:wrap;gap:6px 24px;padding:10px 12px;background:var(--bg);border:1px dashed var(--line);border-radius:6px}
+.calc div{min-width:0}
+.calc small{display:block;font-size:12px;color:var(--muted)}
+.calc b{font-family:var(--mono);font-weight:500;font-size:16px}
+.gate{display:flex;flex-wrap:wrap;gap:8px 16px;align-items:center;justify-content:space-between;padding:10px 12px;border:1px solid var(--line);border-radius:6px}
+.gate.on{border-color:var(--good);background:var(--good-soft)}
+.gate p{font-size:12px;color:var(--muted)}
+.scroll{overflow-x:auto}
+table{border-collapse:collapse;width:100%;min-width:760px}
+th{font-size:12px;font-weight:500;color:var(--muted);text-align:left;padding:4px 6px}
+td{padding:4px 6px;vertical-align:top}
+td input{min-width:80px}
+.scenes{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px}
+.preview{aspect-ratio:16/7;max-width:100%;border:1px solid var(--line);border-radius:6px;display:grid;place-items:center;background:var(--bg);color:var(--muted);text-align:center;padding:8px}
+.carry{padding:10px 12px;background:var(--accent-soft);border-radius:6px}
+.carry ul{padding-left:18px;margin-top:4px}
+.checks{display:flex;flex-direction:column;gap:6px}
+.auto{display:flex;gap:8px;align-items:center}
+
+/* nav */
+.nav{position:sticky;bottom:env(safe-area-inset-bottom,0px);margin-top:12px;padding:10px 0 4px;background:linear-gradient(to top,var(--bg) 80%,transparent)}
+.todo{margin-bottom:8px;padding:8px 12px;background:var(--crit-soft);border-radius:6px;font-size:13px}
+.todo ul{padding-left:18px}
+.btns{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.nb{display:flex;flex-direction:column;align-items:center;gap:0;padding:8px;border:1px solid var(--line);background:var(--surface);border-radius:8px}
+.nb span{font-weight:600}
+.nb small{color:var(--muted);font-size:12px}
+.nb.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.nb.primary small{color:inherit;opacity:.85}
+.nb:disabled{opacity:.45;cursor:not-allowed}
+
+/* aside */
+aside{display:flex;flex-direction:column;gap:18px;min-width:0}
+aside section{display:flex;flex-direction:column;gap:6px}
+.gl,.rules,.log{list-style:none;padding:0;display:flex;flex-direction:column;gap:4px;font-size:13px}
+.gl li{display:flex;justify-content:space-between;gap:8px}
+.rules li{padding-left:12px;position:relative;color:var(--muted)}
+.rules li::before{content:"";position:absolute;left:0;top:.7em;width:5px;height:1px;background:var(--muted)}
+.log li{display:grid;grid-template-columns:44px minmax(0,1fr);gap:6px;color:var(--muted)}
+.log .t{font-family:var(--mono);font-size:12px}
+.log .BLOCKED{color:var(--crit)}
+.log .OK{color:var(--ink)}
+
+/* brief */
+.brief{margin-top:16px;display:flex;flex-direction:column;gap:22px}
+.brief h2{margin-bottom:2px}
+.cols{display:grid;grid-template-columns:minmax(0,1.6fr) minmax(0,1fr);gap:24px;align-items:start}
+.opps{display:flex;flex-direction:column;gap:12px}
+.opp{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:16px;display:flex;flex-direction:column;gap:10px;min-width:0}
+.opp dl{margin:0;display:grid;grid-template-columns:110px minmax(0,1fr);gap:4px 12px;font-size:13px}
+.opp dt{color:var(--muted)}
+.opp dd{margin:0}
+.opp .acts{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.list{list-style:none;padding:0;display:flex;flex-direction:column}
+.list li{padding:8px 0;border-bottom:1px solid var(--line-soft);display:grid;grid-template-columns:34px minmax(0,1fr);gap:8px}
+.list .p{font-family:var(--mono);font-size:12px;color:var(--muted);padding-top:2px}
+.list small{display:block;color:var(--muted)}
+
+@media (max-width:1000px){
+  .shell{grid-template-columns:minmax(0,1fr)}
+  .steps{flex-direction:row;overflow-x:auto;gap:6px;padding-bottom:6px}
+  .steps .prog,.steps .loopnote{display:none}
+  .step{flex:0 0 150px;border:1px solid var(--line);border-left-width:3px}
+  .cols{grid-template-columns:minmax(0,1fr)}
+}
+@media (max-width:520px){
+  .work{padding:14px}
+  .opp dl{grid-template-columns:minmax(0,1fr)}
+  .opp dt{margin-top:4px}
+}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;scroll-behavior:auto!important}}
+</style>
+
+<div class="app">
+  <header class="top">
+    <div class="brand"><h1>Affiliate Content Engine</h1><p id="meta"></p></div>
+    <div class="tabs" role="tablist" aria-label="มุมมอง">
+      <button class="tab" id="tabBrief" role="tab" data-act="view" data-v="brief">Daily Brief</button>
+      <button class="tab" id="tabFlow" role="tab" data-act="view" data-v="flow">Workflow 10 ขั้น</button>
+    </div>
+    <div class="tools">
+      <button class="btn ghost" id="btnSample" data-act="sample">โหลดข้อมูลตัวอย่าง</button>
+      <button class="btn ghost" id="btnReset" data-act="reset">เริ่มใหม่</button>
+    </div>
+  </header>
+  <p class="notice" role="note">ต้นแบบสำหรับทดลองการไหลของ workflow และ gate ข้อมูลตลาด สินค้า และตัวเลขทั้งหมดเป็นตัวอย่าง ไม่เชื่อมแพลตฟอร์มจริง ไม่เผยแพร่ ไม่ใช้เงิน บันทึกอยู่ในเบราว์เซอร์นี้เท่านั้น</p>
+
+  <section id="brief" class="brief" aria-label="Daily Brief"></section>
+
+  <section id="flow" class="shell" aria-label="Workflow">
+    <nav id="steps" class="steps" aria-label="ขั้นตอน"></nav>
+    <div class="main">
+      <div id="banner"></div>
+      <div id="work" class="work"></div>
+      <div id="nav" class="nav"></div>
+    </div>
+    <aside id="aside"></aside>
+  </section>
+</div>
+
+<script>
+(function(){
+'use strict';
+var KEY='ace-proto-v1';
+var NAMES=['Research','Work Plan','Storyboard','Video Editor','Text','Music & SFX','Finalize','Publish','Monitor','Report & Learn'];
+var SUB=['ค้นหาโอกาส','แผนและ experiment','บทและฉาก','ตัดต่อรายฉาก','ข้อความบนจอ','เสียงและสิทธิ์','ตรวจก่อนเผยแพร่','เผยแพร่ด้วยมือ','ติดตามผลจริง','สรุปและเรียนรู้'];
+var GATE={1:'g2',6:'g3',7:'g4',9:'g5'};
+var GLABEL={g2:'G2 Experiment',g3:'G3 Content',g4:'G4 Publish',g5:'G5 Report'};
+var STAT={NOT_STARTED:'ยังไม่เริ่ม',IN_PROGRESS:'กำลังทำ',DONE:'ยืนยันแล้ว',STALE:'ต้องตรวจใหม่'};
+var CLS=[['FACT','Fact'],['INFERENCE','Inference'],['HYPOTHESIS','Hypothesis'],['UNKNOWN','Unknown']];
+var LINKS=[['PROFILE_BIO','ลิงก์ในโปรไฟล์ (bio)'],['NATIVE_TAG','แท็กสินค้าของแพลตฟอร์ม'],['DEEP_LINK','ลิงก์ตรงในโพสต์'],['OTHER','อื่น ๆ']];
+var BRIEF=[
+ {id:'b1',t:'ตากผ้าไม่แห้งในคอนโดช่วงฝน',why:'คำถามซ้ำเรื่องรุ่นและขนาดเพิ่มขึ้นต่อเนื่องหลายสัปดาห์',aud:'คนอยู่คอนโดและห้องเช่า',interest:'สูง',intent:'กลาง: ถามราคาและความเหมาะกับห้อง',ready:'ยังไม่มีสื่อจริง',conf:'ต่ำถึงกลาง',ev:'INFERENCE'},
+ {id:'b2',t:'จัดระเบียบห้องเล็กโดยไม่เจาะผนัง',why:'คำถามเรื่องการติดตั้งซ้ำ ยังไม่มีคอนเทนต์ตอบตรงจุด',aud:'ผู้เช่าห้องขนาดเล็ก',interest:'กลาง',intent:'สูง: เปรียบเทียบรุ่นก่อนซื้อ',ready:'มีภาพสินค้าจากผู้ขาย รอยืนยันสิทธิ์',conf:'กลาง',ev:'FACT'},
+ {id:'b3',t:'เก็บสายชาร์จบนโต๊ะทำงาน',why:'กระแสสั้น จากโพสต์ไม่กี่แหล่งที่ซ้ำกัน',aud:'คนทำงานที่บ้าน',interest:'สูง',intent:'ยังไม่พบหลักฐาน',ready:'ยังไม่ตรวจสินค้า',conf:'ต่ำ',ev:'HYPOTHESIS'}
+];
+
+function fresh(){
+  return {
+    cycle:1,cur:0,editing:false,view:'brief',archived:false,carry:[],brief:{},log:[],
+    steps:Array.from({length:10},function(_,i){return {status:i===0?'IN_PROGRESS':'NOT_STARTED',v:1,why:''}}),
+    gates:{g2:false,g3:false,g4:false,g5:false,gpay:false},
+    d:freshData()
+  };
+}
+function freshData(){
+  return {
+    cands:[{name:'',src:'',cls:'UNKNOWN'},{name:'',src:'',cls:'UNKNOWN'},{name:'',src:'',cls:'UNKNOWN'}],sel:-1,
+    p:{rate:'',conv:'',clicks:'',aov:'',days:14,budget:0,channel:'facebook',link:'PROFILE_BIO',crit:''},
+    dna:'',
+    claims:[{t:'',kind:'fact',ev:''}],disc:'',
+    scenes:[{t:'00–05s',n:''},{t:'05–10s',n:''},{t:'10–15s',n:''}],
+    asset:{file:'',tools:'',quota:'OK',spent:0},
+    text:{overlay:'',disc:false},
+    music:{track:'',lic:'NO'},
+    fin:{c1:false,c2:false,c3:false},
+    pub:{url:'',at:'',link:'PROFILE_BIO',disc:'',shot:false},
+    obs:[{k:'D+3',src:'',clicks:'',orders:'',label:'',m1:'',cost:'',m2:''},{k:'D+7',src:'',clicks:'',orders:'',label:'',m1:'',cost:'',m2:''},{k:'END',src:'',clicks:'',orders:'',label:'',m1:'',cost:'',m2:''}],
+    win:{days:''},
+    rep:{rec:'REPEAT',trend:'INCONCLUSIVE',week:'W12',learn:'',learnCls:'HYPOTHESIS'}
+  };
+}
+var S;
+try{var raw=localStorage.getItem(KEY);S=raw?JSON.parse(raw):null}catch(e){S=null}
+if(!S||!S.d||!S.steps||S.steps.length!==10||!S.d.obs){S=fresh()}
+
+var $=function(s){return document.querySelector(s)};
+function esc(v){return String(v==null?'':v).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')}
+function num(v){return v!==''&&v!=null&&!isNaN(Number(v))}
+function fmt(n){return Number(n).toLocaleString('th-TH',{maximumFractionDigits:2})}
+function save(){try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}}
+function now(){return new Date().toLocaleTimeString('th-TH',{hour:'2-digit',minute:'2-digit'})}
+function log(a,r){S.log.unshift({t:now(),a:a,r:r||'INFO'});if(S.log.length>40)S.log.length=40}
+function get(p){return p.split('.').reduce(function(o,k){return o==null?o:o[k]},S.d)}
+function set(p,v){var ks=p.split('.');var last=ks.pop();var o=ks.reduce(function(o,k){return o[k]},S.d);o[last]=v}
+function isLocked(i){return S.steps[i].status==='DONE'&&!(S.editing&&i===S.cur)}
+function reach(){var r=0;S.steps.forEach(function(s,i){if(s.status!=='NOT_STARTED')r=i});return r}
+
+/* ---------- validation ---------- */
+function claimsOk(){return S.d.claims.every(function(c){return c.t.trim()&&(c.kind!=='fact'||c.ev.trim())})}
+function validate(i){
+  var D=S.d,e=[];
+  if(i===0){
+    if(D.cands.filter(function(c){return c.name.trim()}).length<3)e.push('ต้องมีอย่างน้อย 3 โอกาสที่มีชื่อ');
+    var c=D.cands[D.sel];
+    if(!c)e.push('เลือก 1 โอกาสสำหรับรอบนี้');
+    else{
+      if(!c.src.trim())e.push('โอกาสที่เลือกต้องมีแหล่งอ้างอิง (URL)');
+      if(c.cls!=='FACT'&&c.cls!=='INFERENCE')e.push('โอกาสที่เลือกต้องเป็น Fact หรือ Inference ที่ตรวจแล้ว ไม่ใช่ Unknown หรือ Hypothesis');
+    }
+  }
+  if(i===1){
+    var p=D.p;
+    [['rate','อัตราคอมมิชชัน'],['conv','อัตราแปลงเป็นคำสั่งซื้อ'],['clicks','จำนวนคลิก'],['aov','มูลค่าต่อคำสั่งซื้อ']].forEach(function(f){if(!num(p[f[0]])||Number(p[f[0]])<=0)e.push('กรอก'+f[1]+' (ค่าที่ยังไม่ยืนยันให้ถือเป็นสมมติฐาน)')});
+    if(!p.crit.trim())e.push('กำหนดเกณฑ์สำเร็จที่วัดได้จาก dashboard');
+    if(!num(p.days)||Number(p.days)<=0)e.push('กำหนดระยะเวลาทดลอง');
+    if(!num(p.budget)||Number(p.budget)<0)e.push('กรอกงบ (ค่าเริ่มต้น 0)');
+    if(num(p.budget)&&Number(p.budget)>0&&!S.gates.gpay)e.push('งบมากกว่า 0 ต้องผ่าน G-pay ก่อน');
+    if(!S.gates.g2)e.push('รอ Owner อนุมัติ G2');
+  }
+  if(i===2){
+    if(!D.claims.length)e.push('เพิ่มอย่างน้อย 1 ข้อความอ้างอิง');
+    var miss=D.claims.filter(function(c){return !c.t.trim()||(c.kind==='fact'&&!c.ev.trim())}).length;
+    if(miss)e.push('มี '+miss+' ข้อความที่ว่างหรือเป็นข้อเท็จจริงแต่ไม่มี Evidence ID (เปลี่ยนเป็นความเห็นหรือใส่หลักฐาน)');
+    if(!D.disc.trim())e.push('ใส่แผนเปิดเผยความสัมพันธ์ Affiliate');
+  }
+  if(i===3){
+    if(!D.asset.file.trim())e.push('ระบุไฟล์ผลงาน');
+    if(!D.asset.tools.trim())e.push('บันทึกเครื่องมือที่ใช้');
+    if(D.asset.quota!=='OK')e.push('โควต้าฟรีหมด หยุดและรายงาน ห้ามสลับไปจ่ายเงิน');
+    if(num(D.asset.spent)&&Number(D.asset.spent)>0&&!S.gates.gpay)e.push('มีค่าใช้จ่ายจริง ต้องมี G-pay');
+    if(!num(D.asset.spent))e.push('กรอกค่าใช้จ่ายจริง (0 ได้)');
+  }
+  if(i===4){
+    if(!D.text.overlay.trim())e.push('ใส่ข้อความบนจอ');
+    if(!D.text.disc)e.push('ยืนยันว่าใส่ข้อความเปิดเผย Affiliate แล้ว');
+  }
+  if(i===5){
+    if(!D.music.track.trim())e.push('ระบุเพลงหรือเสียงที่ใช้');
+    if(D.music.lic!=='YES')e.push('ยืนยันสิทธิ์ใช้งานเสียงก่อน');
+  }
+  if(i===6){
+    if(!claimsOk())e.push('Claim map ยังมีข้อเท็จจริงที่ไม่มีหลักฐาน (แก้ที่ขั้น 3)');
+    if(!D.disc.trim())e.push('ยังไม่มีแผนเปิดเผย Affiliate (ขั้น 3)');
+    if(!D.fin.c1)e.push('ยืนยันรูปแบบลิงก์ที่ใช้ได้กับช่องทาง');
+    if(!D.fin.c2)e.push('ยืนยันว่าไม่มีผลลัพธ์หรือรีวิวที่แต่งขึ้น');
+    if(!D.fin.c3)e.push('ยืนยันว่าไม่ขัดนโยบายแพลตฟอร์ม');
+    if(!S.gates.g3)e.push('รอ Owner อนุมัติ G3');
+  }
+  if(i===7){
+    if(!/^https?:\/\//.test(D.pub.url.trim()))e.push('ใส่ URL โพสต์จริงที่ขึ้นแล้ว');
+    if(!D.pub.at.trim())e.push('ใส่เวลาที่โพสต์');
+    if(D.pub.link!==D.p.link)e.push('รูปแบบลิงก์ต้องตรงกับที่ล็อกไว้ใน Work Plan ('+labelOf(LINKS,D.p.link)+')');
+    if(!D.pub.disc.trim())e.push('บันทึกการตั้งค่าเปิดเผยที่ใช้ในโพสต์');
+    if(!D.pub.shot)e.push('ยืนยันว่าเก็บภาพหน้าจอโพสต์จริงแล้ว');
+    if(!S.gates.g4)e.push('รอ Owner อนุมัติ G4');
+  }
+  if(i===8){
+    var n=D.obs.filter(function(o){return o.src.trim()}).length;
+    if(n<3)e.push('ต้องมีการจับภาพ 3 ครั้ง (D+3, D+7, END) ที่ระบุแหล่ง; ตอนนี้มี '+n);
+  }
+  if(i===9){
+    if(!D.rep.learn.trim())e.push('บันทึกบทเรียนและข้อเสนอรอบหน้า');
+    if(!S.gates.g5)e.push('รอ Owner อนุมัติ G5');
+  }
+  return e;
+}
+function labelOf(list,v){var f=list.filter(function(x){return x[0]===v})[0];return f?f[1]:v}
+
+/* ---------- invalidation ---------- */
+function touch(k){
+  var st=S.steps[k];
+  if(st.status==='DONE'){st.status='IN_PROGRESS';st.v++;log('แก้ขั้น '+(k+1)+' เป็นเวอร์ชัน v'+st.v)}
+  var g=GATE[k];
+  if(g&&S.gates[g]){S.gates[g]=false;log('ถอน '+GLABEL[g]+' เพราะข้อมูลเปลี่ยน','BLOCKED')}
+  for(var i=k+1;i<10;i++){
+    var s=S.steps[i];
+    if(s.status==='DONE'){
+      s.status='STALE';s.why='ขั้น '+(k+1)+' '+NAMES[k]+' ถูกแก้ไข';
+      if(GATE[i])S.gates[GATE[i]]=false;
+      log('ขั้น '+(i+1)+' ต้องตรวจใหม่ เพราะขั้น '+(k+1)+' เปลี่ยน','BLOCKED');
+    }
+  }
+}
+
+/* ---------- calculations ---------- */
+function calc(){
+  var p=S.d.p,o=S.d.obs[2],w=S.d.win;
+  var rev=(num(p.clicks)&&num(p.conv)&&num(p.aov)&&num(p.rate))?p.clicks*p.conv/100*p.aov*p.rate/100:null;
+  var ready=Number(w.days)===14&&num(o.m1)&&num(o.cost);
+  var net=ready?Number(o.m1)-Number(o.cost):null;
+  var daily=ready?net/14:null;
+  var verdict;
+  if(!ready)verdict='not yet measurable: หลักฐานในหน้าต่าง 14 วันยังไม่ครบ หรือยังไม่มีค่า M1 และต้นทุนของ END';
+  else verdict=daily>=1000?'ถึงเป้า THB 1,000/วัน ในหน้าต่างนี้ (ต้องมีหลักฐานว่าซ้ำได้)':'ยังไม่ถึงเป้า THB 1,000/วัน';
+  return {rev:rev,ready:ready,net:net,daily:daily,verdict:verdict};
+}
+function renderCalcs(){
+  var c=calc();
+  var map={rev:c.rev==null?'ยังไม่ครบ':fmt(c.rev)+' THB',net:c.net==null?'not yet measurable':fmt(c.net)+' THB',daily:c.daily==null?'not yet measurable':fmt(c.daily)+' THB/วัน',verdict:c.verdict};
+  document.querySelectorAll('[data-calc]').forEach(function(el){el.textContent=map[el.dataset.calc]});
+}
+
+/* ---------- field builders ---------- */
+function fid(p){return 'f-'+p.replace(/\./g,'-')}
+function inp(p,o){o=o||{};return '<input id="'+fid(p)+'" data-b="'+p+'" data-t="'+(o.t||'str')+'" type="'+(o.type||'text')+'" value="'+esc(get(p))+'"'+(o.ph?' placeholder="'+esc(o.ph)+'"':'')+(o.min!=null?' min="'+o.min+'"':'')+(o.step?' step="'+o.step+'"':'')+(o.al?' aria-label="'+esc(o.al)+'"':'')+'>'}
+function numInp(p,o){o=o||{};o.t='num';o.type='number';if(o.min==null)o.min=0;if(!o.step)o.step='any';return inp(p,o)}
+function area(p,rows,ph){return '<textarea id="'+fid(p)+'" data-b="'+p+'" rows="'+(rows||3)+'" placeholder="'+esc(ph||'')+'">'+esc(get(p))+'</textarea>'}
+function sel(p,opts,al){return '<select id="'+fid(p)+'" data-b="'+p+'"'+(al?' aria-label="'+esc(al)+'"':'')+'>'+opts.map(function(x){return '<option value="'+x[0]+'"'+(String(get(p))===String(x[0])?' selected':'')+'>'+x[1]+'</option>'}).join('')+'</select>'}
+function chk(p,label){return '<label class="chk"><input type="checkbox" id="'+fid(p)+'" data-b="'+p+'"'+(get(p)?' checked':'')+'><span>'+label+'</span></label>'}
+function fld(label,inner,cls){return '<label class="fld '+(cls||'')+'"><span>'+label+'</span>'+inner+'</label>'}
+function gateBox(g,title,desc){return '<div class="gate'+(S.gates[g]?' on':'')+'"><div><strong>'+title+'</strong><p>'+desc+'</p></div><button class="btn" data-act="gate" data-g="'+g+'">'+(S.gates[g]?'ถอนการอนุมัติ':'อนุมัติ (Owner)')+'</button></div>'}
+
+/* ---------- renderers ---------- */
+function renderTop(){
+  $('#meta').textContent='รอบที่ '+S.cycle+' · ขั้น '+(S.cur+1)+' จาก 10 · เป้าหมาย net ≥ THB 1,000/วัน ในหน้าต่าง 14 วัน';
+  $('#tabBrief').setAttribute('aria-selected',S.view==='brief');
+  $('#tabFlow').setAttribute('aria-selected',S.view==='flow');
+  $('#brief').hidden=S.view!=='brief';
+  $('#flow').hidden=S.view!=='flow';
+}
+function renderSteps(){
+  var done=S.steps.filter(function(s){return s.status==='DONE'}).length,r=reach();
+  var h='<div class="prog mono">ยืนยันแล้ว '+done+'/10</div>';
+  S.steps.forEach(function(s,i){
+    var halted=i===3&&s.status==='IN_PROGRESS'&&S.d.asset.quota!=='OK';
+    var g=GATE[i];
+    h+='<button class="step" data-act="step" data-i="'+i+'"'+(i>r?' disabled':'')+(i===S.cur?' aria-current="step"':'')+'>'+
+      '<span class="n">'+String(i+1).padStart(2,'0')+'</span><span class="nm">'+NAMES[i]+'</span>'+
+      '<span class="st"><span class="chip '+(halted?'HALT':s.status)+'">'+(halted?'หยุด: โควต้า':STAT[s.status])+'</span>'+
+      (g?'<span class="chip '+(S.gates[g]?'ok':'')+'">'+g.toUpperCase()+'</span>':'')+
+      (s.v>1?'<span class="chip mono">v'+s.v+'</span>':'')+'</span></button>';
+  });
+  h+='<p class="loopnote">ขั้น 10 ส่งบทเรียนกลับไปขั้น 1 ของรอบถัดไป</p>';
+  $('#steps').innerHTML=h;
+}
+function renderBanner(){
+  var i=S.cur,s=S.steps[i],h='';
+  if(S.archived)h='<div class="banner done">ปิดรอบที่ '+S.cycle+' แล้ว (STOP) บันทึก decision ไว้ใน Run history กด “เริ่มใหม่” เพื่อทดลองใหม่</div>';
+  else if(s.status==='STALE')h='<div class="banner stale"><strong>ขั้นนี้ต้องตรวจใหม่</strong> เพราะ'+esc(s.why)+' ผลเดิมยังอยู่ ตรวจแล้วกด Next เพื่อยืนยันอีกครั้ง</div>';
+  else if(isLocked(i))h='<div class="banner done">ยืนยันแล้ว v'+s.v+' กด Edit เพื่อแก้ ขั้นถัดไปที่ยืนยันแล้วจะถูกมาร์กว่าต้องตรวจใหม่</div>';
+  else if(S.editing)h='<div class="banner">กำลังแก้ไขขั้นที่ยืนยันแล้ว เมื่อแก้จะเกิดเวอร์ชันใหม่ และต้องยืนยันด้วย Next อีกครั้ง</div>';
+  $('#banner').innerHTML=h;
+}
+function renderNav(){
+  var i=S.cur,locked=isLocked(i);
+  var errs=(locked||S.archived)?[]:validate(i);
+  var canNext=S.archived?false:(locked?i<9:errs.length===0);
+  var h='';
+  if(errs.length)h+='<div class="todo" role="status"><strong>ก่อนไปต่อ</strong><ul>'+errs.map(function(x){return '<li>'+esc(x)+'</li>'}).join('')+'</ul></div>';
+  h+='<div class="btns">'+
+   '<button class="nb" data-act="prev"'+(i===0?' disabled':'')+'><span>← Prev</span><small>ย้อนกลับ</small></button>'+
+   '<button class="nb" data-act="edit"'+(S.archived?' disabled':'')+'><span>Edit</span><small>'+(S.editing?'เสร็จการแก้ไข':'แก้ไข')+'</small></button>'+
+   '<button class="nb primary" data-act="next"'+(canNext?'':' disabled')+'><span>Next →</span><small>'+((i===9&&!locked)?'ยืนยัน G5 และปิดรอบ':'ยืนยันและไปต่อ')+'</small></button></div>';
+  $('#nav').innerHTML=h;
+}
+function renderAside(){
+  var h='<section><h3>Gate</h3><ul class="gl">'+
+    '<li><span>G1 แผนทั้งชุด</span><span class="chip warn">รอ Owner (นอก prototype)</span></li>'+
+    ['g2','g3','g4','g5'].map(function(g){return '<li><span>'+GLABEL[g]+'</span><span class="chip '+(S.gates[g]?'ok':'')+'">'+(S.gates[g]?'อนุมัติ':'รอ')+'</span></li>'}).join('')+
+    '<li><span>G-pay</span><span class="chip '+(S.gates.gpay?'ok':'')+'">'+(S.gates.gpay?'อนุมัติ':'ปิด (THB 0)')+'</span></li></ul></section>'+
+    '<section><h3>กติกาที่บังคับในต้นแบบ</h3><ul class="rules"><li>Next คือยืนยันและไปต่อ ไม่ใช่สิทธิ์เผยแพร่หรือใช้เงิน</li><li>ห้าม auto-publish</li><li>งบเริ่มต้น THB 0 เกินต้องผ่าน G-pay</li><li>โควต้าฟรีหมด หยุดและรายงาน</li><li>ค่าที่ไม่มี คือ Unknown ไม่ใช่ 0</li><li>แก้ขั้นต้นน้ำ ขั้นปลายน้ำต้องตรวจใหม่</li></ul></section>'+
+    '<section><h3>Run history</h3>'+(S.log.length?'<ul class="log">'+S.log.slice(0,10).map(function(l){return '<li class="'+l.r+'"><span class="t">'+l.t+'</span><span>'+esc(l.a)+'</span></li>'}).join('')+'</ul>':'<p class="hint">ยังไม่มีรายการ</p>')+'</section>';
+  $('#aside').innerHTML=h;
+}
+
+function renderWork(){
+  var i=S.cur,D=S.d,locked=isLocked(i),h='';
+  var carry=S.carry.length?'<div class="carry"><h3>บทเรียนจากรอบก่อน</h3><ul>'+S.carry.map(function(c){return '<li>รอบ '+c.c+' <span class="chip">'+labelOf(CLS,c.cls)+'</span> '+esc(c.t)+'</li>'}).join('')+'</ul></div>':'';
+  var steps=[
+  function(){return '<h2>Research: ค้นหาโอกาส</h2><p class="lead">เลือก 1 โอกาสสำหรับรอบนี้ ทุกโอกาสต้องมีแหล่งอ้างอิงและป้ายหลักฐาน ข้อมูลของคนอื่นเป็นสัญญาณให้ทดลอง ไม่ใช่หลักฐานว่าเราจะขายได้</p>'+carry+
+    '<div class="rows">'+D.cands.map(function(c,k){return '<div class="crow"><input type="radio" name="sel" data-b="sel" value="'+k+'"'+(D.sel===k?' checked':'')+' aria-label="เลือกโอกาสที่ '+(k+1)+'">'+
+      fld('โอกาส',inp('cands.'+k+'.name',{ph:'ปัญหาหรือความต้องการที่พบ'}),'grow')+
+      fld('แหล่งอ้างอิง (URL)',inp('cands.'+k+'.src',{ph:'https://'}),'grow')+
+      fld('ป้ายหลักฐาน',sel('cands.'+k+'.cls',CLS),'md')+
+      '<button class="icon" data-act="rmCand" data-i="'+k+'">ลบ</button></div>'}).join('')+'</div>'+
+    '<div><button class="btn" data-act="addCand">+ เพิ่มโอกาส</button></div>'},
+  function(){var p=D.p;return '<h2>Work Plan: แผนและ experiment</h2><p class="lead">ตั้งสมมติฐานพร้อมตัวเลข ล็อกช่องทางและรูปแบบลิงก์ก่อนทำบท ทุกตัวเลขที่ยังไม่ยืนยันจากแหล่งต้นทางถือเป็นสมมติฐาน</p>'+
+    '<div class="grid">'+fld('อัตราคอมมิชชัน (%)',numInp('p.rate'))+fld('อัตราแปลงเป็นคำสั่งซื้อ (%)',numInp('p.conv'))+fld('จำนวนคลิกที่คาด',numInp('p.clicks'))+fld('มูลค่าต่อคำสั่งซื้อ (THB)',numInp('p.aov'))+'</div>'+
+    '<div class="calc"><div><small>รายได้คาดการณ์ (สมมติฐาน ไม่ใช่ผลจริง)</small><b data-calc="rev"></b></div></div>'+
+    '<div class="grid">'+fld('ช่องทาง',sel('p.channel',[['facebook','Facebook Page'],['tiktok','TikTok'],['youtube','YouTube Shorts'],['other','อื่น ๆ']]))+fld('รูปแบบลิงก์ (ล็อกก่อนทำบท)',sel('p.link',LINKS))+fld('ระยะทดลอง (วัน)',numInp('p.days'))+fld('งบ (THB)',numInp('p.budget'))+'</div>'+
+    fld('เกณฑ์สำเร็จ ต้องวัดได้จาก dashboard',inp('p.crit',{ph:'เช่น ≥ 1 ค่าคอมมิชชันยืนยันภายใน 14 วัน'}))+
+    gateBox('g2','G2 อนุมัติ experiment','niche, offer, ช่องทาง, เกณฑ์สำเร็จ, ระยะเวลา, งบ')+
+    (num(p.budget)&&Number(p.budget)>0?gateBox('gpay','G-pay อนุมัติค่าใช้จ่าย','งบ '+fmt(p.budget)+' THB ต้องระบุเหตุผลและวิธีวัดผลตอบแทน'):'')},
+  function(){var bad=D.claims.filter(function(c){return c.kind==='fact'&&!c.ev.trim()}).length;return '<h2>Storyboard: บทและฉาก</h2><p class="lead">ทุกข้อเท็จจริงในบทต้องผูกกับ Evidence ID ถ้าไม่มีหลักฐาน ให้เปลี่ยนเป็นความเห็นหรือตัดออก</p>'+
+    fld('Creator DNA ของงานนี้ (น้ำเสียง คำที่ใช้ คำที่ไม่ใช้)',area('dna',2,'เช่น พูดตรง บอกข้อจำกัดก่อน ไม่เร่งขาย'))+
+    '<div class="rows">'+D.claims.map(function(c,k){return '<div class="crow">'+fld('ข้อความในบท',inp('claims.'+k+'.t'),'grow')+
+      fld('ประเภท',sel('claims.'+k+'.kind',[['fact','ข้อเท็จจริง'],['opinion','ความเห็น']]),'md')+
+      fld('Evidence ID',inp('claims.'+k+'.ev',{ph:'EV-1-1'}),'sm')+
+      '<button class="icon" data-act="rmClaim" data-i="'+k+'">ลบ</button></div>'}).join('')+'</div>'+
+    '<div><button class="btn" data-act="addClaim">+ เพิ่มข้อความ</button> <span class="hint">ข้อเท็จจริงที่ไม่มีหลักฐาน: <b class="mono">'+bad+'</b></span></div>'+
+    fld('แผนเปิดเผย Affiliate และการใช้ AI',area('disc',2,'ข้อความและการตั้งค่าที่ช่องทางกำหนด'))},
+  function(){return '<h2>Video Editor: ตัดต่อรายฉาก</h2><p class="lead">ต้นแบบนี้ไม่ render วิดีโอจริง ใช้บันทึกฉากและข้อมูลการผลิต เพื่อทดสอบกฎโควต้าและต้นทุน</p>'+
+    '<div class="preview">พื้นที่ Preview (ตัวอย่าง)<br>ไม่มีวิดีโอจริงในต้นแบบ</div>'+
+    '<div class="scenes">'+D.scenes.map(function(s,k){return fld(s.t,area('scenes.'+k+'.n',2,'ภาพและบทของฉากนี้'))}).join('')+'</div>'+
+    '<div class="grid">'+fld('ไฟล์ผลงาน',inp('asset.file',{ph:'video-v1.mp4'}))+fld('เครื่องมือที่ใช้',inp('asset.tools',{ph:'เครื่องมือฟรีที่มีอยู่'}))+fld('โควต้าเครื่องมือฟรี',sel('asset.quota',[['OK','ยังใช้ได้'],['EXHAUSTED','หมดแล้ว']]))+fld('ค่าใช้จ่ายจริง (THB)',numInp('asset.spent'))+'</div>'+
+    (D.asset.quota!=='OK'?'<div class="todo">โควต้าหมด ระบบหยุดและรายงาน ทางเลือกคือเปลี่ยนเป็นรูปแบบที่ง่ายกว่าด้วยเครื่องมือฟรี หรือขอ G-pay แยกต่างหาก ห้ามสลับไปจ่ายเงินเอง</div>':'')+
+    (num(D.asset.spent)&&Number(D.asset.spent)>0?gateBox('gpay','G-pay อนุมัติค่าใช้จ่าย','มีค่าใช้จ่ายจริง '+fmt(D.asset.spent)+' THB'):'')},
+  function(){return '<h2>Text: ข้อความบนจอ</h2><p class="lead">ข้อความบนจอแยกจากแคปชันของโพสต์ ต้องมีข้อความเปิดเผยความสัมพันธ์ Affiliate ตามแผนในขั้น 3</p>'+
+    fld('ข้อความบนจอและคำบรรยาย',area('text.overlay',5,'ใส่ข้อความตามลำดับฉาก'))+chk('text.disc','ใส่ข้อความเปิดเผย Affiliate ในวิดีโอแล้ว')},
+  function(){return '<h2>Music &amp; SFX: เสียงและสิทธิ์</h2><p class="lead">ใช้เฉพาะเสียงที่ยืนยันสิทธิ์กับช่องทางเป้าหมายแล้ว</p>'+
+    '<div class="grid">'+fld('เพลงหรือเสียงที่ใช้',inp('music.track',{ph:'ชื่อแทร็กและแหล่งที่มา'}))+fld('สถานะสิทธิ์',sel('music.lic',[['NO','ยังไม่ยืนยัน'],['YES','ยืนยันสิทธิ์แล้ว']]))+'</div>'},
+  function(){var ok=claimsOk()&&D.disc.trim();return '<h2>Finalize: ตรวจก่อนเผยแพร่ (G3)</h2><p class="lead">Owner ตรวจเช็กลิสต์ทั้งหมดก่อนอนุมัติ ไม่มีการอนุมัติอัตโนมัติ และ AI ไม่อนุมัติแทน</p>'+
+    '<div class="checks"><div class="auto"><span class="chip '+(claimsOk()?'ok':'crit')+'">'+(claimsOk()?'ผ่าน':'ไม่ผ่าน')+'</span> Claim map ทุกข้อเท็จจริงมีหลักฐาน (ตรวจอัตโนมัติจากขั้น 3)</div>'+
+    '<div class="auto"><span class="chip '+(D.disc.trim()?'ok':'crit')+'">'+(D.disc.trim()?'ผ่าน':'ไม่ผ่าน')+'</span> มีแผนเปิดเผย Affiliate (ขั้น 3)</div></div>'+
+    chk('fin.c1','รูปแบบลิงก์ ('+labelOf(LINKS,D.p.link)+') ใช้ได้กับช่องทางนี้ ตรวจในแอปแล้ว')+chk('fin.c2','ไม่มีผลลัพธ์ รีวิว หรือประสบการณ์ที่แต่งขึ้น')+chk('fin.c3','ไม่ขัดนโยบายโฆษณาและการใช้ AI ของแพลตฟอร์ม')+
+    gateBox('g3','G3 อนุมัติคอนเทนต์','ต้องผ่านก่อนเผยแพร่เสมอ')},
+  function(){return '<h2>Publish: เผยแพร่ด้วยมือ (G4)</h2><p class="lead">ต้นแบบไม่เผยแพร่ให้ ให้โพสต์เองในแพลตฟอร์ม แล้วบันทึกหลักฐานที่นี่ Retry ที่แพลตฟอร์มไม่เกิน 2 ครั้ง ถ้าไม่ผ่านให้หยุดและรายงาน</p>'+
+    '<div class="grid">'+fld('URL โพสต์จริง',inp('pub.url',{ph:'https://'}))+fld('เวลาที่โพสต์',inp('pub.at',{ph:'เช่น 2026-10-17 18:30'}))+fld('รูปแบบลิงก์ที่ใช้จริง',sel('pub.link',LINKS))+'</div>'+
+    (D.pub.link!==D.p.link?'<div class="todo">ไม่ตรงกับที่ล็อกไว้ใน Work Plan ('+labelOf(LINKS,D.p.link)+')</div>':'')+
+    fld('การตั้งค่าเปิดเผยที่ใช้',inp('pub.disc',{ph:'เช่น เปิดสวิตช์เนื้อหาเชิงพาณิชย์'}))+chk('pub.shot','เก็บภาพหน้าจอโพสต์จริงไว้แล้ว')+
+    gateBox('g4','G4 อนุมัติการเผยแพร่','Owner ยืนยันช่องทาง ลิงก์ และเวลา')},
+  function(){return '<h2>Monitor: ติดตามผลจริง</h2><p class="lead">คัดลอกค่าจาก dashboard ตามที่แสดงเป๊ะ ๆ ช่องที่ไม่มีให้เว้นว่าง จะนับเป็น Unknown ไม่ใช่ 0 ลองกรอกตัวเลขทดสอบได้ ค่าไม่ถูกส่งไปที่ใด</p>'+
+    '<div class="scroll"><table><thead><tr><th>จุดวัด</th><th>แหล่ง (dashboard)</th><th>คลิก</th><th>ออเดอร์</th><th>ชื่อสถานะตามต้นฉบับ</th><th>M1 สะสม (THB)</th><th>ต้นทุนสะสม (THB)</th><th>M2 เงินเข้าจริง (THB)</th></tr></thead><tbody>'+
+    D.obs.map(function(o,k){var b='obs.'+k+'.';return '<tr><td class="mono">'+o.k+'</td><td>'+inp(b+'src',{al:o.k+' แหล่ง',ph:'ภาพจับหน้าจอ'})+'</td><td>'+numInp(b+'clicks',{al:o.k+' คลิก'})+'</td><td>'+numInp(b+'orders',{al:o.k+' ออเดอร์'})+'</td><td>'+inp(b+'label',{al:o.k+' สถานะ'})+'</td><td>'+numInp(b+'m1',{al:o.k+' M1'})+'</td><td>'+numInp(b+'cost',{al:o.k+' ต้นทุน'})+'</td><td>'+numInp(b+'m2',{al:o.k+' M2'})+'</td></tr>'}).join('')+'</tbody></table></div>'+
+    '<p class="hint">M1 คือค่าคอมมิชชันสุทธิที่ยืนยันแล้วตามความหมายของแต่ละโปรแกรม ต้องตรวจความหมายฟิลด์ใน dashboard ก่อนนับ M2 ห้ามเดาจาก M1</p>'+
+    '<div class="grid">'+fld('วันที่มีหลักฐานครบในหน้าต่าง (จาก 14)',numInp('win.days',{ph:'14'}))+'</div>'+
+    '<div class="calc"><div><small>Net 14 วัน = M1 − ต้นทุน (ค่า END)</small><b data-calc="net"></b></div><div><small>ค่าเฉลี่ย ÷ 14</small><b data-calc="daily"></b></div></div><p class="hint" data-calc="verdict"></p>'},
+  function(){var o=D.obs[2];return '<h2>Report &amp; Learn: สรุปและเรียนรู้</h2><p class="lead">เทียบผลกับสมมติฐาน แยกสิ่งที่สังเกตพบออกจากสาเหตุที่ยืนยันแล้ว ผลของรอบนี้ย้อนกลับไปเป็นข้อมูลตั้งต้นของขั้น 1</p>'+
+    '<div class="calc"><div><small>คลิก (END)</small><b class="mono">'+(num(o.clicks)?fmt(o.clicks):'Unknown')+'</b></div><div><small>ออเดอร์ (END)</small><b class="mono">'+(num(o.orders)?fmt(o.orders):'Unknown')+'</b></div><div><small>M1 − ต้นทุน</small><b data-calc="net"></b></div><div><small>เฉลี่ยต่อวัน</small><b data-calc="daily"></b></div><div><small>M2 เงินเข้าจริง</small><b class="mono">'+(num(o.m2)?fmt(o.m2)+' THB':'Unknown')+'</b></div></div><p class="hint" data-calc="verdict"></p>'+
+    '<div class="grid">'+fld('ตำแหน่งในไทม์ไลน์',sel('rep.week',[['W12','สัปดาห์ 1–2 (เรียนรู้ ไม่ต้องถึงเป้า)'],['W34','สัปดาห์ 3–4 (เร่งเข้าเป้า)']]))+fld('สถานะแนวโน้ม',sel('rep.trend',[['IMPROVING','Improving'],['STABLE','Stable'],['DECLINING','Declining'],['INCONCLUSIVE','Inconclusive']]))+fld('ข้อเสนอรอบถัดไป',sel('rep.rec',[['REPEAT','Repeat'],['REVISE','Revise'],['STOP','Stop']]))+'</div>'+
+    '<div class="rows"><div class="crow">'+fld('บทเรียนและข้อเสนอรอบหน้า (ส่งต่อไปขั้น 1)',area('rep.learn',3,'สิ่งที่สังเกตพบ สิ่งที่ยังสรุปไม่ได้ สิ่งที่ควรทดลองต่อ'),'grow')+fld('ป้ายหลักฐาน',sel('rep.learnCls',CLS),'md')+'</div></div>'+
+    gateBox('g5','G5 รับรายงานและตัดสินใจ','Owner เลือก Repeat, Revise หรือ Stop พร้อมเหตุผล')}
+  ];
+  h='<fieldset'+((locked||S.archived)?' disabled':'')+'>'+steps[i]()+'</fieldset>';
+  $('#work').innerHTML=h;
+}
+
+function renderBrief(){
+  var today=new Date().toLocaleDateString('th-TH',{dateStyle:'full'});
+  var changes=['คำถามเรื่องการติดตั้งโดยไม่เจาะผนังซ้ำเพิ่มขึ้น ยังไม่มีคอนเทนต์ของเราตอบ','คลิปที่เผยแพร่แล้ว 1 ชิ้นมีคลิกแต่ยังไม่มีออเดอร์ ตรวจข้อมูลสินค้าก่อนสรุป','ลิงก์สินค้าหนึ่งรายการต้องตรวจซ้ำก่อนใช้ต่อ'];
+  var queue=[['1','ตรวจลิงก์และข้อมูลสินค้าที่เผยแพร่ไปแล้ว','กระทบความถูกต้องกับผู้ซื้อ ทำก่อนงานใหม่'],['2','ทำภาคต่อตอบคำถามเรื่องการติดตั้ง','มีคำถามซ้ำ และมีหลักฐานจากคอนเทนต์เดิม'],['3','ผลิตจากโอกาสใหม่ที่ผ่านเกณฑ์','เลือกจากการ์ดด้านซ้าย 1 ใบต่อรอบ'],['4','ทดลองมุมใหม่','ทำเมื่อมีกำลังผลิตเหลือ']];
+  var h='<div><h2>Daily Brief</h2><p class="lead">'+today+' · ข้อมูลในหน้านี้เป็นตัวอย่างทั้งหมด</p></div>'+
+   '<div><h3>วันนี้มีอะไรเปลี่ยน</h3><ul class="list">'+changes.map(function(c,k){return '<li><span class="p">•</span><span>'+c+'</span></li>'}).join('')+'</ul></div>'+
+   '<div class="cols"><div><h3>โอกาสสำหรับคอนเทนต์ใหม่</h3><div class="opps" style="margin-top:8px">'+BRIEF.map(function(b){var d=S.brief[b.id];return '<article class="opp"><div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:space-between;align-items:baseline"><strong>'+b.t+'</strong><span class="chip">'+labelOf(CLS,b.ev)+'</span></div><p class="hint">'+b.why+'</p>'+
+     '<dl><dt>กลุ่มผู้ชม</dt><dd>'+b.aud+'</dd><dt>ความสนใจ</dt><dd>'+b.interest+'</dd><dt>สัญญาณซื้อ</dt><dd>'+b.intent+'</dd><dt>ความพร้อม</dt><dd>'+b.ready+'</dd><dt>ความมั่นใจ</dt><dd>'+b.conf+'</dd></dl>'+
+     '<div class="acts"><button class="btn" data-act="bsend" data-id="'+b.id+'">ส่งเข้า Research</button><button class="btn ghost" data-act="bhold" data-id="'+b.id+'">เก็บดูต่อ</button><button class="btn ghost" data-act="bskip" data-id="'+b.id+'">ไม่เลือก</button>'+(d?'<span class="chip '+(d==='sent'?'ok':'')+'">'+({sent:'ส่งเข้า Research แล้ว',hold:'เก็บดูต่อ',skip:'ไม่เลือก'})[d]+'</span>':'')+'</div></article>'}).join('')+'</div></div>'+
+   '<div><h3>คิวงานวันนี้ (งานใหม่ + งานเดิม)</h3><ul class="list" style="margin-top:8px">'+queue.map(function(q){return '<li><span class="p">'+q[0]+'</span><span>'+q[1]+'<small>'+q[2]+'</small></span></li>'}).join('')+'</ul></div></div>';
+  $('#brief').innerHTML=h;
+}
+
+function refresh(full){
+  save();renderTop();renderSteps();renderBanner();renderNav();renderAside();
+  if(full)renderWork();
+  renderCalcs();
+}
+function renderAll(){renderBrief();refresh(true)}
+
+/* ---------- actions ---------- */
+function fillSample(){
+  var D=S.d;
+  D.cands=[{name:'จัดระเบียบห้องเล็กโดยไม่เจาะผนัง (ตัวอย่าง)',src:'https://example.com/source-1',cls:'FACT'},{name:'ตากผ้าในคอนโดช่วงฝน (ตัวอย่าง)',src:'https://example.com/source-2',cls:'INFERENCE'},{name:'เก็บสายชาร์จบนโต๊ะทำงาน (ตัวอย่าง)',src:'',cls:'UNKNOWN'}];D.sel=0;
+  D.p={rate:8,conv:2,clicks:500,aov:450,days:14,budget:0,channel:'facebook',link:'PROFILE_BIO',crit:'≥ 1 ค่าคอมมิชชันยืนยันภายใน 14 วัน'};
+  D.dna='พูดตรง บอกข้อจำกัดก่อน ไม่เร่งขาย';
+  D.claims=[{t:'ติดตั้งได้โดยไม่เจาะผนัง (ตามหน้าสินค้า)',kind:'fact',ev:'EV-1-1'},{t:'เหมาะกับคนที่อยากลดความรกบนโต๊ะ',kind:'opinion',ev:''}];
+  D.disc='ใส่ข้อความ “มีค่าคอมมิชชันจากลิงก์” ในแคปชันและบนจอ';
+  D.scenes[0].n='ภาพห้องรก ปัญหาที่พบ';D.scenes[1].n='ภาพสินค้าและวิธีติดตั้ง';D.scenes[2].n='ข้อจำกัดและลิงก์ในโปรไฟล์';
+  D.asset={file:'video-v1.mp4',tools:'เครื่องมือตัดต่อฟรีในเครื่อง',quota:'OK',spent:0};
+  D.text={overlay:'ติดตั้งไม่เจาะผนัง | ดูข้อจำกัดก่อนซื้อ | มีค่าคอมมิชชันจากลิงก์',disc:true};
+  D.music={track:'เพลงพื้นหลังที่มีสิทธิ์ใช้งาน (ตัวอย่าง)',lic:'YES'};
+  D.pub.disc='เปิดสวิตช์เนื้อหาเชิงพาณิชย์';
+  D.obs.forEach(function(o){o.src='ภาพจับหน้าจอ dashboard (ตัวอย่าง)'});
+  D.rep.learn='ผู้ชมถามเรื่องการติดตั้งซ้ำ ควรค้นคว้าเพิ่ม ยังสรุปผลต่อยอดขายไม่ได้';
+  log('โหลดข้อมูลตัวอย่างทุกขั้น (ยังไม่อนุมัติ gate ใด)');
+  refresh(true);
+}
+function closeCycle(){
+  var r=S.d.rep;
+  S.carry.push({c:S.cycle,t:r.learn,cls:r.learnCls});
+  if(r.rec==='STOP'){S.archived=true;log('G5: Stop ปิดรอบ '+S.cycle,'OK');return}
+  var prev=S.cycle;S.cycle++;
+  S.steps=fresh().steps;S.gates={g2:false,g3:false,g4:false,g5:false,gpay:false};
+  var D=S.d,f=freshData();D.obs=f.obs;D.pub=f.pub;D.fin=f.fin;D.win=f.win;D.sel=-1;D.rep=f.rep;
+  S.cur=0;S.editing=false;
+  log('G5: '+r.rec+' เริ่มรอบ '+S.cycle+' พร้อมบทเรียนจากรอบ '+prev,'OK');
+}
+function sendBrief(id){
+  var b=BRIEF.filter(function(x){return x.id===id})[0];
+  var name=b.t+' (ตัวอย่าง)';
+  if(!S.d.cands.some(function(c){return c.name===name})){
+    var empty=S.d.cands.findIndex(function(c){return !c.name.trim()});
+    var item={name:name,src:'',cls:'UNKNOWN'};
+    if(empty>=0)S.d.cands[empty]=item;else S.d.cands.push(item);
+    if(S.steps[0].status==='DONE')touch(0);
+  }
+  S.brief[id]='sent';S.view='flow';S.cur=0;S.editing=false;
+  if(S.steps[0].status==='NOT_STARTED')S.steps[0].status='IN_PROGRESS';
+  log('ส่งโอกาส “'+b.t+'” เข้า Research');
+  renderBrief();refresh(true);
+}
+var resetArmed=false,resetTimer=null;
+
+document.addEventListener('click',function(e){
+  var b=e.target.closest('[data-act]');if(!b||b.disabled)return;
+  var a=b.dataset.act,i=Number(b.dataset.i);
+  if(a==='view'){S.view=b.dataset.v;refresh(false);return}
+  if(a==='sample'){fillSample();return}
+  if(a==='reset'){
+    if(!resetArmed){resetArmed=true;b.textContent='กดอีกครั้งเพื่อยืนยัน';b.classList.add('warn');resetTimer=setTimeout(function(){resetArmed=false;b.textContent='เริ่มใหม่';b.classList.remove('warn')},3500);return}
+    clearTimeout(resetTimer);resetArmed=false;b.textContent='เริ่มใหม่';b.classList.remove('warn');
+    var v=S.view;S=fresh();S.view=v;log('เริ่มใหม่ทั้งหมด');renderAll();return;
+  }
+  if(a==='step'){S.cur=i;S.editing=false;refresh(true);return}
+  if(a==='prev'){if(S.cur>0){S.cur--;S.editing=false;refresh(true)}return}
+  if(a==='edit'){
+    if(isLocked(S.cur)){S.editing=true;log('เปิดแก้ขั้น '+(S.cur+1))}
+    else if(S.editing){S.editing=false}
+    refresh(true);
+    if(!S.editing){var f=$('#work input:not([type=radio]),#work textarea,#work select');if(f&&!isLocked(S.cur)&&e.detail===0)f.focus()}
+    return;
+  }
+  if(a==='next'){
+    var k=S.cur,st=S.steps[k];
+    if(isLocked(k)){if(k<9)S.cur=k+1;S.editing=false;refresh(true);return}
+    var errs=validate(k);
+    if(errs.length){log('Next ขั้น '+(k+1)+' ถูกบล็อก','BLOCKED');refresh(true);return}
+    st.status='DONE';st.why='';S.editing=false;log('ยืนยันขั้น '+(k+1)+' '+NAMES[k]+' v'+st.v,'OK');
+    if(k===9){closeCycle()}
+    else{S.cur=k+1;if(S.steps[S.cur].status==='NOT_STARTED')S.steps[S.cur].status='IN_PROGRESS'}
+    refresh(true);window.scrollTo(0,0);return;
+  }
+  if(a==='gate'){
+    var g=b.dataset.g;
+    if(S.gates[g]){S.gates[g]=false;log('ถอน '+(GLABEL[g]||'G-pay'),'BLOCKED');if(S.steps[S.cur].status==='DONE')touch(S.cur)}
+    else{S.gates[g]=true;log('Owner อนุมัติ '+(GLABEL[g]||'G-pay'),'OK')}
+    refresh(true);return;
+  }
+  if(a==='addCand'){S.d.cands.push({name:'',src:'',cls:'UNKNOWN'});touch(0);refresh(true);return}
+  if(a==='rmCand'){S.d.cands.splice(i,1);if(S.d.sel===i)S.d.sel=-1;else if(S.d.sel>i)S.d.sel--;touch(0);refresh(true);return}
+  if(a==='addClaim'){S.d.claims.push({t:'',kind:'fact',ev:''});touch(2);refresh(true);return}
+  if(a==='rmClaim'){S.d.claims.splice(i,1);touch(2);refresh(true);return}
+  if(a==='bsend'){sendBrief(b.dataset.id);return}
+  if(a==='bhold'||a==='bskip'){S.brief[b.dataset.id]=a==='bhold'?'hold':'skip';save();renderBrief();return}
+});
+function onField(e){
+  var el=e.target,b=el.dataset&&el.dataset.b;if(!b)return;
+  var v;
+  if(el.type==='checkbox')v=el.checked;
+  else if(el.type==='radio')v=Number(el.value);
+  else if(el.dataset.t==='num')v=el.value===''?'':Number(el.value);
+  else v=el.value;
+  var changed=String(get(b))!==String(v);
+  if(changed){set(b,v);touch(S.cur)}
+  var full=e.type==='change'&&(b==='asset.quota'||b==='p.budget'||b==='asset.spent'||b==='pub.link'||b==='sel');
+  if(changed||full)refresh(full);
+}
+$('#work').addEventListener('input',onField);
+$('#work').addEventListener('change',onField);
+
+renderAll();
+})();
+</script>
+
+</body></html>

@@ -1,0 +1,44 @@
+# GLM TASK — DEFERRED INDEPENDENT VERIFICATION
+
+**Task ID:** ACE-GOV-INDEPENDENT-REVIEW-02  
+**Requested by:** Owner  
+**Directed by:** Super Brain  
+**Assigned to:** GLM  
+**Mode:** READ-ONLY — INDEPENDENT VERIFICATION  
+**Priority:** High  
+**Execution Timing:** WAIT until the Owner/Super Brain provides the finalized Codex reconciliation package and exact source artifact identities.
+
+## Objective
+
+Independently verify whether the proposed Governance Matrix corrections adequately resolve the findings in `ACE-GOV-INDEPENDENT-REVIEW-01`.
+
+Do not treat Codex's conclusions as established facts. Independently inspect the supplied source evidence.
+
+## Required Scope
+
+1. Verify the exact identity and SHA-256 of every supplied artifact.
+2. Reassess SB-02-R1 acceptance provenance and revision applicability.
+3. Reassess A2 v2.4 canonical identity, including the reported 2-byte normalization discrepancy.
+4. Verify the distinction between protocol drafting approval and execution authorization.
+5. Check that M2a/M2b statuses and CODEX-02-R2 are represented accurately.
+6. Check that the GLM-created untracked report is transparently recorded without modifying or deleting it.
+7. Assess whether each proposed correction is evidence-supported and whether any unnecessary blockers have been introduced.
+
+## Deliverable
+
+Return an inline independent verification report with:
+
+- Verified Artifact Identity
+- Verification Results by Finding
+- Supported / Partially Supported / Not Supported classifications
+- Remaining Decision-Critical Gaps
+- False or Unnecessary Blocker Risks
+- Governance Closure Readiness Assessment
+
+Clearly distinguish direct verification from claims that cannot be independently verified.
+
+## Strict Boundaries
+
+No file edits, no new repository files, no Git operations, no execution, no gate changes, no authorization changes, and no external synchronization.
+
+Do not start until the exact input package is supplied. If a source artifact is unavailable, report the limitation rather than substituting another file.

@@ -1,0 +1,245 @@
+<!doctype html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Affiliate Content Engine - Publish & Export Prototype</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    :root { --bg: #101114; --surface: #1b1c21; --surface2: #24252c; --border: #34353e; --text: #f5f4f8; --muted: #a4a3b0; --violet: #a78bfa; --lime: #c8f36a; }
+    body { background: var(--bg); color: var(--text); font-family: system-ui, -apple-system, sans-serif; }
+    .panel { background: var(--surface); border: 1px solid var(--border); border-radius: 16px; padding: 24px; margin-bottom: 16px; }
+    .subpanel { background: var(--surface2); border: 1px solid var(--border); border-radius: 12px; padding: 16px; }
+    .btn { background: var(--surface2); border: 1px solid var(--border); color: var(--text); border-radius: 8px; padding: 8px 16px; font-weight: 600; font-size: 13px; cursor: pointer; transition: 0.2s; display: inline-flex; align-items: center; gap: 6px; }
+    .btn:hover:not(:disabled) { border-color: var(--violet); background: var(--surface); }
+    .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+    .btn-primary { background: var(--violet); color: #171321; border-color: var(--violet); }
+    .btn-primary:hover { background: #b89ffc; }
+    .btn-lime { background: var(--lime); color: #1e2912; border-color: var(--lime); }
+    .pill { display: inline-block; padding: 4px 8px; border-radius: 6px; background: #38442c; color: var(--lime); font-size: 11px; font-weight: 700; }
+    input, textarea, select { background: var(--surface2); border: 1px solid var(--border); color: var(--text); border-radius: 8px; padding: 8px 12px; width: 100%; outline: none; font-size: 13px; }
+    input:focus, select:focus, textarea:focus { border-color: var(--violet); }
+    .step-nav-btn { width: 100%; text-align: left; padding: 10px 12px; border-radius: 8px; font-size: 12px; font-weight: 500; color: var(--muted); background: transparent; border: none; cursor: pointer; display: flex; align-items: center; gap: 8px; }
+    .step-nav-btn:hover { background: var(--surface2); color: var(--text); }
+    .step-nav-btn.active { background: #372b54; color: #fff; font-weight: 700; border-left: 3px solid var(--violet); }
+  </style>
+</head>
+<body class="flex h-screen overflow-hidden">
+
+  <!-- SIDEBAR: 10-Step Workflow Navigation -->
+  <aside class="w-72 bg-[#1b1c21] border-r border-[#34353e] flex flex-col shrink-0">
+    <div class="p-5 border-b border-[#34353e]">
+      <h1 class="text-sm font-bold flex items-center gap-2"><span>✳</span> Affiliate Content Engine</h1>
+      <p class="text-[10px] text-[#a4a3b0] mt-0.5">Autonomous & Workflow Inspector</p>
+    </div>
+    
+    <div class="p-3 border-b border-[#34353e] bg-black/20">
+      <button onclick="goToBriefView()" class="w-full text-left px-3 py-2 rounded-lg bg-violet-500/10 text-violet-300 text-xs font-bold border border-violet-500/20 hover:bg-violet-500/20 transition">
+        📊 หน้าแดชบอร์ดหลัก (Daily Brief)
+      </button>
+    </div>
+
+    <nav class="flex-1 overflow-y-auto p-3 space-y-1" id="workflow-menu">
+      <!-- เมนู 10 ขั้นตอนสร้างด้วย JS -->
+    </nav>
+  </aside>
+
+  <!-- MAIN CONTENT AREA -->
+  <main class="flex-1 flex flex-col min-w-0 overflow-y-auto p-6 bg-[#101114]">
+    
+    <!-- TOP BAR STATUS -->
+    <header class="flex justify-between items-center pb-4 mb-6 border-b border-[#34353e]">
+      <div>
+        <span id="top-step-badge" class="text-xs text-violet-400 font-mono">Overview / Daily Brief</span>
+        <h2 id="top-title" class="text-xl font-bold mt-0.5">รายงานรอบวันและตัวเลือกงานอัตโนมัติ</h2>
+      </div>
+      <div id="project-status-pill" class="pill">สถานะ: พร้อมตรวจสอบ</div>
+    </header>
+
+    <!-- VIEW 0: DAILY BRIEF -->
+    <div id="view-brief" class="space-y-6">
+      <div class="panel">
+        <h3 class="text-base font-bold mb-2">📊 สรุปรายงานรอบวันที่ผ่านมา</h3>
+        <p class="text-xs text-[#a4a3b0] mb-4">ระบบติดตามผลคอนเทนต์เดิมอัตโนมัติ และได้เตรียมงานรอบใหม่ไว้รอการอนุมัติแล้ว</p>
+        <div class="grid grid-cols-3 gap-4">
+          <div class="subpanel"><span class="text-[10px] text-[#a4a3b0]">ยอดเข้าถึงรวม</span><div class="text-xl font-bold mt-1">48,200</div></div>
+          <div class="subpanel"><span class="text-[10px] text-[#a4a3b0]">ยอดคลิกตะกร้า</span><div class="text-xl font-bold mt-1">2,840</div></div>
+          <div class="subpanel"><span class="text-[10px] text-[#a4a3b0]">คำสั่งซื้อ (Conversions)</span><div class="text-xl font-bold mt-1 text-[#c8f36a]">164 (5.8%)</div></div>
+        </div>
+      </div>
+
+      <div class="panel border-violet-500/40">
+        <div class="flex justify-between items-center mb-4">
+          <div>
+            <span class="text-[10px] font-bold text-violet-400 uppercase">AI Autonomous Preparation</span>
+            <h3 class="text-base font-bold mt-0.5">🎯 งานอันดับ #1 ที่ระบบเตรียมไว้รอตรวจ</h3>
+          </div>
+          <button onclick="jumpToStep(0)" class="btn btn-primary text-xs">🚀 เริ่มตรวจงาน 10 ขั้นตอน (สเตปที่ 1)</button>
+        </div>
+
+        <div class="subpanel border-violet-500/40 space-y-3">
+          <div>
+            <span class="text-[10px] text-violet-400 font-mono">Rank #1 (ความมั่นใจ 94%)</span>
+            <h4 class="text-sm font-bold mt-0.5">ราวตากผ้าพับได้ติดผนัง (แก้ปัญหาคอนโดพื้นที่น้อย)</h4>
+            <p class="text-xs text-[#a4a3b0] mt-1">เหตุผล: ตลาดค้นหาพุ่งสูง +45% จากปัญหาฝนตกและพื้นที่จำกัด เตรียมแผนและ Timeline สำเร็จแล้ว</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- VIEW 1-10: WORKFLOW INSPECTOR CONTAINER -->
+    <div id="view-workflow" class="space-y-4" style="display: none;">
+      
+      <!-- Dynamic Step Content Container -->
+      <div class="panel" id="step-content-box">
+        <!-- เนื้อหาของแต่ละสเตป -->
+      </div>
+
+      <!-- BOTTOM CONTROL: Prev / Edit / Next -->
+      <div class="panel flex justify-between items-center bg-[#1b1c21]/80 py-4">
+        <button id="btn-prev" onclick="changeStep(-1)" class="btn">← ย้อนกลับ (Prev)</button>
+        <button id="btn-edit-specific" onclick="triggerGranularEdit()" class="btn border-violet-500/40 text-violet-300">✏️ แก้ไขเฉพาะจุด (Edit)</button>
+        <button id="btn-next" onclick="changeStep(1)" class="btn btn-primary">ไปต่อ (Next) →</button>
+      </div>
+
+    </div>
+
+  </main>
+
+  <!-- SCRIPT LOGIC -->
+  <script>
+    const workflowSteps = [
+      { id: 1, name: "Research", desc: "รวบรวมข้อมูล เทรนด์ และหลักฐานตลาด" },
+      { id: 2, name: "Select Top Rank", desc: "เลือกโอกาสอันดับ 1 และเก็บตัวเลือกสำรอง" },
+      { id: 3, name: "Plan Content", desc: "กำหนดเป้าหมาย กลุ่มเป้าหมาย และช่องทาง" },
+      { id: 4, name: "Storyboard & Script", desc: "ออกแบบฉาก บทพูด และโครงสร้างเรื่องราว" },
+      { id: 5, name: "Create Content (Editor)", desc: "ผลิตและจัดการ Timeline (ภาพ, ข้อความ, เสียง)" },
+      { id: 6, name: "Quality Check & Edit", desc: "ตรวจคุณภาพ ส่งกลับแก้เฉพาะจุด และอนุมัติ" },
+      { id: 7, name: "Publish Preparation", desc: "เลือกบัญชี ปลายทาง และตรวจสอบ Disclosure" },
+      { id: 8, name: "Publish & Export", desc: "เผยแพร่ผ่านแพลตฟอร์ม หรือ Export ไฟล์ลง Local/Library" },
+      { id: 9, name: "Monitor Content", desc: "ติดตามผลลัพธ์แยกตามการเผยแพร่แต่ละครั้ง" },
+      { id: 10, name: "Analyze & Report", desc: "สรุปผลและส่งบทเรียนกลับสู่ Research รอบถัดไป" }
+    ];
+
+    let currentStepIndex = 0;
+
+    const menuEl = document.getElementById('workflow-menu');
+    workflowSteps.forEach((step, idx) => {
+      const btn = document.createElement('button');
+      btn.className = 'step-nav-btn';
+      btn.id = `nav-step-${idx}`;
+      btn.innerHTML = `<span class="font-mono text-[10px] text-violet-400">#${String(idx+1).padStart(2,'0')}</span> <span>${step.name}</span>`;
+      btn.onclick = () => jumpToStep(idx);
+      menuEl.appendChild(btn);
+    });
+
+    function goToBriefView() {
+      document.getElementById('view-brief').style.display = 'block';
+      document.getElementById('view-workflow').style.display = 'none';
+      document.getElementById('top-step-badge').innerText = "Overview / Daily Brief";
+      document.getElementById('top-title').innerText = "รายงานรอบวันและตัวเลือกงานอัตโนมัติ";
+      document.getElementById('project-status-pill').innerText = "สถานะ: พร้อมตรวจสอบ";
+      document.querySelectorAll('.step-nav-btn').forEach(b => b.classList.remove('active'));
+    }
+
+    function jumpToStep(index) {
+      currentStepIndex = index;
+      document.getElementById('view-brief').style.display = 'none';
+      document.getElementById('view-workflow').style.display = 'block';
+      
+      document.querySelectorAll('.step-nav-btn').forEach((b, idx) => {
+        b.classList.toggle('active', idx === currentStepIndex);
+      });
+
+      renderStepContent();
+    }
+
+    function changeStep(direction) {
+      const newIndex = currentStepIndex + direction;
+      if (newIndex >= 0 && newIndex < workflowSteps.length) {
+        jumpToStep(newIndex);
+      }
+    }
+
+    function renderStepContent() {
+      const step = workflowSteps[currentStepIndex];
+      document.getElementById('top-step-badge').innerText = `Step ${currentStepIndex + 1} of 10`;
+      document.getElementById('top-title').innerText = step.name;
+      document.getElementById('project-status-pill').innerText = `กำลังตรวจ: ${step.name}`;
+
+      document.getElementById('btn-prev').disabled = currentStepIndex === 0;
+      document.getElementById('btn-next').disabled = currentStepIndex === workflowSteps.length - 1;
+      if(currentStepIndex === workflowSteps.length - 1) {
+        document.getElementById('btn-next').innerText = "เสร็จสิ้นรอบงาน";
+      } else {
+        document.getElementById('btn-next').innerText = "ไปต่อ (Next) →";
+      }
+
+      const box = document.getElementById('step-content-box');
+      let innerHTML = `
+        <div class="flex justify-between items-start mb-4">
+          <div>
+            <span class="text-xs text-violet-400 font-mono">ขั้นตอนที่ ${currentStepIndex + 1}</span>
+            <h3 class="text-lg font-bold mt-0.5">${step.name}</h3>
+            <p class="text-xs text-[#a4a3b0] mt-1">${step.desc}</p>
+          </div>
+          <span class="pill">ระบบเตรียมข้อมูลอัตโนมัติแล้ว</span>
+        </div>
+      `;
+
+      if (currentStepIndex === 7) {
+        // Step 8: Publish & Export (อัปเดตใหม่ รองรับ Social + Local + Library)
+        innerHTML += `
+          <div class="space-y-4">
+            <div class="subpanel border-violet-500/30">
+              <h4 class="font-bold text-sm text-violet-300 mb-3">🌐 Option A: Social & Affiliate Platforms</h4>
+              <div class="space-y-2 text-xs">
+                <label class="flex items-center gap-2"><input type="checkbox" checked class="accent-violet-500"> TikTok Affiliate (บัญชีหลัก A)</label>
+                <label class="flex items-center gap-2"><input type="checkbox" class="accent-violet-500"> Shopee Video Affiliate</label>
+              </div>
+            </div>
+
+            <div class="subpanel border-blue-500/30">
+              <h4 class="font-bold text-sm text-blue-300 mb-3">💾 Option B: Local Media Export (ดาวน์โหลดลงเครื่อง)</h4>
+              <div class="grid grid-cols-2 gap-3 text-xs">
+                <button onclick="alert('ดาวน์โหลด Master Video (MP4) ลงเครื่องเรียบร้อย')" class="btn text-xs justify-center">📥 ดาวน์โหลด Master Video (MP4)</button>
+                <button onclick="alert('ดาวน์โหลด Stems (แยกภาพ, เสียงพากย์ WAV, ซับไตเติล SRT) เรียบร้อย')" class="btn text-xs justify-center">📦 ดาวน์โหลดแยกชิ้นส่วน (Stems)</button>
+              </div>
+            </div>
+
+            <div class="subpanel border-lime-500/30">
+              <h4 class="font-bold text-sm text-[#c8f36a] mb-3">📚 Option C: Save to Asset Library (จัดเก็บเข้าคลังกลาง)</h4>
+              <p class="text-xs text-[#a4a3b0] mb-3">บันทึกองค์ประกอบ ภาพชุด และเสียงพากย์กลับเข้าคลังสมบัติของทีม เพื่อดึงไปใช้ซ้ำในโปรเจกต์ถัดไป</p>
+              <button onclick="alert('บันทึกเข้าสู่ Asset Library กลางเรียบร้อย')" class="btn btn-lime text-xs">⭐ บันทึกเข้าคลัง Library</button>
+            </div>
+
+            <div class="subpanel bg-violet-950/20 flex justify-between items-center">
+              <div>
+                <h4 class="font-bold text-sm text-violet-200">ยืนยันการสั่งการทั้งหมด</h4>
+                <p class="text-xs text-[#a4a3b0]">ระบบจะรันการทำงานตามช่องทางที่คุณเลือกพร้อมกันในคำสั่งเดียว</p>
+              </div>
+              <button onclick="alert('ดำเนินการสำเร็จ! ระบบบันทึกและส่งออกข้อมูลเรียบร้อย')" class="btn btn-primary text-xs px-6 py-2.5">🚀 Execute All Selected Actions</button>
+            </div>
+          </div>
+        `;
+      } else {
+        innerHTML += `
+          <div class="subpanel text-xs text-[#a4a3b0] space-y-2">
+            <p>💡 ข้อมูลในขั้นตอนนี้ถูกประมวลผลไว้เรียบร้อยแล้ว ผู้ใช้สามารถกดปุ่ม <strong>แก้ไขเฉพาะจุด (Edit)</strong> ด้านล่างเพื่อปรับแต่งข้อมูลเฉพาะส่วนที่ต้องการได้ทันที</p>
+            <div class="p-3 bg-black/30 rounded border border-[#34353e] mt-2 font-mono text-[11px]">
+              [Auto-Generated Data Mockup สำหรับ ${step.name}] -> ข้อมูลพร้อมใช้งาน
+            </div>
+          </div>
+        `;
+      }
+
+      box.innerHTML = innerHTML;
+    }
+
+    function triggerGranularEdit() {
+      const step = workflowSteps[currentStepIndex];
+      alert(`เปิดโหมดแก้ไขเฉพาะเจาะจง (Granular Edit) สำหรับขั้นตอน: ${step.name}`);
+    }
+  </script>
+</body>
+</html>

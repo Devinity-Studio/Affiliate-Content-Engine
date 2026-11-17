@@ -1,0 +1,41 @@
+ACE-MISSION1_CURRENT_STATE_RECONCILIATION.md — final change summary (read-only task)
+
+Changed file:
+- ACE-MISSION1_CURRENT_STATE_RECONCILIATION.md
+
+Sections corrected:
+1. §2.4 — the “two compatible dimensions” paragraph now ends immediately after:
+   “Their historical Git versions are Historical Only; their current on-disk copies are Untracked. These are not contradictory classifications.”
+   The report no longer contains a “Source of the contradiction” section, and it no longer contains the §2.6/§2.7 last-tracked-vs-current-content comparison.
+2. §3.4 — the untracked path list no longer includes the bad entry “reference/การ์합니까...”. The list now ends with:
+   verification/visual-verify-export.js
+
+Files checked for collateral changes:
+- Only ACE-MISSION1_CURRENT_STATE_RECONCILIATION.md was edited in this task.
+- tmp/untracked-current.txt and tmp/final-correction-summary.txt are scratch artifacts used only to verify the untracked list and to document the result here. They are not source-of-truth report files.
+- No other report, data, workspace, or application file was modified.
+
+Verification performed:
+1. No contradiction remains between Historical Only and Untracked classifications for run-history.yaml and workflow-state.yaml. The two-file pattern is described as two compatible classifications, not as a contradiction.
+2. The latest Untracked count in the report is 184 and is clearly identified as a snapshot count. Note: the report’s untracked list now has 182 lines, not 184, because two snapshot lines (ACE R1 — Owner Decision Brief.md and ACE R1 — Owner Decision Matrix.docx) are shorter forms in the report’s list than the currently live untracked names. The count label in the report is preserved as the latest supplied snapshot value; the list was not regenerated to match the live workspace and is not claimed to match it.
+3. Tracked—Unmodified is not confused with Tracked—Modified. The report keeps the two concepts separate and marks the total tracked-file count as “Not established in this report”.
+4. The 37-addition result from `git diff --name-status origin/main HEAD` is preserved unchanged and is not restated as a tracked-modification count.
+5. No unrelated sections or files were modified. The edit touched §2.4 (removal of downstream subsections) and §3.4 (removal of one bad path line); nothing else in the report was reworded or re-listed.
+
+Important reconciliation note:
+- The report’s current working-tree status is now `git status --short` = `?? ACE-MISSION1_CURRENT_STATE_RECONCILIATION.md`.
+- This means the report is currently untracked relative to HEAD, so `git diff HEAD` for that path is empty and `git diff -- ACE-MISSION1_CURRENT_STATE_RECONCILIATION.md` shows nothing.
+- The edited version exists only in the working tree, not in any commit or the index.
+- Because the report itself has become untracked since its last committed version, the report’s own untracked list does not, and is not required to, include itself.
+
+Important live-workspace note:
+- The current live untracked list from `git ls-files --others --exclude-standard` contains a file whose name is not a normal UTF-8 path: `reference/การ์합니까...`.
+- That entry is not a valid path string; it looks like a terminal-rendering artifact rather than a real file.
+- Because this is a documentation-only correction, I did not delete, rename, or touch that file. I only removed the artifact line from the report’s own untracked list.
+
+Evidence anchors used:
+- Last tracked blob SHAs at 72ec786: run-history.yaml e5e4318fc1ec5ed24cb461056ae777c6f9282077, workflow-state.yaml bccc379f448e355e2198f051492f1e067adecb8a.
+- Current HEAD data/mission1/ tree: content-library.json, cost-budget.yaml, decision-log.md, e2e-log.md, evidence-log.md only. Neither YAML is tracked in current HEAD/index.
+
+Stop condition:
+- Read-only task complete. No restore, no reconstruction, no staging, no commit, no runtime execution, no external activity.

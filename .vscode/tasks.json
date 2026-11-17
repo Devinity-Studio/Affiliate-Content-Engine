@@ -1,0 +1,133 @@
+{
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"label": "Start temporary browser acceptance app",
+			"type": "shell",
+			"command": "node",
+			"args": [
+				".browser-ui-harness.js"
+			],
+			"isBackground": true,
+			"problemMatcher": []
+		},
+		{
+			"label": "Restart temporary UI app",
+			"type": "shell",
+			"command": "node",
+			"args": [
+				".browser-ui-control.js",
+				"restart"
+			],
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "Stop temporary UI app",
+			"type": "shell",
+			"command": "node",
+			"args": [
+				".browser-ui-control.js",
+				"stop"
+			],
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "Start fresh temporary UI app",
+			"type": "shell",
+			"command": "node",
+			"args": [
+				".browser-ui-harness.js"
+			],
+			"isBackground": true,
+			"problemMatcher": []
+		},
+		{
+			"label": "Restart fresh temporary UI app",
+			"type": "shell",
+			"command": "node",
+			"args": [
+				".browser-ui-control.js",
+				"restart"
+			],
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "Validate UI evidence cleanup",
+			"type": "shell",
+			"command": "node",
+			"args": [
+				"-e",
+				"const fs=require('node:fs');const cp=require('node:child_process');const f='verification/browser-ui-acceptance-2026-10-21.json';const d=JSON.parse(fs.readFileSync(f,'utf8'));const checks=d.assertions.length===9&&d.assertions.every(x=>x.pass)&&d.result.passed===9&&d.result.total===9;const tempExists=fs.existsSync(d.environment.temporaryRoot);const harness=['.browser-ui-harness.js','.browser-ui-harness.json','.browser-ui-control.js'].filter(fs.existsSync);const head=cp.execFileSync('git',['rev-parse','HEAD'],{encoding:'utf8'}).trim();const status=cp.execFileSync('git',['status','--short','--untracked-files=all'],{encoding:'utf8'});console.log(JSON.stringify({evidenceValid:checks,assertionCount:d.assertions.length,tempRootStillExists:tempExists,harnessFilesRemaining:harness,head,status},null,2));if(!checks||tempExists||harness.length)process.exitCode=1;"
+			],
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "Validate UI evidence cleanup v2",
+			"type": "shell",
+			"command": "node",
+			"args": [
+				".browser-ui-verify.js"
+			],
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "Audit Mission 1 records",
+			"type": "shell",
+			"command": "node",
+			"args": [
+				"-e",
+				"const fs=require('fs'),path=require('path');const root='data/mission1';console.log('FILES');for(const f of fs.readdirSync(root).sort()){const p=path.join(root,f);if(fs.statSync(p).isFile())console.log(f)}for(const f of ['run-history.yaml','evidence-log.md','decision-log.md','workflow-state.yaml','cost-budget.yaml']){const p=path.join(root,f);console.log('\\n### '+p);fs.readFileSync(p,'utf8').split(/\\r?\\n/).forEach((line,i)=>console.log(String(i+1).padStart(4)+' '+line))}"
+			],
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "Audit Mission 1 records numbered",
+			"type": "shell",
+			"command": "node",
+			"args": [
+				".mission1-audit-lines.js"
+			],
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "Check audit files and state status",
+			"type": "shell",
+			"command": "git",
+			"args": [
+				"status",
+				"--short",
+				"--untracked-files=all",
+				"--",
+				"data/app/state.json",
+				"data/mission1",
+				"verification/mission1-acceptance-gap-matrix.md",
+				".mission1-audit-lines.js"
+			],
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "Check AC01 plan change status",
+			"type": "shell",
+			"command": "git",
+			"args": [
+				"status",
+				"--short",
+				"--untracked-files=all",
+				"--",
+				"data/app/state.json",
+				"data/mission1",
+				"verification/mission1-acceptance-gap-matrix.md"
+			],
+			"isBackground": false,
+			"problemMatcher": []
+		}
+	]
+}

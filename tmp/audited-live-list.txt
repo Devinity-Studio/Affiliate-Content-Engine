@@ -1,0 +1,194 @@
+"ACE R1 \342\200\224 A2 Decision Amendment Proposal.md"
+"ACE R1 \342\200\224 Owner Decision Brief.md"
+"ACE R1 \342\200\224 Owner Decision Matrix.md"
+"reference/\340\270\234\340\270\241\340\271\203\340\270\212\340\271\211-AI-\340\270\227\340\270\263-SnapYT.App.mp4"
+"reference/\340\270\247\340\270\264\340\270\230\340\270\265\340\270\227\340\270\263\340\270\204\340\270\245\340\270\264\340\270\233-Shopee-\340\270\255\340\270\261\340\270\225\340\271\202\340\270\231\340\270\241\340\270\261\340\270\225\340\270\264-SnapYT.App.mp4"
+.env.example
+.gitignore
+.vscode/tasks.json
+AC-05-Fixture-Test-Contract.md
+AC-08-CycleReport-Assertion-Matrix.md
+ACE_CONTENT_LIBRARY_PUBLICATION_VERIFICATION_RECONCILIATION.md
+ACE_MISSION1_DATA_MODEL_PHASE_BOUNDARY_PROPOSAL.md
+ACE_MISSION1_DATA_MODEL_PHASE_BOUNDARY_V1.2.1.md
+ACE_MISSION1_DATA_MODEL_PHASE_BOUNDARY_V1.2.2.md
+ACE_MISSION1_DATA_MODEL_PHASE_BOUNDARY_V1.2.3.md
+ACE_MISSION1_OWNER_DECISION_BRIEF_DOCUMENTATION_RECONCILIATION.md
+ACE-DDR-Reconciliation-Correction.md
+ACE-Design-Closure-Review.md
+ACE-HISTORICAL_DECISION_AND_GIT_LINEAGE_VERIFICATION.md
+ACE-ICE-Evolution-Seed.md
+ACE-MISSION1_CURRENT_STATE_RECONCILIATION.md
+ACE-MISSION1_RECONCILIATION_CORRECTION_SUPPLEMENT.md
+ACE-Mission1-Import-Workflow-Reconciliation.md
+ACE-MVP-Closure-Final-Report.md
+ACE-MVP-Phase1-DoD-Amendment-Proposal.md
+ACE-R1-Artifact-Lifecycle-Safe-Cleanup-Replacement.md
+ACE-R1-No-Overwrite-ImpactAnalysis.md
+ACE-R1-No-Overwrite-Owner-DecisionRecord.md
+ACE-R1-No-Overwrite-Scope.md
+ACE-Readonly-Reconciliation-Report.md
+ACE-Readonly-vs-DDR-Reconciliation.md
+ACE-UX-UI-Design-Intent-and-Concept.md
+Affiliate-Content-Engine-Review.zip
+app/exports/CNT-1/CNT-1-v5.mp4
+app/mvp/service.js.ace-mission-2c-3-1792735139
+app/mvp/service.js.bak
+app/mvp/service.js.phase-2c-5-1792737402
+app/mvp/service.js.phase2c5-backup-before-fixes
+app/mvp/service.js.pre-fix-1792734587
+app/mvp/service.js.repair-1792729963
+app/mvp/service.js.stage-2c8-precheck-1792742344
+app/observability/posthog-ai.js
+app/server.js.backup
+app/server.js.bak
+app/server.js.bak2
+CORRECTION_READINESS_CHECK.md
+CORRECTION_REPORT.md
+data/app/state.json.backup
+data/mission1/OPP-1-1.md
+data/mission1/OPP-1-2.md
+data/mission1/OPP-1-3.md
+data/mission1/run-history.yaml
+data/mission1/workflow-state.yaml
+docs/ace/im-messenger-bot-automation-owner-approval-seed.md
+docs/ace/viral-trending-opportunity-radar-seed.md
+docs/acs/actor-studio-digital-talent-lifecycle-seed.md
+docs/mission1/-final-contract-id-concurrency.md
+docs/mission1/I-ux-ui-design-specification.md
+docs/mission1/J-ten-step-workflow-specification.md
+docs/mission1/K-research-analyzer-daily-report-loop.md
+docs/mission1/M-mvp-affiliate-workflow-slice.md
+docs/mission1/schemas/content-work-item.schema.json
+docs/mission1/schemas/validate-content-work-item.js
+HANDOFF.md
+MINI_LOOP_CONTENT_RE_ENTRY_CONTRACT_RECONCILIATION.md
+MINI_LOOP_CONTENT_RE_ENTRY_RECONCILIATION.md
+oq8_gate_assessment.md
+package.json
+package-lock.json
+PHASE_BOUNDARY_V1.2.1_OWNER_NOTE_TH.md
+PR_SUMMARY.md
+READ_ONLY_VERIFICATION_REPORT.md
+RECONCILIATION_REPORT.md
+reference/Affiliate Content Engine UX_UI new workflow.html
+reference/Affiliate Content Engine UX_UI.html
+reference/AI Brand Models_ Custom Faces, Voices, and Content.png
+reference/AI Storyboard Dashboard in Dark Mode.png
+reference/ChatGPT Image Oct 17, 2026, 06_49_23 PM.jpg
+reference/ChatGPT Image Oct 17, 2026, 06_49_35 PM.jpg
+reference/ChatGPT Image Oct 17, 2026, 06_49_42 PM.jpg
+reference/Content Engine Affiliate UX UI GUIDE.png
+reference/Dashboard.png
+reference/Lazada.png
+reference/Note.txt
+reference/Plan Step.png
+reference/Production Studio Plan.png
+reference/Schedule.png
+reference/Storyboard Script.png
+reference/Storyboard Step.png
+reference/Storyboard.png
+reference/test prototype by claude/Affiliate Content Engine.html
+reference/test prototype by claude/Affiliate Content Engine.md
+reference/UX Behavier - Research.png
+reference/UX Behavier PLAN.png
+reference/UX_UI Concept.png
+reference/UX_UI Design Guide.png
+reference/wizard.png
+reference/work flow.png
+reference/Work Plan.png
+ROUTE_TRANSITION_MAPPING.md
+RTM_verification.md
+screenshots/export-still-viewport.png
+screenshots/mvp-candidates-1100.png
+screenshots/mvp-candidates-narrow.png
+screenshots/mvp-candidate-workspace.png
+screenshots/mvp-plan-impact-preview.png
+screenshots/mvp-workspace-1280.png
+screenshots/mvp-workspace-final.png
+screenshots/render-frame-1.png
+screenshots/render-frame-fixed.png
+screenshots/slice-decision.png
+screenshots/slice-desktop.png
+screenshots/slice-full.png
+screenshots/slice-history.png
+screenshots/slice-history-2.png
+screenshots/slice-overview.png
+screenshots/slice-step1.png
+screenshots/source-library-panel.png
+screenshots/thai-font-render-test.png
+shopee-login-snapshot.png
+tmp/audited-live-list.txt
+tmp/diff-isolate.txt
+tmp/final-correction-summary.txt
+tmp/live-untracked-sorted.txt
+tmp/live-utf8-paths.txt
+tmp/rebuild-report-block-v2.txt
+tmp/rebuild-untracked-latest.txt
+tmp/rebuild-untracked-sorted.txt
+tmp/reconciliation-matrix.txt
+tmp/smoke-err.log
+tmp/smoke-out.log
+tmp/untracked-current.txt
+tmp/whitespace-scan.txt
+verification/ac-05-fixture-test.js
+verification/ace-mission1-acceptance.js
+verification/api-validation-matrix-2026-10-21.json
+verification/browser-ui-acceptance-2026-10-21.json
+verification/browser-upload-e2e.js
+verification/browser-upload-e2e-2026-10-21.log
+verification/browser-upload-e2e-acceptance-2026-10-21.md
+verification/check-md-links.js
+verification/claim-class-validation-2026-10-21.log
+verification/content-artifact-v1-acceptance-contract-ratified-2026-10-26.md
+verification/content-creation-acceptance.js
+verification/content-phase1-acceptance-2026-10-22.md
+verification/cwi-contract-enforcement.js
+verification/cwi-contract-enforcement-2026-10-21.log
+verification/cwi-create-concurrency-probe-2026-10-21.log
+verification/cwi-endpoint-acceptance-2026-10-21.json
+verification/cwi-endpoint-acceptance-2026-10-21.log
+verification/cwi-endpoint-acceptance-2026-10-21.md
+verification/cwi-endpoint-probe-2026-10-21.log
+verification/cwi-endpoint-probe-post-enforcement-2026-10-21.log
+verification/cwi-schema-validation-2026-10-21.log
+verification/d10-v1-immutability.js
+verification/d10-v1-immutability-2026-10-21.log
+verification/d1-d2-id-semantics.js
+verification/d1-d2-id-semantics-2026-10-21.log
+verification/d1-d2-id-semantics-rerun-2026-10-21.log
+verification/d1-d2-status-update-2026-10-21.log
+verification/d5-reserved-fields-review-2026-10-21.md
+verification/d8-d10-requirement-check-2026-10-21.log
+verification/d-case-expectation-probe-2026-10-21.log
+verification/decision-api-workflow-2026-10-21.json
+verification/docs-d10-status-update-2026-10-21.log
+verification/foundation-regression.js
+verification/foundation-regression-2026-10-21.log
+verification/foundation-runtime-api-acceptance-2026-10-21.log
+verification/import-source-acceptance.js
+verification/import-source-acceptance-2026-10-21.log
+verification/make-synthetic-import-fixtures.js
+verification/mission1-acceptance-gap-matrix.md
+verification/mvp-server-isolation-2026-10-21.log
+verification/mvp-server-isolation-audit.js
+verification/mvp-workflow-acceptance.js
+verification/mvp-workflow-acceptance-2026-10-21.log
+verification/mvp-workflow-slice-2026-10-21.md
+verification/owner-decisions-d-series-2026-10-21.md
+verification/phase2d2-syntax-damage-assessment-2026-10-23.md
+verification/phase3-canonical-hash-snapshot-specification-recorded-2026-10-26.md
+verification/posthog-ai-observability-2026-10-28.log
+verification/posthog-ai-observability-check.js
+verification/probe-cwi-endpoint.js
+verification/real-export-readiness-2026-10-21.md
+verification/real-export-shape-rehearsal.js
+verification/real-export-shape-rehearsal-2026-10-21.log
+verification/real-shopee-export-check.js
+verification/real-shopee-export-pending-2026-10-21.log
+verification/ss-07-to-ss-12-ocr-report.md
+verification/user-custom-v1-design-ratified-2026-10-26.md
+verification/validate-claim-classes.js
+verification/verify-cwi-endpoint.js
+verification/visual-verify-export.js
+WORKSPACE_VERIFICATION_REPORT.md

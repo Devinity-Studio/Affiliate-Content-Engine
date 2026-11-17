@@ -1,0 +1,3 @@
+[ace] Mission 1 slice running at http://127.0.0.1:4199
+[ace] state file: data\app\state.json
+[ace] ai observability: off (POSTHOG_API_KEY not set)

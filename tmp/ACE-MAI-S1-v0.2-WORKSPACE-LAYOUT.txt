@@ -1,0 +1,23 @@
+ACE-MAI-S1 Phase A Preparation Plan — v0.2 Revision Package
+OUTPUT LOCATION: Non-repository working area (isolation per authorization boundary)
+
+Primary delivery:
+- tmp/ACE-MAI-S1-v0.2-SEPARATE-DELIVERABLES.md
+
+Supporting artifacts in the same isolated directory:
+- tmp/ACE-MAI-S1-v0.2-CHANGE-LOG.md
+- tmp/ACE-MAI-S1-v0.2-ACCEPTANCE-CRITERIA-MATRIX.md
+- tmp/ACE-MAI-S1-v0.2-EVIDENCE-REGISTER.md
+- tmp/ACE-MAI-S1-v0.2-DEPENDENCY-STRUCTURE.md
+- tmp/ACE-MAI-S1-v0.2-UNRESOLVED-ISSUES.md
+- tmp/ACE-MAI-S1-v0.2-SELF-REVIEW.md
+- tmp/ACE-MAI-S1-v0.2-GEMINI-HANDOFF.md
+
+Isolation rule applied:
+- No file in this package is written into the repository working tree.
+- The original v0.1 source file is not modified.
+- The package is prepared as a review artifact only.
+
+Note on working area:
+- This package uses the non-tracked tmp directory as the isolated output location.
+- If the Owner prefers a different isolated location, the same content should be relocated there and the repo-tree unchanged property re-verified.

@@ -30,3 +30,12 @@ verification/evidence/
 # Agent scratch files and background logs
 .tmp-patch/
 .zwork/
+
+# Playwright
+/test-results/
+/playwright-report/
+/blob-report/
+/playwright/.cache/
+/playwright/.auth/
+# Playwright CLI output (may contain credentials)
+.playwright-cli/

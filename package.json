@@ -1,0 +1,21 @@
+{
+  "name": "affiliate-content-engine",
+  "version": "0.1.0",
+  "private": true,
+  "description": "ACE — Affiliate Content Engine: Mission 1 vertical slice and MVP affiliate workflow slice.",
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "start": "node app/server.js",
+    "check:posthog": "node verification/posthog-ai-observability-check.js"
+  },
+  "dependencies": {
+    "@posthog/ai": "8.17.0",
+    "posthog-node": "5.57.2"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.65.1",
+    "@types/node": "^26.6.6"
+  }
+}

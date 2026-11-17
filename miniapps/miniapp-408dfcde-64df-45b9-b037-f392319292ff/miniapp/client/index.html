@@ -1,0 +1,1598 @@
+<!doctype html>
+<html lang="th">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>ACE Status Board</title>
+    <style>
+      :root,
+      [data-theme='light'] {
+        --mcode-bg: #ffffff;
+        --mcode-bg-secondary: #f5f5f5;
+        --mcode-surface: #ffffff;
+        --mcode-surface-muted: #fafafa;
+        --mcode-text: #171717;
+        --mcode-text-muted: #666666;
+        --mcode-text-subtle: #adadad;
+        --mcode-border: #0a0a0a14;
+        --mcode-border-strong: #0a0a0af2;
+        --mcode-accent: #0094fc;
+        --mcode-success: #04b54b;
+        --mcode-warning: #f56811;
+        --mcode-danger: #f73646;
+        --mcode-primary-action-bg: #171717;
+        --mcode-primary-action-text: #ffffff;
+        color-scheme: light;
+      }
+
+      [data-theme='dark'] {
+        --mcode-bg: #171717;
+        --mcode-bg-secondary: #1c1c1c;
+        --mcode-surface: #262626;
+        --mcode-surface-muted: #262626;
+        --mcode-text: #ededed;
+        --mcode-text-muted: #949494;
+        --mcode-text-subtle: #666666;
+        --mcode-border: #ffffff14;
+        --mcode-border-strong: #fffffff2;
+        --mcode-accent: #0077d9;
+        --mcode-success: #009c3d;
+        --mcode-warning: #e25507;
+        --mcode-danger: #e31937;
+        --mcode-primary-action-bg: #ffffff;
+        --mcode-primary-action-text: #171717;
+        color-scheme: dark;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      [hidden] {
+        display: none !important;
+      }
+
+      body {
+        margin: 0;
+        background: var(--mcode-bg);
+        color: var(--mcode-text);
+        font-family: ui-sans-serif, -apple-system, system-ui, 'Segoe UI', Helvetica, Arial, sans-serif;
+        font-size: 14px;
+        line-height: 1.55;
+      }
+
+      .page {
+        max-width: 1240px;
+        margin: 0 auto;
+        padding: 24px;
+        display: flex;
+        flex-direction: column;
+        gap: 24px;
+      }
+
+      .page-header {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 16px;
+        flex-wrap: wrap;
+      }
+
+      .page-header h1 {
+        margin: 0;
+        font-size: 18px;
+        line-height: 28px;
+        font-weight: 600;
+      }
+
+      .page-header p {
+        margin: 4px 0 0;
+        color: var(--mcode-text-muted);
+        font-size: 14px;
+        max-width: 68ch;
+      }
+
+      .header-actions {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        flex-wrap: wrap;
+      }
+
+      button {
+        font: inherit;
+        cursor: pointer;
+        border-radius: 8px;
+        border: 1px solid var(--mcode-border);
+        background: var(--mcode-surface-muted);
+        color: var(--mcode-text);
+        height: 36px;
+        padding: 0 14px;
+        transition: background-color 150ms ease-out, opacity 150ms ease-out;
+      }
+
+      button:hover {
+        background: var(--mcode-bg-secondary);
+      }
+
+      button:focus-visible,
+      input:focus-visible,
+      select:focus-visible {
+        outline: 2px solid var(--mcode-accent);
+        outline-offset: 2px;
+      }
+
+      button.primary {
+        background: var(--mcode-primary-action-bg);
+        color: var(--mcode-primary-action-text);
+        border-color: transparent;
+        font-weight: 500;
+      }
+
+      button.primary:hover {
+        opacity: 0.86;
+        background: var(--mcode-primary-action-bg);
+      }
+
+      button.ghost {
+        background: transparent;
+        border-color: transparent;
+        color: var(--mcode-accent);
+        padding: 0 8px;
+      }
+
+      button.danger {
+        color: var(--mcode-danger);
+      }
+
+      button[disabled] {
+        opacity: 0.55;
+        cursor: not-allowed;
+      }
+
+      .pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 2px 10px;
+        border-radius: 999px;
+        font-size: 12px;
+        line-height: 18px;
+        font-weight: 500;
+        border: 1px solid var(--mcode-border);
+        background: var(--mcode-surface-muted);
+        color: var(--mcode-text-muted);
+        white-space: nowrap;
+      }
+
+      .pill .dot {
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+        background: currentColor;
+        flex: none;
+      }
+
+      .pill.ok {
+        color: var(--mcode-success);
+        border-color: color-mix(in srgb, var(--mcode-success) 40%, transparent);
+      }
+
+      .pill.warn {
+        color: var(--mcode-warning);
+        border-color: color-mix(in srgb, var(--mcode-warning) 40%, transparent);
+      }
+
+      .pill.bad {
+        color: var(--mcode-danger);
+        border-color: color-mix(in srgb, var(--mcode-danger) 40%, transparent);
+      }
+
+      .pill.info {
+        color: var(--mcode-accent);
+        border-color: color-mix(in srgb, var(--mcode-accent) 40%, transparent);
+      }
+
+      .kpi-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+        gap: 12px;
+      }
+
+      .kpi {
+        border: 1px solid var(--mcode-border);
+        border-radius: 12px;
+        background: var(--mcode-surface);
+        padding: 16px;
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+      }
+
+      .kpi .label {
+        font-size: 12px;
+        color: var(--mcode-text-muted);
+      }
+
+      .kpi .value {
+        font-size: 26px;
+        line-height: 32px;
+        font-weight: 600;
+      }
+
+      .kpi .detail {
+        font-size: 12px;
+        color: var(--mcode-text-subtle);
+      }
+
+      .tabs {
+        display: flex;
+        gap: 4px;
+        background: var(--mcode-surface-muted);
+        border: 1px solid var(--mcode-border);
+        border-radius: 8px;
+        padding: 4px;
+        width: fit-content;
+        max-width: 100%;
+        overflow-x: auto;
+      }
+
+      .tabs button {
+        border: none;
+        background: transparent;
+        height: 30px;
+        border-radius: 6px;
+        color: var(--mcode-text-muted);
+        white-space: nowrap;
+      }
+
+      .tabs button[aria-selected='true'] {
+        background: var(--mcode-surface);
+        color: var(--mcode-text);
+        font-weight: 500;
+        box-shadow: 0 0 0 1px var(--mcode-border);
+      }
+
+      .panel {
+        border: 1px solid var(--mcode-border);
+        border-radius: 12px;
+        background: var(--mcode-surface);
+        padding: 20px;
+      }
+
+      .panel > h2 {
+        margin: 0 0 4px;
+        font-size: 16px;
+        line-height: 24px;
+        font-weight: 500;
+      }
+
+      .panel > .panel-hint {
+        margin: 0 0 16px;
+        color: var(--mcode-text-muted);
+        font-size: 12px;
+      }
+
+      .grid-2 {
+        display: grid;
+        grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr);
+        gap: 24px;
+        align-items: start;
+      }
+
+      .stack {
+        display: flex;
+        flex-direction: column;
+        gap: 24px;
+      }
+
+      .table-wrap {
+        overflow-x: auto;
+        border: 1px solid var(--mcode-border);
+        border-radius: 8px;
+      }
+
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 13px;
+      }
+
+      caption {
+        text-align: left;
+        padding: 10px 12px;
+        font-size: 12px;
+        color: var(--mcode-text-muted);
+      }
+
+      th,
+      td {
+        text-align: left;
+        padding: 8px 12px;
+        border-bottom: 1px solid var(--mcode-border);
+        vertical-align: top;
+        white-space: nowrap;
+      }
+
+      th {
+        background: var(--mcode-surface-muted);
+        color: var(--mcode-text-muted);
+        font-weight: 500;
+        font-size: 12px;
+      }
+
+      tbody tr:last-child td {
+        border-bottom: none;
+      }
+
+      tbody tr:hover td {
+        background: var(--mcode-surface-muted);
+      }
+
+      td.wrap {
+        white-space: normal;
+        min-width: 220px;
+      }
+
+      .mono {
+        font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+        font-size: 12px;
+      }
+
+      .stage-list {
+        list-style: none;
+        margin: 0;
+        padding: 0;
+        display: flex;
+        flex-direction: column;
+      }
+
+      .stage-list li {
+        display: flex;
+        align-items: flex-start;
+        gap: 12px;
+        padding: 12px 0;
+        border-bottom: 1px solid var(--mcode-border);
+      }
+
+      .stage-list li:last-child {
+        border-bottom: none;
+      }
+
+      .stage-index {
+        width: 22px;
+        height: 22px;
+        flex: none;
+        border-radius: 50%;
+        border: 1px solid var(--mcode-border);
+        background: var(--mcode-surface-muted);
+        color: var(--mcode-text-muted);
+        font-size: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin-top: 1px;
+      }
+
+      .stage-body {
+        flex: 1;
+        min-width: 0;
+      }
+
+      .stage-title {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-weight: 500;
+      }
+
+      .stage-detail {
+        color: var(--mcode-text-muted);
+        font-size: 12px;
+        margin-top: 2px;
+      }
+
+      .dl {
+        margin: 0;
+        display: grid;
+        grid-template-columns: minmax(120px, auto) 1fr;
+        gap: 8px 16px;
+        font-size: 13px;
+      }
+
+      .dl dt {
+        color: var(--mcode-text-muted);
+      }
+
+      .dl dd {
+        margin: 0;
+        overflow-wrap: anywhere;
+      }
+
+      .toolbar {
+        display: flex;
+        gap: 8px;
+        align-items: center;
+        flex-wrap: wrap;
+        margin-bottom: 16px;
+      }
+
+      input[type='search'],
+      input[type='text'],
+      select {
+        font: inherit;
+        height: 36px;
+        border-radius: 8px;
+        border: 1px solid var(--mcode-border);
+        background: var(--mcode-surface);
+        color: var(--mcode-text);
+        padding: 0 10px;
+        min-width: 0;
+      }
+
+      input[type='search'] {
+        flex: 1;
+        min-width: 180px;
+      }
+
+      .notice {
+        border: 1px solid var(--mcode-border);
+        border-left: 3px solid var(--mcode-accent);
+        border-radius: 8px;
+        padding: 12px 14px;
+        background: var(--mcode-surface-muted);
+        font-size: 13px;
+      }
+
+      .notice.warn {
+        border-left-color: var(--mcode-warning);
+      }
+
+      .notice.bad {
+        border-left-color: var(--mcode-danger);
+      }
+
+      .notice strong {
+        font-weight: 600;
+      }
+
+      .empty {
+        padding: 28px 16px;
+        text-align: center;
+        color: var(--mcode-text-muted);
+        font-size: 13px;
+      }
+
+      .muted {
+        color: var(--mcode-text-muted);
+      }
+
+      .subtle {
+        color: var(--mcode-text-subtle);
+        font-size: 12px;
+      }
+
+      .timeline {
+        list-style: none;
+        margin: 0;
+        padding: 0;
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+        max-height: 420px;
+        overflow-y: auto;
+      }
+
+      .timeline li {
+        border-left: 2px solid var(--mcode-border);
+        padding-left: 12px;
+      }
+
+      .timeline .when {
+        font-size: 12px;
+        color: var(--mcode-text-subtle);
+      }
+
+      .timeline .what {
+        margin-top: 2px;
+      }
+
+      .sr-only {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        padding: 0;
+        margin: -1px;
+        overflow: hidden;
+        clip: rect(0, 0, 0, 0);
+        white-space: nowrap;
+        border: 0;
+      }
+
+      @media (max-width: 900px) {
+        .grid-2 {
+          grid-template-columns: minmax(0, 1fr);
+        }
+      }
+
+      @media (max-width: 640px) {
+        .page {
+          padding: 16px;
+          gap: 16px;
+        }
+        .panel {
+          padding: 16px;
+        }
+      }
+
+      @media (prefers-reduced-motion: reduce) {
+        * {
+          transition: none !important;
+          animation: none !important;
+        }
+      }
+    </style>
+    <script>
+      // Resolve the theme before first paint so the board never flashes the
+      // wrong surface. The stored preference replaces this once the board's
+      // own view state loads.
+      (function () {
+        var dark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+        document.documentElement.dataset.theme = dark ? 'dark' : 'light';
+      })();
+    </script>
+  </head>
+  <body>
+    <div class="page">
+      <header class="page-header">
+        <div>
+          <h1>ACE Status Board</h1>
+          <p>
+            สถานะระบบ Shopee Affiliate Engine แบบเรียลไทม์ จาก ACE service และไฟล์บันทึก Mission 1 —
+            ดู pipeline ผู้สมัครสินค้า คลังคอนเทนต์ และสถานะ gate
+          </p>
+        </div>
+        <div class="header-actions">
+          <button type="button" id="theme-button" aria-label="เปลี่ยนธีมสีของบอร์ด">ธีม: ตามระบบ</button>
+          <span class="pill" id="service-pill"><span class="dot"></span><span id="service-pill-text">กำลังตรวจสอบ…</span></span>
+          <button type="button" class="primary" id="refresh-button">รีเฟรชสถานะ</button>
+        </div>
+      </header>
+
+      <div class="notice bad" id="error-banner" role="alert" hidden></div>
+
+      <section class="kpi-grid" aria-label="ภาพรวมสถานะ">
+        <div class="kpi">
+          <span class="label">Stage ปัจจุบัน (Mission 1)</span>
+          <span class="value" id="kpi-stage">—</span>
+          <span class="detail" id="kpi-stage-detail">กำลังโหลด</span>
+        </div>
+        <div class="kpi">
+          <span class="label">ผู้สมัครสินค้า</span>
+          <span class="value" id="kpi-candidates">—</span>
+          <span class="detail" id="kpi-candidates-detail">กำลังโหลด</span>
+        </div>
+        <div class="kpi">
+          <span class="label">คอนเทนต์พร้อมเผยแพร่</span>
+          <span class="value" id="kpi-contents">—</span>
+          <span class="detail" id="kpi-contents-detail">กำลังโหลด</span>
+        </div>
+        <div class="kpi">
+          <span class="label">งบประมาณที่ใช้จริง</span>
+          <span class="value" id="kpi-budget">—</span>
+          <span class="detail" id="kpi-budget-detail">กำลังโหลด</span>
+        </div>
+      </section>
+
+      <div class="tabs" role="tablist" aria-label="มุมมองสถานะ">
+        <button type="button" role="tab" id="tab-overview" aria-controls="panel-overview" aria-selected="true">ภาพรวม</button>
+        <button type="button" role="tab" id="tab-candidates" aria-controls="panel-candidates" aria-selected="false">ผู้สมัครสินค้า</button>
+        <button type="button" role="tab" id="tab-contents" aria-controls="panel-contents" aria-selected="false">คอนเทนต์</button>
+        <button type="button" role="tab" id="tab-governance" aria-controls="panel-governance" aria-selected="false">Governance</button>
+        <button type="button" role="tab" id="tab-snapshots" aria-controls="panel-snapshots" aria-selected="false">สถานะที่บันทึกไว้</button>
+        <button type="button" role="tab" id="tab-settings" aria-controls="panel-settings" aria-selected="false">ตั้งค่า</button>
+      </div>
+
+      <section class="panel" id="panel-overview" role="tabpanel" aria-labelledby="tab-overview">
+        <h2>Pipeline และแหล่งข้อมูล</h2>
+        <p class="panel-hint">ขั้นตอนของ MVP slice ตามที่ ACE service รายงาน</p>
+        <div class="grid-2">
+          <div>
+            <ul class="stage-list" id="stage-list"></ul>
+          </div>
+          <div class="stack">
+            <div>
+              <h3 style="margin: 0 0 8px; font-size: 14px; font-weight: 500">การนำเข้าข้อมูล</h3>
+              <dl class="dl" id="import-list"></dl>
+            </div>
+            <div>
+              <h3 style="margin: 0 0 8px; font-size: 14px; font-weight: 500">ความสดของข้อมูล</h3>
+              <div id="freshness-list"></div>
+            </div>
+            <div>
+              <h3 style="margin: 0 0 8px; font-size: 14px; font-weight: 500">ขอบเขตของข้อมูล</h3>
+              <ul class="subtle" id="boundary-list" style="margin: 0; padding-left: 18px"></ul>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="panel" id="panel-candidates" role="tabpanel" aria-labelledby="tab-candidates" hidden>
+        <h2>ผู้สมัครสินค้า</h2>
+        <p class="panel-hint">จัดอันดับจากสูตร mvp-score-v1 · ค่าคอมคำนวณจากข้อมูล import</p>
+        <div class="toolbar">
+          <label class="sr-only" for="candidate-search">ค้นหาผู้สมัครสินค้า</label>
+          <input type="search" id="candidate-search" placeholder="ค้นหาชื่อสินค้า ร้าน หรือหมวดหมู่" />
+          <label class="sr-only" for="candidate-status">กรองตามสถานะ</label>
+          <select id="candidate-status">
+            <option value="">ทุกสถานะ</option>
+            <option value="SAVED">SAVED</option>
+            <option value="NONE">NONE</option>
+            <option value="REJECTED">REJECTED</option>
+          </select>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <caption id="candidate-caption">ผู้สมัครสินค้าทั้งหมด</caption>
+            <thead>
+              <tr>
+                <th scope="col">อันดับ</th>
+                <th scope="col">สินค้า</th>
+                <th scope="col">ร้าน</th>
+                <th scope="col">ราคา</th>
+                <th scope="col">ค่าคอม/ชิ้น</th>
+                <th scope="col">โปรโมชัน</th>
+                <th scope="col">คะแนนจัดอันดับ</th>
+                <th scope="col">โอกาส</th>
+                <th scope="col">ความเชื่อมั่น</th>
+                <th scope="col">สถานะ</th>
+              </tr>
+            </thead>
+            <tbody id="candidate-body"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="panel" id="panel-contents" role="tabpanel" aria-labelledby="tab-contents" hidden>
+        <h2>คลังคอนเทนต์</h2>
+        <p class="panel-hint">โปรเจกต์คอนเทนต์พร้อมเผยแพร่ ผ่าน QA และสถานะการเผยแพร่</p>
+        <div class="table-wrap">
+          <table>
+            <caption>คอนเทนต์ทั้งหมดใน pipeline</caption>
+            <thead>
+              <tr>
+                <th scope="col">ID</th>
+                <th scope="col">สินค้า</th>
+                <th scope="col">สถานะ</th>
+                <th scope="col">แนวทาง</th>
+                <th scope="col">เวอร์ชันสคริปต์</th>
+                <th scope="col">QA</th>
+                <th scope="col">ไฟล์ส่งออก</th>
+                <th scope="col">การเผยแพร่</th>
+                <th scope="col">อัปเดตล่าสุด</th>
+              </tr>
+            </thead>
+            <tbody id="content-body"></tbody>
+          </table>
+        </div>
+        <div id="content-empty" class="empty" hidden>ยังไม่มีคอนเทนต์ใน pipeline</div>
+      </section>
+
+      <section class="panel" id="panel-governance" role="tabpanel" aria-labelledby="tab-governance" hidden>
+        <h2>Governance และบันทึก Mission 1</h2>
+        <p class="panel-hint">อ่านอย่างเดียวจาก data/mission1 — บอร์ดนี้ไม่แก้ไขไฟล์เหล่านี้</p>
+        <div class="grid-2">
+          <div class="stack">
+            <div>
+              <h3 style="margin: 0 0 8px; font-size: 14px; font-weight: 500">สถานะเวิร์กโฟลว์</h3>
+              <dl class="dl" id="workflow-list"></dl>
+            </div>
+            <div>
+              <h3 style="margin: 0 0 8px; font-size: 14px; font-weight: 500">คำตัดสิน (Gate)</h3>
+              <div class="table-wrap">
+                <table>
+                  <caption>บันทึกคำตัดสินจาก decision-log.md</caption>
+                  <thead>
+                    <tr>
+                      <th scope="col">ID</th>
+                      <th scope="col">Gate</th>
+                      <th scope="col">วันที่</th>
+                      <th scope="col">ผล</th>
+                      <th scope="col">ผู้อนุมัติ</th>
+                    </tr>
+                  </thead>
+                  <tbody id="decision-body"></tbody>
+                </table>
+              </div>
+            </div>
+            <div>
+              <h3 style="margin: 0 0 8px; font-size: 14px; font-weight: 500">หลักฐาน</h3>
+              <dl class="dl" id="evidence-list"></dl>
+            </div>
+          </div>
+          <div class="stack">
+            <div>
+              <h3 style="margin: 0 0 8px; font-size: 14px; font-weight: 500">ประวัติการทำงาน</h3>
+              <ul class="timeline" id="history-list"></ul>
+            </div>
+            <div>
+              <h3 style="margin: 0 0 8px; font-size: 14px; font-weight: 500">คลังคอนเทนต์ที่ส่งออก</h3>
+              <div class="table-wrap">
+                <table>
+                  <caption>รายการใน content-library.json</caption>
+                  <thead>
+                    <tr>
+                      <th scope="col">ID</th>
+                      <th scope="col">ไฟล์</th>
+                      <th scope="col">สถานะ</th>
+                      <th scope="col">ช่องทาง</th>
+                      <th scope="col">เผยแพร่เมื่อ</th>
+                    </tr>
+                  </thead>
+                  <tbody id="library-body"></tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="panel" id="panel-snapshots" role="tabpanel" aria-labelledby="tab-snapshots" hidden>
+        <h2>สถานะที่บันทึกไว้</h2>
+        <p class="panel-hint">เก็บในพื้นที่ข้อมูลของ Mini App เท่านั้น ไม่เขียนกลับไฟล์ในโปรเจกต์ ACE</p>
+        <div class="toolbar">
+          <label class="sr-only" for="snapshot-note">หมายเหตุของสถานะที่บันทึก</label>
+          <input type="text" id="snapshot-note" placeholder="บันทึกหมายเหตุ (ไม่บังคับ)" />
+          <button type="button" class="primary" id="snapshot-button">บันทึกสถานะปัจจุบัน</button>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <caption>ประวัติสถานะที่บันทึกไว้</caption>
+            <thead>
+              <tr>
+                <th scope="col">เวลา</th>
+                <th scope="col">หมายเหตุ</th>
+                <th scope="col">สรุป</th>
+                <th scope="col">จัดการ</th>
+              </tr>
+            </thead>
+            <tbody id="snapshot-body"></tbody>
+          </table>
+        </div>
+        <div id="snapshot-empty" class="empty" hidden>ยังไม่มีสถานะที่บันทึกไว้</div>
+      </section>
+
+      <section class="panel" id="panel-settings" role="tabpanel" aria-labelledby="tab-settings" hidden>
+        <h2>ตั้งค่า</h2>
+        <p class="panel-hint">ระบุตำแหน่งโปรเจกต์ ACE และพอร์ตของ service เมื่อตรวจสอบไม่พบอัตโนมัติ</p>
+        <form id="settings-form" class="stack" style="max-width: 560px">
+          <label for="project-root">โฟลเดอร์โปรเจกต์ ACE</label>
+          <input type="text" id="project-root" name="projectRoot" placeholder="Y:\DevProject\Affiliate Content Engine" />
+          <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap">
+            <label for="ace-port">พอร์ต</label>
+            <input type="text" id="ace-port" name="acePort" inputmode="numeric" style="width: 100px" />
+            <label for="ace-host">โฮสต์</label>
+            <input type="text" id="ace-host" name="aceHost" style="width: 160px" />
+          </div>
+          <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap">
+            <button type="submit" class="primary">บันทึกการตั้งค่า</button>
+            <span class="subtle" id="settings-status" role="status"></span>
+          </div>
+        </form>
+      </section>
+
+      <footer class="subtle" id="footer-note"></footer>
+    </div>
+
+    <script>
+      (function () {
+        'use strict';
+
+        var state = null;
+        var snapshotRows = [];
+        var activeTab = 'overview';
+
+        var el = {
+          servicePill: document.getElementById('service-pill'),
+          servicePillText: document.getElementById('service-pill-text'),
+          refresh: document.getElementById('refresh-button'),
+          errorBanner: document.getElementById('error-banner'),
+          kpiStage: document.getElementById('kpi-stage'),
+          kpiStageDetail: document.getElementById('kpi-stage-detail'),
+          kpiCandidates: document.getElementById('kpi-candidates'),
+          kpiCandidatesDetail: document.getElementById('kpi-candidates-detail'),
+          kpiContents: document.getElementById('kpi-contents'),
+          kpiContentsDetail: document.getElementById('kpi-contents-detail'),
+          kpiBudget: document.getElementById('kpi-budget'),
+          kpiBudgetDetail: document.getElementById('kpi-budget-detail'),
+          stageList: document.getElementById('stage-list'),
+          importList: document.getElementById('import-list'),
+          freshnessList: document.getElementById('freshness-list'),
+          boundaryList: document.getElementById('boundary-list'),
+          candidateBody: document.getElementById('candidate-body'),
+          candidateSearch: document.getElementById('candidate-search'),
+          candidateStatus: document.getElementById('candidate-status'),
+          candidateCaption: document.getElementById('candidate-caption'),
+          contentBody: document.getElementById('content-body'),
+          contentEmpty: document.getElementById('content-empty'),
+          workflowList: document.getElementById('workflow-list'),
+          decisionBody: document.getElementById('decision-body'),
+          evidenceList: document.getElementById('evidence-list'),
+          historyList: document.getElementById('history-list'),
+          libraryBody: document.getElementById('library-body'),
+          snapshotBody: document.getElementById('snapshot-body'),
+          snapshotEmpty: document.getElementById('snapshot-empty'),
+          snapshotButton: document.getElementById('snapshot-button'),
+          snapshotNote: document.getElementById('snapshot-note'),
+          settingsForm: document.getElementById('settings-form'),
+          projectRoot: document.getElementById('project-root'),
+          acePort: document.getElementById('ace-port'),
+          aceHost: document.getElementById('ace-host'),
+          settingsStatus: document.getElementById('settings-status'),
+          themeButton: document.getElementById('theme-button'),
+          footer: document.getElementById('footer-note')
+        };
+
+        function text(value, fallback) {
+          if (value === null || value === undefined || value === '') return fallback === undefined ? '—' : fallback;
+          return String(value);
+        }
+
+        function num(value, digits) {
+          if (typeof value !== 'number' || !isFinite(value)) return '—';
+          return value.toLocaleString('th-TH', {
+            minimumFractionDigits: digits || 0,
+            maximumFractionDigits: digits === undefined ? 0 : digits
+          });
+        }
+
+        function shortTime(value) {
+          if (!value) return '—';
+          var date = new Date(value);
+          if (isNaN(date.getTime())) return String(value).slice(0, 16);
+          return date.toLocaleString('th-TH', {
+            year: 'numeric',
+            month: 'short',
+            day: '2-digit',
+            hour: '2-digit',
+            minute: '2-digit'
+          });
+        }
+
+        function pill(label, tone) {
+          var span = document.createElement('span');
+          span.className = 'pill' + (tone ? ' ' + tone : '');
+          var dot = document.createElement('span');
+          dot.className = 'dot';
+          var body = document.createElement('span');
+          body.textContent = label;
+          span.appendChild(dot);
+          span.appendChild(body);
+          return span;
+        }
+
+        function toneForStage(status) {
+          if (status === 'DONE') return 'ok';
+          if (status === 'IN_PROGRESS') return 'info';
+          if (status === 'NOT_STARTED') return '';
+          if (status === 'UNKNOWN') return 'warn';
+          return '';
+        }
+
+        function clear(node) {
+          while (node.firstChild) node.removeChild(node.firstChild);
+        }
+
+        function cell(row, value, className) {
+          var td = document.createElement('td');
+          td.textContent = value;
+          if (className) td.className = className;
+          row.appendChild(td);
+          return td;
+        }
+
+        function definition(list, term, value) {
+          var dt = document.createElement('dt');
+          dt.textContent = term;
+          var dd = document.createElement('dd');
+          dd.textContent = text(value);
+          list.appendChild(dt);
+          list.appendChild(dd);
+        }
+
+        function setTab(name) {
+          activeTab = name;
+          var tabs = [
+            ['overview', 'tab-overview', 'panel-overview'],
+            ['candidates', 'tab-candidates', 'panel-candidates'],
+            ['contents', 'tab-contents', 'panel-contents'],
+            ['governance', 'tab-governance', 'panel-governance'],
+            ['snapshots', 'tab-snapshots', 'panel-snapshots'],
+            ['settings', 'tab-settings', 'panel-settings']
+          ];
+          tabs.forEach(function (entry) {
+            var tab = document.getElementById(entry[1]);
+            var panel = document.getElementById(entry[2]);
+            var selected = entry[0] === name;
+            tab.setAttribute('aria-selected', selected ? 'true' : 'false');
+            tab.tabIndex = selected ? 0 : -1;
+            panel.hidden = !selected;
+          });
+          try {
+            sessionStorage.setItem('ace.board.tab', name);
+          } catch (error) {
+            /* local view preference is optional */
+          }
+          persistViewState(name);
+        }
+
+        /**
+         * Keep the selected view in the board's own store so it survives a
+         * reload or a reclaimed page, not just a same-tab navigation.
+         * @param {string} name
+         */
+        function persistViewState(name) {
+          return fetch('/api/view-state', {
+            method: 'POST',
+            headers: { 'content-type': 'application/json' },
+            body: JSON.stringify({ tab: name, theme: themeMode })
+          }).catch(function () {
+            /* the view still works without a persisted preference */
+          });
+        }
+
+        function restoreViewState() {
+          return fetch('/api/view-state', { headers: { accept: 'application/json' } })
+            .then(function (response) {
+              return response.json();
+            })
+            .then(function (data) {
+              var viewState = (data && data.viewState) || {};
+              if (typeof viewState.tab === 'string' && viewState.tab) setTab(viewState.tab);
+              if (typeof viewState.theme === 'string' && viewState.theme) applyTheme(viewState.theme);
+            })
+            .catch(function () {
+              /* fall back to the local preference */
+            });
+        }
+
+        var THEME_ORDER = ['system', 'light', 'dark'];
+        var THEME_LABEL = { system: 'ตามระบบ', light: 'สว่าง', dark: 'มืด' };
+        var themeMode = 'system';
+
+        function applyTheme(mode) {
+          themeMode = THEME_ORDER.indexOf(mode) === -1 ? 'system' : mode;
+          var root = document.documentElement;
+          root.dataset.theme = themeMode === 'system' ? systemTheme() : themeMode;
+          if (el.themeButton) {
+            el.themeButton.textContent = 'ธีม: ' + THEME_LABEL[themeMode];
+            el.themeButton.setAttribute('aria-label', 'เปลี่ยนธีมสีของบอร์ด (ปัจจุบัน: ' + THEME_LABEL[themeMode] + ')');
+          }
+        }
+
+        function systemTheme() {
+          return window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+        }
+
+        function cycleTheme() {
+          var next = THEME_ORDER[(THEME_ORDER.indexOf(themeMode) + 1) % THEME_ORDER.length];
+          applyTheme(next);
+          persistViewState(activeTab);
+        }
+
+        if (window.matchMedia) {
+          var colorScheme = window.matchMedia('(prefers-color-scheme: dark)');
+          var onSchemeChange = function () {
+            if (themeMode === 'system') applyTheme('system');
+          };
+          if (colorScheme.addEventListener) colorScheme.addEventListener('change', onSchemeChange);
+          else if (colorScheme.addListener) colorScheme.addListener(onSchemeChange);
+        }
+
+        function renderService(service) {
+          if (service.online) {
+            el.servicePill.className = 'pill ok';
+            el.servicePillText.textContent = service.startedByBoard ? 'ACE service (เริ่มโดยบอร์ด)' : 'ACE service ทำงานอยู่';
+          } else {
+            el.servicePill.className = 'pill bad';
+            el.servicePillText.textContent = 'ACE service ไม่ทำงาน';
+          }
+        }
+
+        function renderKpis(data) {
+          var pipeline = data.pipeline || {};
+          var governance = data.governance || {};
+          var workflow = governance.workflowState || {};
+          var candidates = pipeline.candidates || [];
+          var contents = pipeline.contents || [];
+          var ready = contents.filter(function (item) {
+            return item.status === 'READY_TO_PUBLISH';
+          }).length;
+
+          el.kpiStage.textContent = text(workflow.current_stage, '—');
+          el.kpiStageDetail.textContent = text(workflow.stage_status, 'ไม่มีข้อมูลสถานะเวิร์กโฟลว์');
+
+          el.kpiCandidates.textContent = num(candidates.length);
+          el.kpiCandidatesDetail.textContent = candidates.length
+            ? candidates.filter(function (c) { return c.status === 'SAVED'; }).length + ' บันทึกแล้ว · ' +
+              candidates.filter(function (c) { return c.queued; }).length + ' อยู่ในคิว'
+            : 'ยังไม่มีผู้สมัครสินค้า';
+
+          el.kpiContents.textContent = num(ready) + ' / ' + num(contents.length);
+          el.kpiContentsDetail.textContent = contents.length
+            ? contents.filter(function (c) { return c.publishStatus === 'PUBLISHED'; }).length + ' เผยแพร่แล้ว'
+            : 'ยังไม่มีคอนเทนต์';
+
+          var budget = governance.budget || {};
+          var planned = budget.planned_thb;
+          var spent = budget.spent_thb_actual;
+          el.kpiBudget.textContent = typeof spent === 'number' ? num(spent, 2) + ' ฿' : '—';
+          el.kpiBudgetDetail.textContent = typeof planned === 'number'
+            ? 'วงเงินที่อนุมัติ ' + num(planned, 2) + ' ฿'
+            : 'ไม่มีข้อมูลงบประมาณ';
+        }
+
+        function renderStages(pipeline) {
+          clear(el.stageList);
+          var stages = (pipeline && pipeline.stages) || [];
+          if (!stages.length) {
+            var empty = document.createElement('li');
+            empty.className = 'muted';
+            empty.textContent = 'ไม่มีข้อมูล pipeline';
+            el.stageList.appendChild(empty);
+            return;
+          }
+          stages.forEach(function (stage) {
+            var li = document.createElement('li');
+            var index = document.createElement('span');
+            index.className = 'stage-index';
+            index.textContent = String(stage.order);
+            var body = document.createElement('div');
+            body.className = 'stage-body';
+            var title = document.createElement('div');
+            title.className = 'stage-title';
+            title.appendChild(document.createTextNode(stage.label));
+            title.appendChild(pill(stage.status, toneForStage(stage.status)));
+            var detail = document.createElement('div');
+            detail.className = 'stage-detail';
+            detail.textContent = text(stage.detail);
+            body.appendChild(title);
+            body.appendChild(detail);
+            li.appendChild(index);
+            li.appendChild(body);
+            el.stageList.appendChild(li);
+          });
+        }
+
+        function renderImport(pipeline) {
+          clear(el.importList);
+          var info = pipeline && pipeline.import;
+          if (!info) {
+            definition(el.importList, 'สถานะ', 'ยังไม่มีการนำเข้าข้อมูล');
+            return;
+          }
+          definition(el.importList, 'แหล่งข้อมูล', info.label);
+          definition(el.importList, 'ไฟล์', info.file);
+          definition(el.importList, 'จำนวนแถว', num(info.rowCount));
+          definition(el.importList, 'ข้อมูล ณ วันที่', text(info.dataAsOf));
+          definition(el.importList, 'หมดอายุ', text(info.expiresAt));
+          definition(el.importList, 'ตรวจสอบแหล่งข้อมูล', text(info.validationStatus));
+          definition(el.importList, 'ข้อมูลสังเคราะห์', info.synthetic ? 'ใช่ (synthetic)' : 'ไม่');
+        }
+
+        function renderFreshness(pipeline) {
+          clear(el.freshnessList);
+          var warnings = (pipeline && pipeline.freshness) || [];
+          if (!warnings.length) {
+            var ok = document.createElement('div');
+            ok.className = 'notice';
+            ok.textContent = 'ไม่มีคำเตือนเรื่องความสดของข้อมูล';
+            el.freshnessList.appendChild(ok);
+            return;
+          }
+          warnings.forEach(function (warning) {
+            var notice = document.createElement('div');
+            notice.className = 'notice warn';
+            notice.setAttribute('role', 'status');
+            var strong = document.createElement('strong');
+            strong.textContent = warning.status === 'AGING' ? 'ข้อมูลใกล้หมดอายุ ' : 'คำเตือน ';
+            notice.appendChild(strong);
+            notice.appendChild(document.createTextNode(text(warning.warning)));
+            el.freshnessList.appendChild(notice);
+          });
+        }
+
+        function renderBoundaries(pipeline) {
+          clear(el.boundaryList);
+          var meta = (pipeline && pipeline.meta) || {};
+          var boundaries = meta.boundaries || [];
+          if (!boundaries.length) {
+            var item = document.createElement('li');
+            item.textContent = 'ไม่มีข้อจำกัดที่รายงาน';
+            el.boundaryList.appendChild(item);
+          } else {
+            boundaries.slice(0, 8).forEach(function (boundary) {
+              var li = document.createElement('li');
+              li.textContent = boundary;
+              el.boundaryList.appendChild(li);
+            });
+          }
+          var realExport = meta.realExport;
+          if (realExport && realExport.note) {
+            var note = document.createElement('li');
+            note.textContent = 'สถานะ export จริง: ' + realExport.status + ' — ' + realExport.note;
+            el.boundaryList.appendChild(note);
+          }
+        }
+
+        function renderCandidates() {
+          var pipeline = (state && state.pipeline) || {};
+          var all = pipeline.candidates || [];
+          var query = el.candidateSearch.value.trim().toLowerCase();
+          var statusFilter = el.candidateStatus.value;
+
+          var rows = all.filter(function (candidate) {
+            if (statusFilter && candidate.status !== statusFilter) return false;
+            if (!query) return true;
+            var haystack = [candidate.title, candidate.shop, candidate.category, candidate.id]
+              .filter(Boolean)
+              .join(' ')
+              .toLowerCase();
+            return haystack.indexOf(query) !== -1;
+          });
+
+          clear(el.candidateBody);
+          el.candidateCaption.textContent = 'ผู้สมัครสินค้า ' + rows.length + ' จาก ' + all.length + ' รายการ';
+
+          if (!rows.length) {
+            var tr = document.createElement('tr');
+            var td = document.createElement('td');
+            td.colSpan = 10;
+            td.className = 'empty';
+            td.textContent = all.length ? 'ไม่พบผู้สมัครสินค้าที่ตรงกับตัวกรอง' : 'ยังไม่มีผู้สมัครสินค้าในระบบ';
+            tr.appendChild(td);
+            el.candidateBody.appendChild(tr);
+            return;
+          }
+
+          rows.forEach(function (candidate) {
+            var tr = document.createElement('tr');
+            cell(tr, candidate.rank === null ? '—' : String(candidate.rank));
+            cell(tr, text(candidate.title));
+            cell(tr, text(candidate.shop));
+            cell(tr, typeof candidate.priceThb === 'number' ? num(candidate.priceThb, 2) + ' ฿' : '—');
+            cell(tr, typeof candidate.commissionThb === 'number' ? num(candidate.commissionThb, 2) + ' ฿' : '—');
+            cell(tr, text(candidate.promoLabel, '—'), 'wrap');
+            cell(tr, candidate.rankingScore === null ? '—' : String(candidate.rankingScore));
+            cell(tr, candidate.opportunityScore === null ? '—' : String(candidate.opportunityScore));
+            cell(tr, text(candidate.confidence, '—'));
+            var statusCell = document.createElement('td');
+            statusCell.appendChild(pill(candidate.status || 'UNKNOWN', candidate.status === 'SAVED' ? 'ok' : candidate.queued ? 'info' : ''));
+            if (candidate.queued) {
+              statusCell.appendChild(document.createTextNode(' '));
+              statusCell.appendChild(pill('QUEUED', 'info'));
+            }
+            tr.appendChild(statusCell);
+            el.candidateBody.appendChild(tr);
+          });
+        }
+
+        function renderContents() {
+          var pipeline = (state && state.pipeline) || {};
+          var contents = pipeline.contents || [];
+          clear(el.contentBody);
+          el.contentEmpty.hidden = contents.length > 0;
+
+          if (!contents.length) return;
+
+          contents.forEach(function (content) {
+            var tr = document.createElement('tr');
+            cell(tr, text(content.id), 'mono');
+            cell(tr, text(content.productName), 'wrap');
+            var statusCell = document.createElement('td');
+            statusCell.appendChild(
+              pill(content.status || 'UNKNOWN', content.status === 'READY_TO_PUBLISH' ? 'ok' : content.status === 'REVIEW' ? 'warn' : '')
+            );
+            tr.appendChild(statusCell);
+            cell(tr, text(content.approach));
+            cell(tr, content.scriptVersion === null ? '—' : 'v' + content.scriptVersion);
+            var qaCell = document.createElement('td');
+            if (content.qaPassed === null) {
+              qaCell.textContent = '—';
+            } else {
+              var summary = content.qaSummary || {};
+              qaCell.appendChild(pill(content.qaPassed ? 'ผ่าน' : 'ไม่ผ่าน', content.qaPassed ? 'ok' : 'bad'));
+              qaCell.appendChild(
+                document.createTextNode(
+                  ' ' + (summary.PASS || 0) + ' ผ่าน · ' + (summary.WARN || 0) + ' เตือน · ' + (summary.FAIL || 0) + ' ล้มเหลว'
+                )
+              );
+            }
+            tr.appendChild(qaCell);
+            var exportCell = document.createElement('td');
+            if (content.exportFile) {
+              exportCell.textContent = content.exportFile;
+              if (content.durationS) {
+                exportCell.appendChild(document.createElement('br'));
+                var meta = document.createElement('span');
+                meta.className = 'subtle';
+                meta.textContent = content.durationS + 's · ' + text(content.aspectRatio, '—');
+                exportCell.appendChild(meta);
+              }
+            } else {
+              exportCell.textContent = '—';
+            }
+            tr.appendChild(exportCell);
+            var publishCell = document.createElement('td');
+            if (content.publishStatus) {
+              publishCell.appendChild(pill(content.publishStatus, content.publishStatus === 'PUBLISHED' ? 'ok' : 'info'));
+              publishCell.appendChild(document.createTextNode(' ' + text(content.publishChannel, '')));
+              if (content.publishedAt) {
+                publishCell.appendChild(document.createElement('br'));
+                var when = document.createElement('span');
+                when.className = 'subtle';
+                when.textContent = shortTime(content.publishedAt);
+                publishCell.appendChild(when);
+              }
+              if (content.simulated) {
+                publishCell.appendChild(document.createElement('br'));
+                var sim = document.createElement('span');
+                sim.className = 'subtle';
+                sim.textContent = 'จำลอง (simulated)';
+                publishCell.appendChild(sim);
+              }
+            } else {
+              publishCell.textContent = '—';
+            }
+            tr.appendChild(publishCell);
+            cell(tr, shortTime(content.updatedAt));
+            el.contentBody.appendChild(tr);
+          });
+        }
+
+        function renderGovernance() {
+          var governance = (state && state.governance) || {};
+          var workflow = governance.workflowState || {};
+          clear(el.workflowList);
+          definition(el.workflowList, 'Cycle', text(workflow.current_cycle));
+          definition(el.workflowList, 'Stage ปัจจุบัน', text(workflow.current_stage));
+          definition(el.workflowList, 'สถานะ stage', text(workflow.stage_status));
+          definition(el.workflowList, 'อัปเดตล่าสุด', text(workflow.last_updated));
+          definition(el.workflowList, 'งานที่ค้างอยู่', text(workflow.pending_action));
+
+          clear(el.decisionBody);
+          var decisions = governance.decisions || [];
+          if (!decisions.length) {
+            var dtr = document.createElement('tr');
+            var dtd = document.createElement('td');
+            dtd.colSpan = 5;
+            dtd.className = 'empty';
+            dtd.textContent = 'ไม่พบบันทึกคำตัดสิน';
+            dtr.appendChild(dtd);
+            el.decisionBody.appendChild(dtr);
+          } else {
+            decisions.forEach(function (decision) {
+              var tr = document.createElement('tr');
+              cell(tr, text(decision.id), 'mono');
+              cell(tr, text(decision.gate));
+              cell(tr, text(decision.decidedAt));
+              var resultCell = document.createElement('td');
+              resultCell.appendChild(
+                pill(
+                  decision.result || '—',
+                  decision.result === 'APPROVED_WITH_NOTES' ? 'ok' : decision.result === 'REJECTED' ? 'bad' : 'info'
+                )
+              );
+              tr.appendChild(resultCell);
+              cell(tr, text(decision.approver));
+              el.decisionBody.appendChild(tr);
+            });
+          }
+
+          clear(el.evidenceList);
+          var evidence = governance.evidence;
+          if (!evidence) {
+            definition(el.evidenceList, 'หลักฐาน', 'อ่านไฟล์ไม่ได้');
+          } else {
+            definition(el.evidenceList, 'จำนวนรายการ', num(evidence.count));
+            var classes = evidence.byClaimClass || {};
+            Object.keys(classes).forEach(function (key) {
+              definition(el.evidenceList, key, num(classes[key]));
+            });
+          }
+
+          clear(el.historyList);
+          var history = governance.runHistory || [];
+          if (!history.length) {
+            var hitem = document.createElement('li');
+            hitem.className = 'muted';
+            hitem.textContent = 'ไม่พบประวัติการทำงาน';
+            el.historyList.appendChild(hitem);
+          } else {
+            history.slice(0, 40).forEach(function (entry) {
+              var li = document.createElement('li');
+              var when = document.createElement('div');
+              when.className = 'when';
+              when.textContent = shortTime(entry.ts) + ' · ' + text(entry.actor, '—');
+              var what = document.createElement('div');
+              what.className = 'what';
+              what.textContent = text(entry.action, '—');
+              li.appendChild(when);
+              li.appendChild(what);
+              el.historyList.appendChild(li);
+            });
+          }
+
+          clear(el.libraryBody);
+          var library = governance.contentLibrary;
+          var items = (library && library.items) || [];
+          if (!items.length) {
+            var ltr = document.createElement('tr');
+            var ltd = document.createElement('td');
+            ltd.colSpan = 5;
+            ltd.className = 'empty';
+            ltd.textContent = 'คลังคอนเทนต์ว่าง';
+            ltr.appendChild(ltd);
+            el.libraryBody.appendChild(ltr);
+          } else {
+            items.forEach(function (item) {
+              var tr = document.createElement('tr');
+              cell(tr, text(item.id), 'mono');
+              cell(tr, text(item.filename));
+              cell(tr, text(item.status));
+              cell(tr, text(item.channel));
+              cell(tr, shortTime(item.publishedAt));
+              el.libraryBody.appendChild(tr);
+            });
+          }
+        }
+
+        function renderSnapshots() {
+          clear(el.snapshotBody);
+          el.snapshotEmpty.hidden = snapshotRows.length > 0;
+          if (!snapshotRows.length) return;
+
+          snapshotRows.forEach(function (snapshot) {
+            var tr = document.createElement('tr');
+            cell(tr, shortTime(snapshot.createdAt));
+            cell(tr, text(snapshot.note, '—'), 'wrap');
+            var summaryCell = document.createElement('td');
+            var summary = snapshot.summary || {};
+            summaryCell.className = 'wrap';
+            summaryCell.textContent =
+              'service ' + (summary.serviceOnline ? 'ออนไลน์' : 'ออฟไลน์') +
+              ' · stage ' + text(summary.currentStage, '—') + '/' + text(summary.stageStatusLabel, '—') +
+              ' · ผู้สมัคร ' + num(summary.candidates) +
+              ' · พร้อมเผยแพร่ ' + num(summary.readyToPublish) +
+              ' · งบใช้จริง ' + (typeof summary.budgetSpentThb === 'number' ? num(summary.budgetSpentThb, 2) : '—') + ' ฿' +
+              ' · คำตัดสิน ' + num(summary.decisionCount);
+            tr.appendChild(summaryCell);
+
+            var actionCell = document.createElement('td');
+            var remove = document.createElement('button');
+            remove.type = 'button';
+            remove.className = 'ghost danger';
+            remove.textContent = 'ลบ';
+            remove.setAttribute('aria-label', 'ลบสถานะที่บันทึกเมื่อ ' + shortTime(snapshot.createdAt));
+            remove.addEventListener('click', function () {
+              removeSnapshot(snapshot.id, remove);
+            });
+            actionCell.appendChild(remove);
+            tr.appendChild(actionCell);
+            el.snapshotBody.appendChild(tr);
+          });
+        }
+
+        function renderFooter(data) {
+          var parts = [];
+          parts.push('อัปเดตล่าสุด ' + shortTime(data.generatedAt));
+          if (data.projectRoot) parts.push('โฟลเดอร์โปรเจกต์: ' + data.projectRoot);
+          if (data.pipeline && data.pipeline.meta) {
+            parts.push('โหมดข้อมูล: ' + text(data.pipeline.meta.dataMode, '—'));
+            if (data.pipeline.meta.synthetic) parts.push('ข้อมูลสังเคราะห์');
+          }
+          if (data.pipeline && data.pipeline.errors && data.pipeline.errors.length) {
+            parts.push('ข้อผิดพลาด ' + data.pipeline.errors.length + ' รายการ');
+          }
+          el.footer.textContent = parts.join(' · ');
+        }
+
+        function render() {
+          if (!state) return;
+          renderService(state.service || {});
+          renderKpis(state);
+          renderStages(state.pipeline || {});
+          renderImport(state.pipeline || {});
+          renderFreshness(state.pipeline || {});
+          renderBoundaries(state.pipeline || {});
+          renderCandidates();
+          renderContents();
+          renderGovernance();
+          renderFooter(state);
+        }
+
+        function showError(message) {
+          el.errorBanner.hidden = false;
+          el.errorBanner.textContent = message;
+        }
+
+        function clearError() {
+          el.errorBanner.hidden = true;
+          el.errorBanner.textContent = '';
+        }
+
+        function loadStatus() {
+          el.refresh.disabled = true;
+          el.refresh.textContent = 'กำลังโหลด…';
+          return fetch('/api/status', { headers: { accept: 'application/json' } })
+            .then(function (response) {
+              if (!response.ok) throw new Error('HTTP ' + response.status);
+              return response.json();
+            })
+            .then(function (data) {
+              state = data;
+              clearError();
+              render();
+            })
+            .catch(function (error) {
+              showError('โหลดสถานะไม่สำเร็จ: ' + (error && error.message ? error.message : String(error)));
+            })
+            .finally(function () {
+              el.refresh.disabled = false;
+              el.refresh.textContent = 'รีเฟรชสถานะ';
+            });
+        }
+
+        function loadSnapshots() {
+          return fetch('/api/snapshots', { headers: { accept: 'application/json' } })
+            .then(function (response) {
+              return response.json();
+            })
+            .then(function (data) {
+              snapshotRows = Array.isArray(data.snapshots) ? data.snapshots : [];
+              renderSnapshots();
+            })
+            .catch(function () {
+              snapshotRows = [];
+              renderSnapshots();
+            });
+        }
+
+        function createSnapshot() {
+          el.snapshotButton.disabled = true;
+          el.snapshotButton.textContent = 'กำลังบันทึก…';
+          fetch('/api/snapshots', {
+            method: 'POST',
+            headers: { 'content-type': 'application/json' },
+            body: JSON.stringify({ note: el.snapshotNote.value })
+          })
+            .then(function (response) {
+              if (!response.ok) throw new Error('HTTP ' + response.status);
+              return response.json();
+            })
+            .then(function (data) {
+              snapshotRows = Array.isArray(data.snapshots) ? data.snapshots : snapshotRows;
+              el.snapshotNote.value = '';
+              renderSnapshots();
+            })
+            .catch(function (error) {
+              showError('บันทึกสถานะไม่สำเร็จ: ' + (error && error.message ? error.message : String(error)));
+            })
+            .finally(function () {
+              el.snapshotButton.disabled = false;
+              el.snapshotButton.textContent = 'บันทึกสถานะปัจจุบัน';
+            });
+        }
+
+        function removeSnapshot(id, button) {
+          button.disabled = true;
+          fetch('/api/snapshots/' + encodeURIComponent(id), { method: 'DELETE' })
+            .then(function (response) {
+              if (!response.ok) throw new Error('HTTP ' + response.status);
+              return response.json();
+            })
+            .then(function (data) {
+              snapshotRows = Array.isArray(data.snapshots) ? data.snapshots : [];
+              renderSnapshots();
+            })
+            .catch(function (error) {
+              button.disabled = false;
+              showError('ลบสถานะไม่สำเร็จ: ' + (error && error.message ? error.message : String(error)));
+            });
+        }
+
+        function loadSettings() {
+          fetch('/api/settings', { headers: { accept: 'application/json' } })
+            .then(function (response) {
+              return response.json();
+            })
+            .then(function (data) {
+              var settings = data.settings || {};
+              el.projectRoot.value = settings.projectRoot || data.projectRootDetected || '';
+              el.acePort.value = settings.acePort || '4173';
+              el.aceHost.value = settings.aceHost || '127.0.0.1';
+            })
+            .catch(function () {
+              /* settings are optional */
+            });
+        }
+
+        function saveSettings(event) {
+          event.preventDefault();
+          var port = parseInt(el.acePort.value, 10);
+          fetch('/api/settings', {
+            method: 'POST',
+            headers: { 'content-type': 'application/json' },
+            body: JSON.stringify({
+              projectRoot: el.projectRoot.value.trim(),
+              acePort: isNaN(port) ? 4173 : port,
+              aceHost: el.aceHost.value.trim()
+            })
+          })
+            .then(function (response) {
+              if (!response.ok) throw new Error('HTTP ' + response.status);
+              return response.json();
+            })
+            .then(function () {
+              el.settingsStatus.textContent = 'บันทึกแล้ว';
+              return loadStatus();
+            })
+            .catch(function (error) {
+              el.settingsStatus.textContent = 'บันทึกไม่สำเร็จ: ' + (error && error.message ? error.message : String(error));
+            });
+        }
+
+        document.getElementById('refresh-button').addEventListener('click', function () {
+          loadStatus();
+        });
+        el.candidateSearch.addEventListener('input', renderCandidates);
+        el.candidateStatus.addEventListener('change', renderCandidates);
+        el.snapshotButton.addEventListener('click', createSnapshot);
+        el.settingsForm.addEventListener('submit', saveSettings);
+        el.themeButton.addEventListener('click', cycleTheme);
+        applyTheme('system');
+
+        var tabButtons = Array.prototype.slice.call(document.querySelectorAll('[role="tab"]'));
+        tabButtons.forEach(function (button) {
+          button.addEventListener('click', function () {
+            setTab(button.id.replace('tab-', ''));
+          });
+          button.addEventListener('keydown', function (event) {
+            var index = tabButtons.indexOf(button);
+            var next = null;
+            if (event.key === 'ArrowRight') next = tabButtons[(index + 1) % tabButtons.length];
+            if (event.key === 'ArrowLeft') next = tabButtons[(index - 1 + tabButtons.length) % tabButtons.length];
+            if (next) {
+              event.preventDefault();
+              next.focus();
+              setTab(next.id.replace('tab-', ''));
+            }
+          });
+        });
+
+        document.addEventListener('visibilitychange', function () {
+          if (document.visibilityState === 'hidden') {
+            try {
+              sessionStorage.setItem('ace.board.tab', activeTab);
+            } catch (error) {
+              /* local view preference is optional */
+            }
+            persistViewState(activeTab);
+          }
+        });
+
+        var savedTab = 'overview';
+        try {
+          savedTab = sessionStorage.getItem('ace.board.tab') || 'overview';
+        } catch (error) {
+          savedTab = 'overview';
+        }
+        setTab(savedTab);
+        restoreViewState();
+        loadSettings();
+        loadSnapshots();
+        loadStatus();
+      })();
+    </script>
+  </body>
+</html>

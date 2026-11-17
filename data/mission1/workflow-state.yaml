@@ -1,0 +1,20 @@
+# Mission 1 — workflow state (single file, authoritative UI/workflow state)
+# Schema: docs/mission1/D-data-model.md §3.10
+# Status values: NOT_STARTED / IN_PROGRESS / DRAFT_DONE / AWAITING_GX /
+#                HALTED_QUOTA / HALTED_FAILURE / COMPLETED
+current_cycle: 1
+current_stage: S1
+stage_status: NOT_STARTED
+pending_action: "Read-only channel eligibility checks, then ACCESSTRADE TH application (THB 0), then Stage 1 sourcing"
+last_updated: 2026-10-19T06:38:56Z
+
+# --- Recording continuity ---
+# Recording resumed 2026-10-29T14:05:54Z under DEC-1-4 (append-only record in decision-log.md).
+# The current_stage / stage_status / last_updated values above are LEFT AT THEIR 2026-10-19 VALUES
+# ON PURPOSE: no owner-confirmed stage assessment exists for the intervening period, so this note
+# asserts no transition and fabricates no event.
+# Known inconsistency, recorded but NOT corrected here: three Opportunity briefs exist in
+# data/mission1/ (OPP-1-1 selected), which are Stage 1 outputs, while stage_status still reads
+# NOT_STARTED. pending_action also still names the ACCESSTRADE TH application; the owner reported
+# on 2026-10-29 that Shopee Affiliate is approved with Shopee Video as the channel, which is not
+# yet recorded as Evidence. Update these fields only after that assessment is recorded.
