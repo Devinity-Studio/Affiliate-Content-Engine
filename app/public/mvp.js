@@ -831,21 +831,11 @@ async function easyProduce() {
   try {
     // Easy keeps a production preset even when the operator never picked one.
     candidate.preset = candidate.preset || 'product-hero';
-    showToast('⚡ ผลิตเลย (1/2): AI เขียนคอนเทนต์…', 'info');
-    await openContentDraft(candidate.id);
-    if (!lastDraft) {
-      showToast('ผลิตไม่สำเร็จ — ตรวจ API Key/Provider ใน Settings แล้วลองใหม่', 'error');
-      return;
-    }
-    showToast('⚡ ผลิตเลย (2/2): เรนเดอร์ MP4 + เสียงพากย์ไทย…', 'info');
-    await renderPreviewClip();
-    const index = contentLibrary.indexOf(ensureLibraryItemForCandidate(candidate));
-    if (index === -1) {
-      showToast('ผลิตเสร็จ แต่ไม่พบรายการใน Content Library — เปิดคลังเพื่อตรวจด้วยมือ', 'warning');
-      return;
-    }
-    showToast('⚡ ผลิตเสร็จ — เปิดจอตรวจ Full Screen ให้เลย', 'success');
-    openQcOverlay(index);
+    // Ensure a plan exists, then go straight to the Plan stage.
+    ensurePlan(candidate);
+    savePoolState();
+    showToast('⚡ ผลิตเลย — เข้าสู่ขั้นตอน Plan แล้ว', 'info');
+    switchStage('plan');
   } finally {
     if (btn) { btn.disabled = false; btn.textContent = '⚡ ผลิตเลย'; }
   }
@@ -5432,7 +5422,10 @@ function bindStudioShell() {
     draft.addEventListener('click', function() {
       var c = currentCandidate();
       if (!c) { showToast('เลือกสินค้าก่อนสร้าง Content', 'warning'); return; }
-      openContentDraft(c.id);
+      ensurePlan(c);
+      savePoolState();
+      showToast('เข้าสู่ขั้นตอน Plan — กำหนดแผนคอนเทนต์', 'info');
+      switchStage('plan');
     });
   }
 
@@ -6625,12 +6618,27 @@ function renderPlanStage() {
   if (!candidate) { renderPlanActor(); return; }
 
   const plan = candidate.plan;
-  const set = function(id, value) { const el = document.getElementById(id); if (el) el.value = value == null ? '' : value; };
-  set('plan-synopsis', plan.synopsis);
-  set('plan-content-type', plan.contentType || 'live_action');
-  set('plan-shot', plan.shotFormat);
-  set('plan-lighting', plan.lighting);
-  set('plan-composition', plan.composition);
+  document.getElementById('plan-synopsis').value = plan.synopsis || '';
+
+  renderChipGroup('plan-content-type-group', plan.contentType || 'live_action',
+    ['live_action', 'motion_graphic', 'still'],
+    { live_action: 'Live action', motion_graphic: 'Motion Graphic', still: 'ภาพนิ่ง' });
+  renderChipGroup('plan-shot-group', plan.shotFormat || PLAN_SHOT_FORMATS[0],
+    PLAN_SHOT_FORMATS, null);
+  renderChipGroup('plan-lighting-group', plan.lighting || PLAN_LIGHTING[1],
+    PLAN_LIGHTING, null);
+  renderChipGroup('plan-composition-group', plan.composition || PLAN_COMPOSITIONS[0],
+    PLAN_COMPOSITIONS, null);
+  const selectedChannels = plan.channels || ['shopee_video'];
+  renderChannelChips(selectedChannels);
+
+  bindChipGroup('plan-content-type-group', function(val) { plan.contentType = val; renderPlanPreview(); });
+  bindChipGroup('plan-shot-group', function(val) { plan.shotFormat = val; renderPlanPreview(); });
+  bindChipGroup('plan-lighting-group', function(val) { plan.lighting = val; renderPlanPreview(); });
+  bindChipGroup('plan-composition-group', function(val) { plan.composition = val; renderPlanPreview(); });
+  bindChannelChips(function(channels) { plan.channels = channels; renderPlanPreview(); });
+
+  renderPlanPreview();
 
   const beatHost = document.getElementById('plan-beats');
   if (beatHost) {
@@ -6648,6 +6656,135 @@ function renderPlanStage() {
   }
 
   renderPlanActor();
+
+  const saveBtn = document.getElementById('plan-save');
+  if (saveBtn && !saveBtn.dataset.bound) {
+    saveBtn.dataset.bound = '1';
+    saveBtn.addEventListener('click', function() {
+      const p = readPlanForm();
+      if (p) showToast('บันทึกแผนแล้ว', 'success');
+    });
+  }
+
+  const sbBtn = document.getElementById('plan-to-storyboard');
+  if (sbBtn && !sbBtn.dataset.bound) {
+    sbBtn.dataset.bound = '1';
+    sbBtn.addEventListener('click', function() {
+      const p = readPlanForm();
+      if (!p) return;
+      generateBreakdown();
+    });
+  }
+
+  const breakdownBtn = document.getElementById('plan-breakdown');
+  if (breakdownBtn && !breakdownBtn.dataset.bound) {
+    breakdownBtn.dataset.bound = '1';
+    breakdownBtn.addEventListener('click', function() {
+      const p = readPlanForm();
+      if (!p) return;
+      generateBreakdown();
+    });
+  }
+}
+
+/* Render a group of clickable chips. labelsMap optional for custom labels. */
+function renderChipGroup(groupId, activeValue, values, labelsMap) {
+  const host = document.getElementById(groupId);
+  if (!host) return;
+  host.innerHTML = values.map(function(v) {
+    const label = (labelsMap && labelsMap[v]) ? labelsMap[v] : v;
+    const isActive = v === activeValue ? ' is-active' : '';
+    return '<button type="button" class="plan-chip' + isActive +
+      '" data-value="' + escapeHtml(v) + '">' + escapeHtml(label) + '</button>';
+  }).join('');
+}
+
+/* Render channel chips with multi-select. */
+function renderChannelChips(selectedChannels) {
+  const host = document.getElementById('plan-channels-group');
+  if (!host) return;
+  const allChannels = PUBLISH_CHANNELS.map(function(c) { return c.id; });
+  host.innerHTML = allChannels.map(function(ch) {
+    const info = PUBLISH_CHANNELS.find(function(c) { return c.id === ch; });
+    const isActive = selectedChannels.indexOf(ch) !== -1 ? ' is-active' : '';
+    return '<button type="button" class="plan-chip' + isActive +
+      '" data-channel="' + escapeHtml(ch) + '">' + escapeHtml(info ? info.label : ch) + '</button>';
+  }).join('');
+  const hint = document.getElementById('plan-channels-hint');
+  if (hint) hint.textContent = 'เลือกช่องทาง: ' + selectedChannels.map(function(c) {
+    const info = PUBLISH_CHANNELS.find(function(cc) { return cc.id === c; });
+    return info ? info.label : c;
+  }).join(', ');
+}
+
+/* Bind click handlers on a chip group (single select). */
+function bindChipGroup(groupId, onChange) {
+  const host = document.getElementById(groupId);
+  if (!host || host.dataset.bound === '1') return;
+  host.dataset.bound = '1';
+  host.addEventListener('click', function(e) {
+    const btn = e.target.closest('.plan-chip');
+    if (!btn) return;
+    host.querySelectorAll('.plan-chip').forEach(function(b) {
+      b.classList.toggle('is-active', b === btn);
+    });
+    onChange(btn.dataset.value);
+  });
+}
+
+/* Bind click handlers on channel chips (multi select). */
+function bindChannelChips(onChange) {
+  const host = document.getElementById('plan-channels-group');
+  if (!host || host.dataset.bound === '1') return;
+  host.dataset.bound = '1';
+  host.addEventListener('click', function(e) {
+    const btn = e.target.closest('.plan-chip');
+    if (!btn) return;
+    const ch = btn.dataset.channel;
+    btn.classList.toggle('is-active');
+    const active = [];
+    host.querySelectorAll('.plan-chip.is-active').forEach(function(b) {
+      active.push(b.dataset.channel);
+    });
+    if (!active.length) {
+      btn.classList.add('is-active');
+      active.push(ch);
+    }
+    onChange(active);
+  });
+}
+
+/* Render the plan preview box with visual + description. */
+function renderPlanPreview() {
+  const candidate = currentCandidate();
+  if (!candidate) return;
+  const plan = candidate.plan;
+  if (!plan) return;
+
+  const visual = document.getElementById('plan-preview-visual');
+  const desc = document.getElementById('plan-preview-desc');
+  if (!visual || !desc) return;
+
+  const typeLabel = { live_action: 'Live action', motion_graphic: 'Motion Graphic', still: 'ภาพนิ่ง' }[plan.contentType || 'live_action'];
+  const actor = plan.actorId ? actorById(plan.actorId) : null;
+
+  let icon = '🎬';
+  if (plan.contentType === 'motion_graphic') icon = '🎨';
+  if (plan.contentType === 'still') icon = '📷';
+  visual.innerHTML = icon + '<br><small>' + (plan.shotFormat || '—') + '</small>';
+
+  const channels = (plan.channels || ['shopee_video']).map(function(c) {
+    const info = PUBLISH_CHANNELS.find(function(cc) { return cc.id === c; });
+    return info ? info.label : c;
+  }).join(' · ');
+
+  desc.innerHTML =
+    '<strong>' + escapeHtml(typeLabel) + '</strong><br>' +
+    'ฉาก: ' + escapeHtml(plan.shotFormat || '—') + ' · แสง: ' + escapeHtml(plan.lighting || '—') + '<br>' +
+    'องค์ประกอบ: ' + escapeHtml(plan.composition || '—') + '<br>' +
+    'นักแสดง: ' + (actor ? escapeHtml(actor.name) : 'ไม่ระบุ') + '<br>' +
+    'ช่องทาง: ' + escapeHtml(channels) + '<br>' +
+    'Beats: ' + (plan.beats && plan.beats.length ? plan.beats.length : 0) + ' จังหวะ';
 }
 
 function renderPlanActor() {
@@ -6704,13 +6841,18 @@ function readPlanForm() {
   const candidate = currentCandidate();
   if (!candidate) return null;
   const plan = ensurePlan(candidate);
-  const val = function(id) { const el = document.getElementById(id); return el ? el.value : ''; };
 
-  plan.synopsis = val('plan-synopsis').trim();
-  plan.contentType = val('plan-content-type') || 'live_action';
-  plan.shotFormat = val('plan-shot');
-  plan.lighting = val('plan-lighting');
-  plan.composition = val('plan-composition');
+  plan.synopsis = (document.getElementById('plan-synopsis') || {}).value || '';
+  plan.synopsis = plan.synopsis.trim();
+
+  // Read from chip groups (single select)
+  plan.contentType = readActiveChip('plan-content-type-group') || 'live_action';
+  plan.shotFormat = readActiveChip('plan-shot-group') || PLAN_SHOT_FORMATS[0];
+  plan.lighting = readActiveChip('plan-lighting-group') || PLAN_LIGHTING[1];
+  plan.composition = readActiveChip('plan-composition-group') || PLAN_COMPOSITIONS[0];
+
+  // Read channels (multi select)
+  plan.channels = readActiveChannels('plan-channels-group') || ['shopee_video'];
 
   document.querySelectorAll('#plan-beats .plan-beat').forEach(function(row, index) {
     const beat = plan.beats[index];
@@ -6725,6 +6867,23 @@ function readPlanForm() {
 
   plan.updatedAt = Date.now();
   return plan;
+}
+
+/* Read the active (selected) chip value from a single-select chip group. */
+function readActiveChip(groupId) {
+  const host = document.getElementById(groupId);
+  if (!host) return null;
+  const active = host.querySelector('.plan-chip.is-active');
+  return active ? active.dataset.value : null;
+}
+
+/* Read all active (selected) channel chips from a multi-select chip group. */
+function readActiveChannels(groupId) {
+  const host = document.getElementById(groupId);
+  if (!host) return null;
+  const actives = host.querySelectorAll('.plan-chip.is-active');
+  if (!actives.length) return ['shopee_video'];
+  return Array.from(actives).map(function(b) { return b.dataset.channel; });
 }
 
 function savePlan(quiet) {
@@ -6795,7 +6954,13 @@ function renderStoryboardStage() {
 
   if (!candidate) { host.innerHTML = '<p class="muted small">เลือกงานในหน้า Research ก่อน</p>'; return; }
   if (!candidate.storyboard || !candidate.storyboard.length) {
-    host.innerHTML = '<p class="muted small">ยังไม่มี breakdown — กลับไปที่ Plan แล้วกด “แยกย่อยเป็น Breakdown”</p>';
+    host.innerHTML = '<p class="muted small">ยังไม่มี breakdown — กลับไปที่ Plan แล้วกด “สร้าง Storyboard”</p>' +
+      '<div class="sb-actions"><button type="button" class="btn btn-sm btn-outline" id="sb-back-to-plan">กลับไป Plan</button></div>';
+    const backBtn = document.getElementById('sb-back-to-plan');
+    if (backBtn && !backBtn.dataset.bound) {
+      backBtn.dataset.bound = '1';
+      backBtn.addEventListener('click', function() { switchStage('plan'); });
+    }
     return;
   }
 
@@ -6804,14 +6969,62 @@ function renderStoryboardStage() {
     'รูปแบบ: <b>' + escapeHtml(typeLabel) + '</b> · ' +
     (actor ? 'นักแสดง: <b>' + escapeHtml(actor.name) + '</b> (' + escapeHtml(actorTypeLabel(actor.type)) + ')' : 'ไม่ใช้นักแสดง') +
     ' · แสง: ' + escapeHtml(candidate.storyboard[0].lighting) + '</div>' +
-    candidate.storyboard.map(function(shot) {
-      return '<div class="sb-row">' +
+    candidate.storyboard.map(function(shot, index) {
+      return '<div class="sb-row" data-shot="' + index + '">' +
         '<span class="sb-time">' + sbTimecode(shot.start) + '<br>' + sbTimecode(shot.end) + '</span>' +
         '<span class="sb-shot">' + escapeHtml(shot.shotFormat) + '</span>' +
         '<span class="sb-meta">' + escapeHtml(shot.lighting) + '<br>' + escapeHtml(shot.composition) + '</span>' +
         '<span class="sb-action">' + escapeHtml(shot.action || '—') + '<small>' + escapeHtml(shot.beat || '') + '</small></span>' +
+        '<span class="sb-order">' +
+        '<button type="button" class="sb-move sb-move-up" data-shot="' + index + '" title="ขึ้นก่อน">▲</button>' +
+        '<button type="button" class="sb-move sb-move-down" data-shot="' + index + '" title="ลงหลัง">▼</button>' +
+        '</span>' +
         '</div>';
-    }).join('');
+    }).join('') +
+    '<div class="sb-actions">' +
+    '<button type="button" class="btn btn-sm btn-outline" id="sb-back-to-plan">กลับไป Plan</button>' +
+    '<button type="button" class="btn btn-sm btn-primary" id="sb-to-production">ส่งไป Production →</button>' +
+    '</div>';
+
+  // Bind reorder buttons
+  host.querySelectorAll('.sb-move-up').forEach(function(btn) {
+    if (btn.dataset.bound === '1') return;
+    btn.dataset.bound = '1';
+    btn.addEventListener('click', function() {
+      var idx = Number(btn.dataset.shot);
+      if (idx > 0) {
+        var shots = candidate.storyboard;
+        var tmp = shots[idx - 1]; shots[idx - 1] = shots[idx]; shots[idx] = tmp;
+        renderStoryboardStage();
+      }
+    });
+  });
+  host.querySelectorAll('.sb-move-down').forEach(function(btn) {
+    if (btn.dataset.bound === '1') return;
+    btn.dataset.bound = '1';
+    btn.addEventListener('click', function() {
+      var idx = Number(btn.dataset.shot);
+      if (idx < candidate.storyboard.length - 1) {
+        var shots = candidate.storyboard;
+        var tmp = shots[idx + 1]; shots[idx + 1] = shots[idx]; shots[idx] = tmp;
+        renderStoryboardStage();
+      }
+    });
+  });
+
+  const backBtn = document.getElementById('sb-back-to-plan');
+  if (backBtn && !backBtn.dataset.bound) {
+    backBtn.dataset.bound = '1';
+    backBtn.addEventListener('click', function() { switchStage('plan'); });
+  }
+
+  const toProdBtn = document.getElementById('sb-to-production');
+  if (toProdBtn && !toProdBtn.dataset.bound) {
+    toProdBtn.dataset.bound = '1';
+    toProdBtn.addEventListener('click', function() {
+      switchStage('production');
+    });
+  }
 }
 
 // ----- Production summary (downstream of storyboard) -----
@@ -6839,16 +7052,38 @@ function renderProductionStage() {
     '<li>แสง: ' + escapeHtml(plan.lighting) + ' · องค์ประกอบ: ' + escapeHtml(plan.composition) + '</li>' +
     '<li>รูปแบบ: ' + escapeHtml({ live_action: 'Live action', motion_graphic: 'Motion Graphic', still: 'ภาพนิ่ง' }[plan.contentType || 'live_action']) + '</li>' +
     '<li>นักแสดง: ' + (actor ? escapeHtml(actor.name) + ' (' + escapeHtml(actorTypeLabel(actor.type)) + ')' : 'ไม่ใช้นักแสดง') + '</li>' +
+    '<li>ช่องทาง: ' + (plan.channels ? plan.channels.map(function(c) {
+      var info = PUBLISH_CHANNELS.find(function(cc) { return cc.id === c; });
+      return info ? info.label : c;
+    }).join(' · ') : 'Shopee Video') + '</li>' +
     '</ul></div>' +
     '<div class="prod-actions">' +
     '<button type="button" class="btn btn-sm btn-outline" id="prod-open-plan">แก้ไข Plan</button>' +
     '<button type="button" class="btn btn-sm btn-ghost" id="prod-open-sb">ดู Storyboard</button>' +
+    '<button type="button" class="btn btn-sm btn-primary" id="prod-produce">ผลิตคอนเทนต์</button>' +
     '</div>';
 
   const toPlan = document.getElementById('prod-open-plan');
   if (toPlan) toPlan.addEventListener('click', function() { switchStage('plan'); });
   const toSb = document.getElementById('prod-open-sb');
   if (toSb) toSb.addEventListener('click', function() { switchStage('storyboard'); });
+  const produceBtn = document.getElementById('prod-produce');
+  if (produceBtn && !produceBtn.dataset.bound) {
+    produceBtn.dataset.bound = '1';
+    produceBtn.addEventListener('click', function() {
+      showToast('ส่งเข้า Production pipeline — กำลังเตรียมไฟล์สำหรับผลิตคอนเทนต์ "' + escapeHtml(candidate.name) + '"', 'info');
+      // Mark candidate as production-ready
+      candidate.productionReady = true;
+      candidate.productionPlan = {
+        plan: plan,
+        storyboard: candidate.storyboard || [],
+        channels: plan.channels || ['shopee_video'],
+        readyAt: new Date().toISOString()
+      };
+      savePoolState();
+      showToast('พร้อมส่งผลิตแล้ว — คอนเทนต์ถูกจัดคิวเข้าระบบผลิต', 'success');
+    });
+  }
 }
 
 function bindPlanStages() {
@@ -6862,16 +7097,6 @@ function bindPlanStages() {
   if (breakdown && breakdown.dataset.bound !== '1') {
     breakdown.dataset.bound = '1';
     breakdown.addEventListener('click', generateBreakdown);
-  }
-
-  const contentType = document.getElementById('plan-content-type');
-  if (contentType && contentType.dataset.bound !== '1') {
-    contentType.dataset.bound = '1';
-    contentType.addEventListener('change', function() {
-      const candidate = currentCandidate();
-      if (candidate && candidate.plan) candidate.plan.contentType = contentType.value;
-      renderPlanActor();
-    });
   }
 
   const synopsis = document.getElementById('plan-synopsis');

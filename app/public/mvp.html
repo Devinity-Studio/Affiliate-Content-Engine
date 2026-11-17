@@ -5148,6 +5148,78 @@ textarea {
 
 .plan-beat-times input { width: 70px; margin-left: 4px; }
 
+/* Plan format chips */
+.plan-chip-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 4px;
+}
+.plan-chip {
+  font-family: var(--sans);
+  font-size: 11.5px;
+  padding: 6px 10px;
+  border: 1px solid var(--tree-line);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--tree-text);
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.plan-chip:hover {
+  border-color: var(--green-line);
+  background: rgba(30, 95, 73, 0.1);
+}
+.plan-chip.is-active {
+  background: var(--green);
+  color: #fff;
+  border-color: var(--green-line);
+}
+.plan-chip-group .plan-chip:not(.is-active):hover {
+  background: rgba(30, 95, 73, 0.08);
+}
+
+/* Plan preview */
+.plan-preview {
+  margin: 14px 0;
+  padding: 12px;
+  border: 1px dashed #3a2a6b;
+  border-radius: 10px;
+  background: rgba(16, 12, 34, 0.6);
+}
+.plan-preview-box {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+}
+.plan-preview-visual {
+  width: 120px;
+  height: 90px;
+  border: 1px solid var(--tree-line);
+  border-radius: 8px;
+  background: #0b100d;
+  display: grid;
+  place-items: center;
+  color: var(--tree-mute);
+  font-size: 10px;
+  font-family: var(--mono);
+}
+.plan-preview-desc {
+  flex: 1;
+  font-size: 11.5px;
+  color: var(--tree-text);
+  line-height: 1.5;
+}
+.plan-preview-desc strong { color: var(--green); }
+
+/* Plan actions */
+.plan-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 12px;
+}
+.plan-actions .btn { flex: 1; }
+
 .sb-actor {
   font-size: 11px;
   color: var(--ink-mute);
@@ -5171,6 +5243,37 @@ textarea {
 .sb-shot { color: #f2edff; font-weight: 600; }
 .sb-meta { font-size: 10px; color: var(--ink-mute); }
 .sb-action small { display: block; color: var(--ink-mute); font-size: 9.5px; margin-top: 2px; }
+
+.sb-order {
+  display: flex;
+  gap: 4px;
+  font-size: 10px;
+  color: var(--tree-mute);
+}
+.sb-move {
+  width: 22px;
+  height: 22px;
+  border: 1px solid var(--tree-line);
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--tree-text);
+  cursor: pointer;
+  font-size: 11px;
+  line-height: 1;
+  display: grid;
+  place-items: center;
+}
+.sb-move:hover { border-color: var(--green-line); background: rgba(30, 95, 73, 0.1); }
+.sb-move:disabled { opacity: 0.4; cursor: not-allowed; }
+
+.sb-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 12px;
+  padding-top: 10px;
+  border-top: 1px solid var(--tree-line);
+}
+.sb-actions .btn { flex: 1; }
 
 .prod-summary { display: flex; flex-direction: column; gap: 6px; }
 .prod-facts { margin: 0; padding-left: 18px; font-size: 11.5px; color: var(--ink-soft); }
@@ -6965,24 +7068,92 @@ textarea::placeholder {
         <section class="studio-panel hidden" id="plan-stage">
           <div class="studio-panel-head">
             <p class="studio-panel-title">Plan — แผนคอนเทนต์ <small id="plan-work">—</small></p>
-            <button type="button" id="plan-breakdown" class="chip-btn accent">แยกย่อยเป็น Breakdown →</button>
+            <button type="button" id="plan-breakdown" class="chip-btn accent">สร้าง Storyboard →</button>
           </div>
           <div id="plan-empty" class="muted small">เลือกงานในหน้า Research ก่อน</div>
           <div id="plan-form" class="hidden">
             <div class="plan-grid">
               <label class="plan-field plan-field-wide"><span>เรื่องย่อ</span><textarea id="plan-synopsis" rows="3" placeholder="เล่าเรื่อง 2–3 ประโยค: เปิดปัญหา → สาธิต → ปิดด้วยลิงก์"></textarea></label>
-              <label class="plan-field"><span>รูปแบบคอนเทนต์</span><select id="plan-content-type"><option value="live_action">Live action — มีนักแสดง</option><option value="motion_graphic">Motion Graphic — ไม่ต้องมีนักแสดง</option><option value="still">ภาพนิ่ง / สไลด์สินค้า</option></select></label>
-              <label class="plan-field"><span>รูปแบบฉาก</span><select id="plan-shot"><option>Medium shot</option><option>Wide shot</option><option>Close-up</option><option>Top-down flat lay</option><option>Handheld POV</option></select></label>
-              <label class="plan-field"><span>แสง</span><select id="plan-lighting"><option>Soft daylight</option><option>Studio key + fill</option><option>Warm practical light</option><option>Neon accent</option><option>Ring light</option></select></label>
-              <label class="plan-field"><span>องค์ประกอบ</span><select id="plan-composition"><option>Center hero</option><option>Rule of thirds</option><option>Product in hand</option><option>Split screen</option><option>Text-safe left</option></select></label>
+
+              <!-- Content type: clickable chips -->
+              <div class="plan-field">
+                <span>รูปแบบคอนเทนต์</span>
+                <div class="plan-chip-group" id="plan-content-type-group">
+                  <button type="button" class="plan-chip is-active" data-value="live_action" title="มีนักแสดง แสง ฉากจริง">Live action</button>
+                  <button type="button" class="plan-chip" data-value="motion_graphic" title="กราฟิกเคลื่อนไหว ไม่ต้องมีนักแสดง">Motion Graphic</button>
+                  <button type="button" class="plan-chip" data-value="still" title="ภาพนิ่ง / สไลด์สินค้า">ภาพนิ่ง</button>
+                </div>
+              </div>
+
+              <!-- Shot format: clickable chips -->
+              <div class="plan-field">
+                <span>รูปแบบฉาก</span>
+                <div class="plan-chip-group" id="plan-shot-group">
+                  <button type="button" class="plan-chip is-active" data-value="Medium shot">Medium shot</button>
+                  <button type="button" class="plan-chip" data-value="Wide shot">Wide shot</button>
+                  <button type="button" class="plan-chip" data-value="Close-up">Close-up</button>
+                  <button type="button" class="plan-chip" data-value="Top-down flat lay">Top-down</button>
+                  <button type="button" class="plan-chip" data-value="Handheld POV">Handheld POV</button>
+                </div>
+              </div>
+
+              <!-- Lighting: clickable chips -->
+              <div class="plan-field">
+                <span>แสง</span>
+                <div class="plan-chip-group" id="plan-lighting-group">
+                  <button type="button" class="plan-chip" data-value="Soft daylight">Soft daylight</button>
+                  <button type="button" class="plan-chip is-active" data-value="Studio key + fill">Studio key + fill</button>
+                  <button type="button" class="plan-chip" data-value="Warm practical light">Warm practical</button>
+                  <button type="button" class="plan-chip" data-value="Neon accent">Neon accent</button>
+                  <button type="button" class="plan-chip" data-value="Ring light">Ring light</button>
+                </div>
+              </div>
+
+              <!-- Composition: clickable chips -->
+              <div class="plan-field">
+                <span>องค์ประกอบ</span>
+                <div class="plan-chip-group" id="plan-composition-group">
+                  <button type="button" class="plan-chip is-active" data-value="Center hero">Center hero</button>
+                  <button type="button" class="plan-chip" data-value="Rule of thirds">Rule of thirds</button>
+                  <button type="button" class="plan-chip" data-value="Product in hand">Product in hand</button>
+                  <button type="button" class="plan-chip" data-value="Split screen">Split screen</button>
+                  <button type="button" class="plan-chip" data-value="Text-safe left">Text-safe left</button>
+                </div>
+              </div>
+
+              <!-- Distribution channels -->
+              <div class="plan-field plan-field-wide">
+                <span>ช่องทางเผยแพร่</span>
+                <div class="plan-chip-group" id="plan-channels-group">
+                  <button type="button" class="plan-chip is-active" data-channel="shopee_video">Shopee Video</button>
+                  <button type="button" class="plan-chip" data-channel="tiktok">TikTok</button>
+                  <button type="button" class="plan-chip" data-channel="facebook">Facebook</button>
+                  <button type="button" class="plan-chip" data-channel="x">X (Twitter)</button>
+                  <button type="button" class="plan-chip" data-channel="youtube">YouTube</button>
+                </div>
+                <p class="muted small" id="plan-channels-hint">เลือกช่องทางที่จะโพสต์คอนเทนต์นี้</p>
+              </div>
             </div>
+
+            <!-- Preview pane -->
+            <div class="plan-preview">
+              <p class="field-label">พรีวิวรูปแบบ</p>
+              <div id="plan-preview-box" class="plan-preview-box">
+                <div id="plan-preview-visual" class="plan-preview-visual"></div>
+                <div id="plan-preview-desc" class="plan-preview-desc"></div>
+              </div>
+            </div>
+
             <div class="plan-actor-box">
               <p class="field-label">นักแสดง (Actor Studio)</p>
               <div id="plan-actor"></div>
             </div>
             <p class="field-label">จังหวะเวลา (beats)</p>
             <div id="plan-beats"></div>
-            <button type="button" id="plan-save" class="btn btn-sm btn-outline">บันทึกแผน</button>
+            <div class="plan-actions">
+              <button type="button" id="plan-save" class="btn btn-sm btn-outline">บันทึกแผน</button>
+              <button type="button" id="plan-to-storyboard" class="btn btn-sm btn-primary">ไปยัง Storyboard</button>
+            </div>
           </div>
         </section>
 
